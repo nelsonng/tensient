@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
+import { eq } from "drizzle-orm";
 import { protocols } from "./schema";
 
 async function seed() {
@@ -55,8 +56,18 @@ async function seed() {
 
   console.log("Seeding protocols...");
   for (const protocol of defaultProtocols) {
-    await db.insert(protocols).values(protocol);
-    console.log(`  ✓ ${protocol.name}`);
+    const [existing] = await db
+      .select({ id: protocols.id })
+      .from(protocols)
+      .where(eq(protocols.name, protocol.name))
+      .limit(1);
+
+    if (!existing) {
+      await db.insert(protocols).values(protocol);
+      console.log(`  + ${protocol.name}`);
+    } else {
+      console.log(`  = ${protocol.name} (already exists)`);
+    }
   }
   console.log("Seed complete.");
 }
