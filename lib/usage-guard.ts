@@ -1,10 +1,6 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq, sql, and, gte } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { users, usageLogs } from "@/lib/db/schema";
-
-const sqlFn = neon(process.env.DATABASE_URL!);
-const db = drizzle(sqlFn);
 
 export interface UsageCheckResult {
   allowed: boolean;

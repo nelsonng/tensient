@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { db } from "@/lib/db";
 import { users, organizations, workspaces, memberships } from "@/lib/db/schema";
 import { nanoid } from "@/lib/utils";
 import { checkSignupAllowed } from "@/lib/usage-guard";
-
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
 
 export async function POST(request: Request) {
   try {

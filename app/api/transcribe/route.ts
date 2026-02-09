@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { put } from "@vercel/blob";
 import { getGroq } from "@/lib/groq";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -46,13 +47,13 @@ export async function POST(request: Request) {
     const pathname = `audio/${workspaceId}/${timestamp}.webm`;
 
     const blob = await put(pathname, audioFile, {
-      access: "public",
+      access: "public", // TODO: migrate to token-protected access when Vercel Blob supports it
       contentType: audioFile.type || "audio/webm;codecs=opus",
     });
 
     audioUrl = blob.url;
   } catch (uploadError) {
-    console.error("Audio upload failed:", uploadError);
+    logger.error("Audio upload failed", { error: String(uploadError) });
     return NextResponse.json(
       { error: "Audio upload failed. Please try again.", text: null, audioUrl: null },
       { status: 500 }
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
       text = text.trim();
     }
   } catch (transcribeError) {
-    console.error("Transcription failed (audio is safe):", transcribeError);
+    logger.error("Transcription failed (audio is safe)", { error: String(transcribeError) });
     // Don't fail the request -- audio is already saved
   }
 

@@ -1,12 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
-import { memberships, workspaces } from "@/lib/db/schema";
-
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
+import { db } from "@/lib/db";
+import { memberships } from "@/lib/db/schema";
 
 export default async function DashboardPage() {
   const session = await auth();

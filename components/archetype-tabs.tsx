@@ -7,10 +7,14 @@ import { MonoLabel } from "@/components/mono-label";
 interface Archetype {
   id: string;
   label: string;
+  name: string;
+  initials: string;
+  timestamp: string;
   role: string;
   input: string;
   alignment: number;
   alignmentColor: string;
+  goalConnection: string;
   sentiment: number;
   sentimentColor: string;
   synthesis: string;
@@ -22,11 +26,15 @@ const archetypes: Archetype[] = [
   {
     id: "engineer",
     label: "THE JARGON ENGINEER",
+    name: "Marcus Thompson",
+    initials: "MT",
+    timestamp: "Fri 5:47 PM",
     role: "Senior Backend Engineer",
     input:
       "Refactored the FHIR R4 adapter to handle ADT A08 messages. Moved to bulk $export with NDJSON batching. Fixed the websocket race condition with SELECT FOR UPDATE on shift_id. Also started the AES-256 encryption migration for SOC2. PRs are up, need reviews.",
     alignment: 41,
     alignmentColor: "text-yellow-400",
+    goalConnection: "Ship next-gen staffing intelligence",
     sentiment: 0.1,
     sentimentColor: "text-muted",
     synthesis:
@@ -43,11 +51,15 @@ const archetypes: Archetype[] = [
   {
     id: "csm",
     label: "THE DROWNING CSM",
+    name: "Sam Okafor",
+    initials: "SO",
+    timestamp: "Wed 3:12 PM",
     role: "Customer Success Lead",
     input:
       "Memorial Health is in trouble, new CTO wants a bake-off and I can't get a meeting. Notification tickets still open after 2 weeks, escalated 3 times. Kaiser wants 15% discount on renewal. St. David's went dark. I have 22 accounts and 4 are on fire. I need help.",
     alignment: 34,
     alignmentColor: "text-red-400",
+    goalConnection: "Dominate top 20 health systems",
     sentiment: -0.6,
     sentimentColor: "text-red-400",
     synthesis:
@@ -64,11 +76,15 @@ const archetypes: Archetype[] = [
   {
     id: "underseller",
     label: "THE UNDERSELLER",
+    name: "Jordan Rivera",
+    initials: "JR",
+    timestamp: "Thu 11:00 AM",
     role: "Product Manager",
     input:
       "Had a bunch of customer calls this week I guess. Two CFOs said they'd pay for the compliance module. Also finished the product brief and got it approved. The pilot feedback is mostly positive but there are some edge cases with the discrepancy workflow. I'm juggling the SOC2 docs and the new product scope at the same time and it's a lot. Not sure everything is landing.",
     alignment: 68,
     alignmentColor: "text-primary",
+    goalConnection: "Launch compliance automation",
     sentiment: -0.1,
     sentimentColor: "text-yellow-400",
     synthesis:
@@ -111,9 +127,20 @@ export function ArchetypeTabs() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Before: Raw Input */}
         <PanelCard>
-          <div className="flex items-baseline justify-between mb-4">
-            <MonoLabel className="block text-muted">RAW UPDATE</MonoLabel>
-            <span className="font-mono text-xs text-muted">{active.role}</span>
+          <div className="flex items-start gap-3 mb-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-border">
+              <span className="font-mono text-sm font-bold text-foreground">
+                {active.initials}
+              </span>
+            </div>
+            <div>
+              <span className="font-body text-base font-bold text-foreground block">
+                {active.name}
+              </span>
+              <span className="font-mono text-xs text-muted">
+                {active.role} &middot; {active.timestamp}
+              </span>
+            </div>
           </div>
           <p className="font-body text-base leading-relaxed text-muted italic">
             &quot;{active.input}&quot;
@@ -127,10 +154,10 @@ export function ArchetypeTabs() {
           </MonoLabel>
 
           {/* Scores Row */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-2 gap-3 mb-2">
             <div className="text-center">
               <span className="font-mono text-xs text-muted block mb-1">
-                ALIGNMENT
+                GOAL ALIGNMENT
               </span>
               <span className={`font-mono text-xl font-bold ${active.alignmentColor}`}>
                 {active.alignment}%
@@ -145,6 +172,9 @@ export function ArchetypeTabs() {
               </span>
             </div>
           </div>
+          <p className="text-center font-mono text-xs text-muted mb-4">
+            vs &quot;{active.goalConnection}&quot;
+          </p>
 
           <div className="border-t border-border pt-3 mb-3">
             <span className="font-mono text-xs text-muted block mb-2">

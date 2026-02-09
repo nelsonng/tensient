@@ -40,5 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# cursor AI rules
+.cursor/
+
 # promptfood - brain dumps, not deployable code
 promptfood/

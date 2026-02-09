@@ -1,6 +1,5 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq, desc, sql as dsql } from "drizzle-orm";
+import { db } from "@/lib/db";
 import {
   captures,
   artifacts,
@@ -10,21 +9,7 @@ import {
   actions,
 } from "@/lib/db/schema";
 import { ai, DEFAULT_MODEL, generateEmbedding, calculateCostCents } from "@/lib/ai";
-
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0;
-  let magA = 0;
-  let magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] * a[i];
-    magB += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
-}
+import { cosineSimilarity } from "@/lib/utils";
 
 export interface CaptureResult {
   capture: {

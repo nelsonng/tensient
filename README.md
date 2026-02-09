@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tensient
 
-## Getting Started
+**Enterprise Traction Control** -- prevents organizational drift by turning unstructured team updates into aligned, measurable action.
 
-First, run the development server:
+Your team generates noise. Tensient extracts signal. Every thought is measured against your goals. Alignment scored. Drift surfaced. Actions extracted.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+**Live:** [tensient.com](https://tensient.com)
+
+---
+
+## How It Works
+
+1. **Managers set strategy** -- paste goals into the Genesis flow. AI extracts pillars, vectorizes them as the "Canon" (strategic truth).
+2. **Team members submit updates** -- text or voice. These are "Captures."
+3. **AI processes every Capture** -- multi-coach composite prompt scores alignment against the Canon, extracts action items, and provides coaching feedback.
+4. **Dashboard surfaces drift** -- alignment trends, team traction scores, streaks, weekly digests, and goal-linked actions.
+
+```
+Capture (voice/text)
+    |
+    v
+AI Processing (Gemini 3 Pro + embeddings)
+    |
+    +--> Artifact (drift score, sentiment, coaching)
+    +--> Actions (goal-linked, priority-ranked)
+    +--> Traction Score (rolling alignment average)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript (strict) |
+| Database | PostgreSQL (Neon) + pgvector |
+| ORM | Drizzle |
+| AI | Google Gemini 3 Pro |
+| Embeddings | gemini-embedding-001 (1536 dims) |
+| Auth | NextAuth v5 (JWT) |
+| Transcription | Groq Whisper |
+| Hosting | Vercel |
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Local Development
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# 1. Clone and install
+git clone https://github.com/nelsonng/tensient.git
+cd tensient
+npm install
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 2. Set up environment
+cp .env.example .env.local
+# Fill in your keys (see .env.example for required vars)
 
-## Deploy on Vercel
+# 3. Push schema to database
+npx drizzle-kit push
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# 4. (Optional) Seed demo data
+SEED_PASSWORD=your-password npx tsx lib/db/seed-demo.ts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# 5. Run
+npm run dev
+```
+
+---
+
+## Project Structure
+
+```
+app/
+  (auth)/           # Sign-in, sign-up pages
+  dashboard/        # Workspace dashboard (server + client components)
+  api/              # API routes (captures, strategy, actions, transcribe)
+lib/
+  db/               # Schema, migrations, seed scripts
+  services/         # Core business logic (process-capture, genesis-setup, generate-digest)
+  auth/             # Authorization helpers
+  ai.ts             # Gemini client
+  usage-guard.ts    # Cost controls (trial limits, daily caps, monthly budgets)
+components/         # Reusable UI components
+hooks/              # Custom React hooks (audio capture)
+```
+
+---
+
+## Cost Controls
+
+Every AI operation is gated by `checkUsageAllowed()` and logged by `logUsage()`:
+
+- **Kill switch**: `PLATFORM_LOCKED` halts all AI operations
+- **Trial limit**: 20 free operations per trial user
+- **Daily cap**: 50 operations/user/day
+- **Monthly budget**: $10/user/month
+- **Platform cap**: 100 users max
+
+---
+
+## License
+
+Proprietary. All rights reserved.

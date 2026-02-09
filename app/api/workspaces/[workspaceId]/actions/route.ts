@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { db } from "@/lib/db";
 import { actions } from "@/lib/db/schema";
-
-const sqlFn = neon(process.env.DATABASE_URL!);
-const db = drizzle(sqlFn);
+import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 
 export async function POST(
   request: Request,
@@ -17,6 +14,13 @@ export async function POST(
   }
 
   const { workspaceId } = await params;
+
+  // Verify workspace membership
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId);
+  if (!membership) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { title, description, priority, goalId } = await request.json();
 
   if (!title || title.trim().length < 2) {
@@ -26,18 +30,25 @@ export async function POST(
     );
   }
 
-  const [action] = await db
-    .insert(actions)
-    .values({
-      workspaceId,
-      userId: session.user.id,
-      title: title.trim(),
-      description: description?.trim() || null,
-      priority: priority || "medium",
-      goalId: goalId || null,
-      status: "open",
-    })
-    .returning();
+  try {
+    const [action] = await db
+      .insert(actions)
+      .values({
+        workspaceId,
+        userId: session.user.id,
+        title: title.trim(),
+        description: description?.trim() || null,
+        priority: priority || "medium",
+        goalId: goalId || null,
+        status: "open",
+      })
+      .returning();
 
-  return NextResponse.json(action);
+    return NextResponse.json(action);
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to create action" },
+      { status: 500 }
+    );
+  }
 }

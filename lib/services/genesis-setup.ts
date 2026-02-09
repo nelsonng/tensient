@@ -1,11 +1,7 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { canons, protocols, workspaces } from "@/lib/db/schema";
 import { ai, DEFAULT_MODEL, generateEmbedding, calculateCostCents } from "@/lib/ai";
-
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
 
 interface StrategyResult {
   canon: {

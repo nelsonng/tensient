@@ -8,3 +8,26 @@ export function nanoid(length: number = 12): string {
   }
   return result;
 }
+
+/**
+ * Cosine similarity between two vectors. Returns 0-1 for normalized vectors.
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+/**
+ * Format a date string to "Jan 5" style.
+ */
+export function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}

@@ -1,15 +1,12 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { protocols, workspaces } from "@/lib/db/schema";
+import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import Link from "next/link";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
-
-const sqlFn = neon(process.env.DATABASE_URL!);
-const db = drizzle(sqlFn);
 
 export default async function CoachesPage({
   params,
@@ -20,6 +17,9 @@ export default async function CoachesPage({
   if (!session?.user?.id) redirect("/sign-in");
 
   const { workspaceId } = await params;
+
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId);
+  if (!membership) redirect("/dashboard");
 
   const [workspace] = await db
     .select({

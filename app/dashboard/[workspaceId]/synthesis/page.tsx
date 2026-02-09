@@ -1,16 +1,13 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq, desc } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { artifacts, captures, users, workspaces } from "@/lib/db/schema";
+import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import Link from "next/link";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { StatusPill } from "@/components/status-pill";
-
-const sqlFn = neon(process.env.DATABASE_URL!);
-const db = drizzle(sqlFn);
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -36,6 +33,9 @@ export default async function SynthesisPage({
   if (!session?.user?.id) redirect("/sign-in");
 
   const { workspaceId } = await params;
+
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId);
+  if (!membership) redirect("/dashboard");
 
   const [workspace] = await db
     .select({ id: workspaces.id, name: workspaces.name })

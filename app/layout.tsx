@@ -49,6 +49,12 @@ export const metadata: Metadata = {
     siteName: "Tensient",
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "TENSIENT",
+    description:
+      "Your team generates noise. We extract signal. Every thought measured against your goals.",
+  },
 };
 
 export default function RootLayout({

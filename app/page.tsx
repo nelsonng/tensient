@@ -207,7 +207,8 @@ export default function Home() {
             AMBIENT ENTERPRISE TENSION
           </MonoLabel>
           <p className="mx-auto max-w-[500px] font-body text-lg leading-relaxed text-foreground mb-8">
-            Your team&apos;s alignment is eroding right now. Measure it.
+            Your team is already telling you everything you need to know. Start
+            listening.
           </p>
           <div className="flex justify-center gap-4">
             <SlantedButton size="lg" href="/sign-up">

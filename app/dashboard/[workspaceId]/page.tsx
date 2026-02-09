@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { eq, desc, sql as dsql } from "drizzle-orm";
+import { eq, desc, sql as dsql, gte, and } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import {
   canons,
   artifacts,
@@ -12,11 +12,26 @@ import {
   workspaces,
   protocols,
   actions,
+  digests,
 } from "@/lib/db/schema";
 import { DashboardClient } from "./dashboard-client";
 
-const sqlFn = neon(process.env.DATABASE_URL!);
-const db = drizzle(sqlFn);
+function getWeekStart(): Date {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + mondayOffset);
+  weekStart.setHours(0, 0, 0, 0);
+  return weekStart;
+}
+
+function formatWeekRange(weekStart: Date): string {
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  return `${weekStart.toLocaleDateString("en-US", opts)} - ${weekEnd.toLocaleDateString("en-US", opts)}, ${weekEnd.getFullYear()}`;
+}
 
 export default async function WorkspaceDashboard({
   params,
@@ -28,6 +43,10 @@ export default async function WorkspaceDashboard({
 
   const { workspaceId } = await params;
 
+  // Verify workspace membership
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId);
+  if (!membership) redirect("/dashboard");
+
   // Fetch workspace
   const [workspace] = await db
     .select()
@@ -37,16 +56,21 @@ export default async function WorkspaceDashboard({
 
   if (!workspace) redirect("/dashboard");
 
-  // Latest Canon
+  // Latest Canon -- explicit column selection to ensure JSONB fields return
   const [canon] = await db
-    .select()
+    .select({
+      id: canons.id,
+      content: canons.content,
+      healthScore: canons.healthScore,
+      healthAnalysis: canons.healthAnalysis,
+      createdAt: canons.createdAt,
+    })
     .from(canons)
     .where(eq(canons.workspaceId, workspaceId))
     .orderBy(desc(canons.createdAt))
     .limit(1);
 
-  // Check if this is a brand-new workspace (no canon AND no artifacts)
-  // If so, redirect to the welcome/onboarding flow
+  // Check if this is a brand-new workspace
   if (!canon) {
     const [anyArtifact] = await db
       .select({ id: artifacts.id })
@@ -60,23 +84,100 @@ export default async function WorkspaceDashboard({
     }
   }
 
-  // Recent artifacts (with captures for user info)
-  const recentArtifacts = await db
+  // ── Smart date window: current week, or fall back to latest activity ──
+
+  const currentWeekStart = getWeekStart();
+
+  // Quick check: does this week have any data?
+  const [currentWeekCheck] = await db
+    .select({ count: dsql<number>`count(*)` })
+    .from(captures)
+    .where(
+      and(
+        eq(captures.workspaceId, workspaceId),
+        gte(captures.createdAt, currentWeekStart)
+      )
+    );
+
+  let windowStart = currentWeekStart;
+  let isCurrentWeek = true;
+
+  if (Number(currentWeekCheck?.count ?? 0) === 0) {
+    // Fall back to the week containing the most recent activity
+    const [latestCapture] = await db
+      .select({ createdAt: captures.createdAt })
+      .from(captures)
+      .where(eq(captures.workspaceId, workspaceId))
+      .orderBy(desc(captures.createdAt))
+      .limit(1);
+
+    if (latestCapture) {
+      const latestDate = latestCapture.createdAt;
+      const day = latestDate.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      windowStart = new Date(latestDate);
+      windowStart.setDate(latestDate.getDate() + mondayOffset);
+      windowStart.setHours(0, 0, 0, 0);
+      isCurrentWeek = false;
+    }
+  }
+
+  const windowLabel = formatWeekRange(windowStart);
+
+  // ── Window-scoped queries ─────────────────────────────────────────────
+
+  // Thoughts in window
+  const [thoughtsInWindow] = await db
     .select({
-      artifactId: artifacts.id,
-      driftScore: artifacts.driftScore,
-      sentimentScore: artifacts.sentimentScore,
-      content: artifacts.content,
-      actionItems: artifacts.actionItems,
-      createdAt: artifacts.createdAt,
-      captureContent: captures.content,
-      userId: captures.userId,
+      count: dsql<number>`count(*)`,
+    })
+    .from(captures)
+    .where(
+      and(
+        eq(captures.workspaceId, workspaceId),
+        gte(captures.createdAt, windowStart)
+      )
+    );
+
+  // Synthesis in window
+  const [synthesisInWindow] = await db
+    .select({
+      count: dsql<number>`count(*)`,
+      avgAlignment: dsql<number>`avg(1 - coalesce(${artifacts.driftScore}, 0.5))`,
     })
     .from(artifacts)
     .innerJoin(captures, eq(artifacts.captureId, captures.id))
-    .where(eq(captures.workspaceId, workspaceId))
-    .orderBy(desc(artifacts.createdAt))
-    .limit(10);
+    .where(
+      and(
+        eq(captures.workspaceId, workspaceId),
+        gte(artifacts.createdAt, windowStart)
+      )
+    );
+
+  // Actions in window
+  const [actionsInWindow] = await db
+    .select({
+      newCount: dsql<number>`count(*) filter (where ${actions.createdAt} >= ${windowStart.toISOString()})`,
+      completedCount: dsql<number>`count(*) filter (where ${actions.status} = 'done' and ${actions.updatedAt} >= ${windowStart.toISOString()})`,
+      blockedCount: dsql<number>`count(*) filter (where ${actions.status} = 'blocked')`,
+      openCount: dsql<number>`count(*) filter (where ${actions.status} in ('open', 'in_progress', 'blocked'))`,
+      unlinkedCount: dsql<number>`count(*) filter (where ${actions.goalId} is null and ${actions.status} in ('open', 'in_progress', 'blocked'))`,
+    })
+    .from(actions)
+    .where(eq(actions.workspaceId, workspaceId));
+
+  // Active team members in window
+  const [activeTeamInWindow] = await db
+    .select({
+      count: dsql<number>`count(distinct ${captures.userId})`,
+    })
+    .from(captures)
+    .where(
+      and(
+        eq(captures.workspaceId, workspaceId),
+        gte(captures.createdAt, windowStart)
+      )
+    );
 
   // Team memberships with user info
   const teamMembers = await db
@@ -95,7 +196,7 @@ export default async function WorkspaceDashboard({
     .where(eq(memberships.workspaceId, workspaceId))
     .orderBy(desc(memberships.tractionScore));
 
-  // Get drift trend (last 20 artifacts)
+  // Alignment trend (last 20 artifacts)
   const driftTrend = await db
     .select({
       driftScore: artifacts.driftScore,
@@ -107,31 +208,28 @@ export default async function WorkspaceDashboard({
     .orderBy(desc(artifacts.createdAt))
     .limit(20);
 
-  // Active protocol
-  let activeProtocol: { id: string; name: string; description: string | null } | null = null;
-  if (workspace.activeProtocolId) {
-    const [p] = await db
-      .select({ id: protocols.id, name: protocols.name, description: protocols.description })
-      .from(protocols)
-      .where(eq(protocols.id, workspace.activeProtocolId))
-      .limit(1);
-    if (p) activeProtocol = p;
-  }
-
   // All public coaches
   const allCoaches = await db
     .select({ id: protocols.id, name: protocols.name })
     .from(protocols)
     .where(eq(protocols.isPublic, true));
 
-  // Action counts
-  const [actionCounts] = await db
+  // Weekly digest (Top 5) -- explicit columns for JSONB reliability
+  const [digest] = await db
     .select({
-      openCount: dsql<number>`count(*) filter (where ${actions.status} in ('open', 'in_progress', 'blocked'))`,
-      unlinkedCount: dsql<number>`count(*) filter (where ${actions.goalId} is null and ${actions.status} in ('open', 'in_progress', 'blocked'))`,
+      summary: digests.summary,
+      items: digests.items,
+      weekStart: digests.weekStart,
     })
-    .from(actions)
-    .where(eq(actions.workspaceId, workspaceId));
+    .from(digests)
+    .where(eq(digests.workspaceId, workspaceId))
+    .orderBy(desc(digests.generatedAt))
+    .limit(1);
+
+  // Goal pillar count (from content -- count numbered items)
+  const goalPillarCount = canon
+    ? (canon.content.match(/^\d+\./gm) || []).length || 5
+    : 0;
 
   return (
     <DashboardClient
@@ -140,26 +238,48 @@ export default async function WorkspaceDashboard({
         name: workspace.name,
         joinCode: workspace.joinCode,
       }}
-      strategy={
-        canon
+      weekLabel={windowLabel}
+      isCurrentWeek={isCurrentWeek}
+      weekPulse={{
+        thoughtCount: Number(thoughtsInWindow?.count ?? 0),
+        synthesisCount: Number(synthesisInWindow?.count ?? 0),
+        avgAlignment: Number(synthesisInWindow?.avgAlignment ?? 0),
+        activeTeamCount: Number(activeTeamInWindow?.count ?? 0),
+        totalTeamCount: teamMembers.length,
+        newActionCount: Number(actionsInWindow?.newCount ?? 0),
+        completedActionCount: Number(actionsInWindow?.completedCount ?? 0),
+      }}
+      digest={
+        digest
           ? {
-              id: canon.id,
-              content: canon.content,
-              createdAt: canon.createdAt.toISOString(),
+              summary: digest.summary ?? "",
+              items: digest.items as Array<{
+                rank: number;
+                title: string;
+                detail: string;
+                coachAttribution: string;
+                goalLinked: boolean;
+                priority: string;
+              }>,
             }
           : null
       }
-      recentArtifacts={recentArtifacts.map((a) => ({
-        id: a.artifactId,
-        alignmentScore: 1 - (a.driftScore ?? 0),
-        sentimentScore: a.sentimentScore ?? 0,
-        content: a.content ?? "",
-        actionItemCount: Array.isArray(a.actionItems)
-          ? (a.actionItems as unknown[]).length
-          : 0,
-        createdAt: a.createdAt.toISOString(),
-        userId: a.userId,
-      }))}
+      goalHealth={
+        canon?.healthScore != null && canon?.healthAnalysis
+          ? {
+              overallScore: canon.healthScore,
+              analysis: canon.healthAnalysis as {
+                overallScore: number;
+                pillars: Array<{
+                  title: string;
+                  score: number;
+                  smart: Record<string, boolean>;
+                  suggestion: string;
+                }>;
+              },
+            }
+          : null
+      }
       teamMembers={teamMembers.map((m) => ({
         userId: m.userId,
         name:
@@ -168,6 +288,7 @@ export default async function WorkspaceDashboard({
         streakCount: m.streakCount,
         alignmentScore: m.tractionScore,
         lastCaptureAt: m.lastCaptureAt?.toISOString() ?? null,
+        activeThisWeek: m.lastCaptureAt ? m.lastCaptureAt >= windowStart : false,
       }))}
       alignmentTrend={driftTrend
         .map((d) => ({
@@ -175,11 +296,23 @@ export default async function WorkspaceDashboard({
           createdAt: d.createdAt.toISOString(),
         }))
         .reverse()}
-      activeProtocol={activeProtocol}
       allCoaches={allCoaches}
       currentUserId={session.user.id}
-      openActionCount={Number(actionCounts?.openCount ?? 0)}
-      unlinkedActionCount={Number(actionCounts?.unlinkedCount ?? 0)}
+      needsAttention={{
+        blockedActions: Number(actionsInWindow?.blockedCount ?? 0),
+        unlinkedActions: Number(actionsInWindow?.unlinkedCount ?? 0),
+        quietMembers: teamMembers.filter(
+          (m) => !m.lastCaptureAt || m.lastCaptureAt < windowStart
+        ).length,
+      }}
+      flowCounts={{
+        goals: goalPillarCount,
+        thoughts: Number(thoughtsInWindow?.count ?? 0),
+        coaches: allCoaches.length,
+        synthesis: Number(synthesisInWindow?.count ?? 0),
+        actions: Number(actionsInWindow?.newCount ?? 0),
+      }}
+      hasStrategy={!!canon}
     />
   );
 }

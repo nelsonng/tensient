@@ -1,16 +1,13 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
 import { workspaces, protocols } from "@/lib/db/schema";
+import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { CaptureClient } from "./capture-client";
 
 const DEFAULT_PLACEHOLDER =
   "What's on your mind? What's blocking you? What did you ship? Just ramble.";
-
-const sqlFn = neon(process.env.DATABASE_URL!);
-const db = drizzle(sqlFn);
 
 export default async function CapturePage({
   params,
@@ -21,6 +18,9 @@ export default async function CapturePage({
   if (!session?.user?.id) redirect("/sign-in");
 
   const { workspaceId } = await params;
+
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId);
+  if (!membership) redirect("/dashboard");
 
   // Fetch workspace + active protocol for placeholder text
   let placeholder = DEFAULT_PLACEHOLDER;

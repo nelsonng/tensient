@@ -175,6 +175,8 @@ export const canons = pgTable("canons", {
   content: text("content").notNull(),
   embedding: vector("embedding", { dimensions: 1536 }),
   rawInput: text("raw_input"),
+  healthScore: real("health_score"), // 0-1 SMART quality score
+  healthAnalysis: jsonb("health_analysis"), // { overallScore, pillars: [...] }
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -276,6 +278,27 @@ export const actions = pgTable(
     index("idx_actions_user").on(table.userId),
     index("idx_actions_status").on(table.status),
     index("idx_actions_goal").on(table.goalId),
+  ]
+);
+
+// ── Digests (Weekly Top 5 Summaries) ──────────────────────────────────
+
+export const digests = pgTable(
+  "digests",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id)
+      .notNull(),
+    weekStart: timestamp("week_start").notNull(),
+    items: jsonb("items").notNull(), // [{ rank, title, detail, coachAttribution, goalLinked, priority }]
+    summary: text("summary"), // 2-3 sentence narrative
+    generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_digests_workspace_week").on(table.workspaceId, table.weekStart),
   ]
 );
 

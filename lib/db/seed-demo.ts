@@ -59,6 +59,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
+  // Note: duplicated here intentionally -- seed script runs standalone outside the app
   let dot = 0, magA = 0, magB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
@@ -82,15 +83,17 @@ interface Persona {
   role: "owner" | "member";
 }
 
+const SEED_PASSWORD = process.env.SEED_PASSWORD || "change-me-before-use";
+
 const PERSONAS: Persona[] = [
-  { email: "nelson@tensient.com", firstName: "Nelson", lastName: "Ng", password: "***REMOVED***", role: "owner" },
-  { email: "rachel@tensient.com", firstName: "Rachel", lastName: "Chen", password: "***REMOVED***", role: "member" },
-  { email: "alex@tensient.com", firstName: "Alex", lastName: "Kim", password: "***REMOVED***", role: "member" },
-  { email: "jordan@tensient.com", firstName: "Jordan", lastName: "Rivera", password: "***REMOVED***", role: "member" },
-  { email: "marcus@tensient.com", firstName: "Marcus", lastName: "Thompson", password: "***REMOVED***", role: "member" },
-  { email: "priya@tensient.com", firstName: "Priya", lastName: "Patel", password: "***REMOVED***", role: "member" },
-  { email: "sam@tensient.com", firstName: "Sam", lastName: "Okafor", password: "***REMOVED***", role: "member" },
-  { email: "kai@tensient.com", firstName: "Kai", lastName: "Nguyen", password: "***REMOVED***", role: "member" },
+  { email: "nelson@tensient.com", firstName: "Nelson", lastName: "Ng", password: SEED_PASSWORD, role: "owner" },
+  { email: "rachel@tensient.com", firstName: "Rachel", lastName: "Chen", password: SEED_PASSWORD, role: "member" },
+  { email: "alex@tensient.com", firstName: "Alex", lastName: "Kim", password: SEED_PASSWORD, role: "member" },
+  { email: "jordan@tensient.com", firstName: "Jordan", lastName: "Rivera", password: SEED_PASSWORD, role: "member" },
+  { email: "marcus@tensient.com", firstName: "Marcus", lastName: "Thompson", password: SEED_PASSWORD, role: "member" },
+  { email: "priya@tensient.com", firstName: "Priya", lastName: "Patel", password: SEED_PASSWORD, role: "member" },
+  { email: "sam@tensient.com", firstName: "Sam", lastName: "Okafor", password: SEED_PASSWORD, role: "member" },
+  { email: "kai@tensient.com", firstName: "Kai", lastName: "Nguyen", password: SEED_PASSWORD, role: "member" },
 ];
 
 // ── Goals (Canon) ───────────────────────────────────────────────────────
@@ -846,6 +849,10 @@ ${content}`,
 // ═══════════════════════════════════════════════════════════════════════
 
 async function seedDemo() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Seed scripts must not run in production. Set NODE_ENV to 'development' or 'test'.");
+  }
+
   console.log("=== Seeding Tensient Health demo data ===\n");
 
   // ── Step 1: Create organization ───────────────────────────────────
@@ -1013,7 +1020,7 @@ async function seedDemo() {
   console.log("Demo seed complete!");
   console.log(`   Workspace ID: ${workspace.id}`);
   console.log(`   Dashboard URL: /dashboard/${workspace.id}`);
-  console.log(`   Sign in as: nelson@tensient.com / ***REMOVED***`);
+  console.log(`   Sign in as: nelson@tensient.com / <SEED_PASSWORD>`);
   console.log("===============================================================\n");
 }
 
