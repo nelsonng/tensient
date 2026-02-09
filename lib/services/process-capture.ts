@@ -50,7 +50,9 @@ export interface CaptureUsage {
 export async function processCapture(
   userId: string,
   workspaceId: string,
-  content: string
+  content: string,
+  source: "web" | "voice" = "web",
+  audioUrl?: string
 ): Promise<{ result: CaptureResult; usage: CaptureUsage }> {
   // 1. Create the capture record
   const [capture] = await db
@@ -59,7 +61,8 @@ export async function processCapture(
       userId,
       workspaceId,
       content,
-      source: "web",
+      source,
+      ...(audioUrl ? { audioUrl } : {}),
     })
     .returning();
 

@@ -22,7 +22,7 @@ export async function POST(
   }
 
   const { workspaceId } = await params;
-  const { content } = await request.json();
+  const { content, source, audioUrl } = await request.json();
 
   if (!content || content.trim().length < 5) {
     return NextResponse.json(
@@ -35,7 +35,9 @@ export async function POST(
     const { result, usage } = await processCapture(
       session.user.id,
       workspaceId,
-      content
+      content,
+      source === "voice" ? "voice" : "web",
+      audioUrl || undefined
     );
 
     // Log usage

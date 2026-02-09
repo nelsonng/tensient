@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { GlitchText } from "@/components/glitch-text";
 import { SlantedButton } from "@/components/slanted-button";
@@ -8,6 +8,7 @@ import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { StatusPill } from "@/components/status-pill";
 import { motion, AnimatePresence } from "framer-motion";
+import { VoiceRecorder } from "@/components/voice-recorder";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -86,11 +87,14 @@ export default function WelcomePage() {
 
   // Strategy state
   const [strategyInput, setStrategyInput] = useState("");
+  const [strategyInputMode, setStrategyInputMode] = useState<"text" | "voice">("voice");
   const [strategyLoading, setStrategyLoading] = useState(false);
   const [strategyResult, setStrategyResult] = useState<StrategyResult | null>(null);
 
   // Capture state
   const [captureInput, setCaptureInput] = useState("");
+  const [captureInputMode, setCaptureInputMode] = useState<"text" | "voice">("voice");
+  const [captureAudioUrl, setCaptureAudioUrl] = useState<string | null>(null);
   const [captureLoading, setCaptureLoading] = useState(false);
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
 
@@ -124,7 +128,6 @@ export default function WelcomePage() {
         setError(data.error || "Strategy setup failed");
       } else {
         setStrategyResult(data);
-        // Auto-advance to Capture after a brief moment
         setTimeout(() => setStep("capture"), 100);
       }
     } catch {
@@ -142,7 +145,11 @@ export default function WelcomePage() {
       const res = await fetch(`/api/workspaces/${workspaceId}/captures`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: captureInput }),
+        body: JSON.stringify({
+          content: captureInput,
+          source: captureAudioUrl ? "voice" : "web",
+          audioUrl: captureAudioUrl || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -159,6 +166,15 @@ export default function WelcomePage() {
     }
   }
 
+  // Voice unsupported fallbacks
+  const handleStrategyVoiceUnsupported = useCallback(() => {
+    setStrategyInputMode("text");
+  }, []);
+
+  const handleCaptureVoiceUnsupported = useCallback(() => {
+    setCaptureInputMode("text");
+  }, []);
+
   // ── Render ─────────────────────────────────────────────────────
 
   return (
@@ -166,7 +182,6 @@ export default function WelcomePage() {
       {/* Progress indicator */}
       <div className="flex items-center gap-2 mb-12">
         {["role", "strategy", "capture", "result"].map((s, i) => {
-          // Skip "strategy" indicator for ICs
           if (s === "strategy" && role === "ic") return null;
           const stepList = role === "ic"
             ? ["role", "capture", "result"]
@@ -211,14 +226,14 @@ export default function WelcomePage() {
                 className="group cursor-pointer text-left rounded-lg border border-border bg-panel p-6 transition-colors hover:border-primary"
               >
                 <MonoLabel className="mb-3 block text-primary group-hover:text-primary">
-                  I SET STRATEGY
+                  I LEAD A TEAM
                 </MonoLabel>
                 <h3 className="font-display text-lg font-bold uppercase tracking-tight mb-2">
                   MANAGER
                 </h3>
                 <p className="font-body text-base text-muted leading-relaxed">
-                  Define what matters. AI turns your direction into a strategic
-                  reference your whole team aligns to.
+                  Tell us what your team should be focused on. We&apos;ll turn it
+                  into clear objectives everyone can align to.
                 </p>
               </button>
 
@@ -227,14 +242,14 @@ export default function WelcomePage() {
                 className="group cursor-pointer text-left rounded-lg border border-border bg-panel p-6 transition-colors hover:border-primary"
               >
                 <MonoLabel className="mb-3 block text-primary group-hover:text-primary">
-                  I DO THE WORK
+                  I&apos;M A TEAM MEMBER
                 </MonoLabel>
                 <h3 className="font-display text-lg font-bold uppercase tracking-tight mb-2">
                   INDIVIDUAL CONTRIBUTOR
                 </h3>
                 <p className="font-body text-base text-muted leading-relaxed">
-                  Dump what&apos;s on your mind. AI extracts action items, scores
-                  your alignment, and gives you coaching.
+                  Just talk about your week. What happened, what&apos;s stuck,
+                  what&apos;s next. We&apos;ll handle the rest.
                 </p>
               </button>
             </div>
@@ -245,58 +260,97 @@ export default function WelcomePage() {
           </FadeIn>
         )}
 
-        {/* ── Step 2a: Strategy (Managers only) ─────────────────── */}
+        {/* ── Step 2a: Goals (Managers only) ───────────────────── */}
         {step === "strategy" && (
           <FadeIn stepKey="strategy">
             <MonoLabel className="mb-4 block text-primary">
-              STEP 1 / SET YOUR STRATEGY
+              STEP 1 / SET YOUR GOALS
             </MonoLabel>
 
             <h1 className="font-display text-3xl md:text-4xl font-bold uppercase tracking-tight mb-4">
-              WHAT MATTERS MOST RIGHT NOW?
+              WHAT IS YOUR TEAM TRYING TO ACHIEVE?
             </h1>
 
-            <p className="font-body text-base text-muted mb-8 max-w-[500px]">
-              In a few sentences, tell us what your team should be focused on.
-              Don&apos;t overthink it -- just say what matters.
+            <p className="font-body text-base text-muted mb-8 max-w-[500px] leading-relaxed">
+              Just say it in your own words -- we&apos;ll distill it into clear
+              objectives. Don&apos;t overthink it.
             </p>
 
-            <textarea
-              value={strategyInput}
-              onChange={(e) => setStrategyInput(e.target.value)}
-              rows={6}
-              className="w-full rounded-lg border border-border bg-panel px-6 py-4 font-body text-base text-foreground leading-relaxed placeholder:text-muted/50 focus:border-primary focus:outline-none resize-none mb-4"
-              placeholder="We need to ship the mobile app by March. Our biggest risk is the payment integration. Quality matters more than speed right now."
-            />
+            {/* Voice-first input */}
+            {strategyInputMode === "voice" && (
+              <>
+                <VoiceRecorder
+                  workspaceId={workspaceId}
+                  onTranscription={(text) => {
+                    setStrategyInput(text);
+                    setStrategyInputMode("text");
+                  }}
+                  onError={(errMsg) => {
+                    setError(`Audio saved. ${errMsg} -- you can type manually.`);
+                    setStrategyInputMode("text");
+                  }}
+                  onUnsupported={handleStrategyVoiceUnsupported}
+                />
 
-            {error && (
-              <p className="font-mono text-xs text-red-400 mb-4">{error}</p>
+                <button
+                  onClick={() => setStrategyInputMode("text")}
+                  className="block mx-auto mt-4 font-mono text-xs text-muted underline underline-offset-4 cursor-pointer hover:text-foreground transition-colors"
+                >
+                  or type instead
+                </button>
+              </>
             )}
 
-            <div className="flex items-center gap-4">
-              <SlantedButton
-                onClick={handleStrategy}
-                disabled={strategyLoading || strategyInput.trim().length < 10}
-              >
-                {strategyLoading ? "PROCESSING..." : "SET STRATEGY"}
-              </SlantedButton>
+            {/* Text input (fallback or after transcription) */}
+            {strategyInputMode === "text" && (
+              <>
+                <textarea
+                  value={strategyInput}
+                  onChange={(e) => setStrategyInput(e.target.value)}
+                  rows={6}
+                  className="w-full rounded-lg border border-border bg-panel px-6 py-4 font-body text-base text-foreground leading-relaxed placeholder:text-muted/50 focus:border-primary focus:outline-none resize-none mb-4"
+                  placeholder="We need to ship the mobile app by March. Our biggest risk is the payment integration. Quality matters more than speed right now."
+                />
 
-              {strategyLoading && (
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  <span className="font-mono text-xs text-muted">
-                    EXTRACTING STRATEGIC PILLARS...
-                  </span>
+                {!strategyInput && (
+                  <button
+                    onClick={() => setStrategyInputMode("voice")}
+                    className="font-mono text-xs text-muted underline underline-offset-4 cursor-pointer hover:text-foreground transition-colors mb-4 block"
+                  >
+                    or use voice instead
+                  </button>
+                )}
+
+                <div className="flex items-center gap-4">
+                  <SlantedButton
+                    onClick={handleStrategy}
+                    disabled={strategyLoading || strategyInput.trim().length < 10}
+                  >
+                    {strategyLoading ? "PROCESSING..." : "SET GOALS"}
+                  </SlantedButton>
+
+                  {strategyLoading && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                      <span className="font-mono text-xs text-muted">
+                        DISTILLING OBJECTIVES...
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
+
+            {error && (
+              <p className="font-mono text-xs text-red-400 mt-4">{error}</p>
+            )}
 
             {/* Show Strategy results inline before advancing */}
             {strategyResult && (
               <div className="mt-8 space-y-4">
                 <PanelCard>
                   <MonoLabel className="mb-3 block text-primary">
-                    YOUR STRATEGIC PILLARS
+                    YOUR OBJECTIVES
                   </MonoLabel>
                   <div className="space-y-2">
                     {strategyResult.pillars.map((pillar, i) => (
@@ -331,59 +385,104 @@ export default function WelcomePage() {
         {step === "capture" && (
           <FadeIn stepKey="capture">
             <MonoLabel className="mb-4 block text-primary">
-              {role === "manager" ? "STEP 2 / TRY IT AS YOUR TEAM WOULD" : "STEP 1 / UNLOAD"}
+              {role === "manager" ? "STEP 2 / TRY IT AS YOUR TEAM WOULD" : "STEP 1 / TALK IT OUT"}
             </MonoLabel>
 
             <h1 className="font-display text-3xl md:text-4xl font-bold uppercase tracking-tight mb-4">
-              {role === "manager"
-                ? "NOW TYPE AN UPDATE"
-                : "WHAT'S ON YOUR MIND?"}
+              WHAT&apos;S ON YOUR MIND?
             </h1>
 
-            <p className="font-body text-base text-muted mb-8 max-w-[500px]">
+            <p className="font-body text-base text-muted mb-8 max-w-[500px] leading-relaxed">
               {role === "manager"
-                ? "Pretend you're a team member. Type what's on your mind today -- blockers, progress, frustrations. The system will compare it to the strategy you just set."
-                : "Type what you've been working on, what's blocking you, or what's frustrating you. Don't worry about formatting -- just dump it."}
+                ? "Pretend you're a team member. What's on your mind today -- blockers, progress, frustrations? Just ramble. We'll compare it to the goals you just set."
+                : "What's been on your mind this week? Frustrations, wins, blockers -- just let it out. Don't worry about being polished."}
             </p>
 
             {role === "ic" && !strategyResult && (
               <div className="mb-6 rounded-lg border border-border bg-panel/50 px-4 py-3">
                 <p className="font-mono text-xs text-muted">
-                  TIP: Ask your manager to set a strategy first.
-                  You can still capture updates now -- alignment scoring will activate once a strategy is set.
+                  TIP: Ask your manager to set goals first.
+                  You can still share updates now -- alignment scoring will activate once goals are set.
                 </p>
               </div>
             )}
 
-            <textarea
-              value={captureInput}
-              onChange={(e) => setCaptureInput(e.target.value)}
-              rows={6}
-              className="w-full rounded-lg border border-border bg-panel px-6 py-4 font-body text-base text-foreground leading-relaxed placeholder:text-muted/50 focus:border-primary focus:outline-none resize-none mb-4"
-              placeholder="I'm stuck waiting on the design team for the homepage assets. Spent the morning fixing auth bugs instead. Not sure if that's the best use of my time."
-            />
+            {/* Voice-first input */}
+            {captureInputMode === "voice" && (
+              <>
+                <VoiceRecorder
+                  workspaceId={workspaceId}
+                  onTranscription={(text, url) => {
+                    setCaptureInput(text);
+                    setCaptureAudioUrl(url);
+                    setCaptureInputMode("text");
+                  }}
+                  onError={(errMsg, url) => {
+                    if (url) setCaptureAudioUrl(url);
+                    setError(`Audio saved. ${errMsg} -- you can type manually.`);
+                    setCaptureInputMode("text");
+                  }}
+                  onUnsupported={handleCaptureVoiceUnsupported}
+                />
 
-            {error && (
-              <p className="font-mono text-xs text-red-400 mb-4">{error}</p>
+                <button
+                  onClick={() => setCaptureInputMode("text")}
+                  className="block mx-auto mt-4 font-mono text-xs text-muted underline underline-offset-4 cursor-pointer hover:text-foreground transition-colors"
+                >
+                  or type instead
+                </button>
+              </>
             )}
 
-            <div className="flex items-center gap-4">
-              <SlantedButton
-                onClick={handleCapture}
-                disabled={captureLoading || captureInput.trim().length < 5}
-              >
-                {captureLoading ? "ANALYZING..." : "SUBMIT UPDATE"}
-              </SlantedButton>
+            {/* Text input (fallback or after transcription) */}
+            {captureInputMode === "text" && (
+              <>
+                <textarea
+                  value={captureInput}
+                  onChange={(e) => setCaptureInput(e.target.value)}
+                  rows={6}
+                  className="w-full rounded-lg border border-border bg-panel px-6 py-4 font-body text-base text-foreground leading-relaxed placeholder:text-muted/50 focus:border-primary focus:outline-none resize-none mb-4"
+                  placeholder="I'm stuck waiting on the design team for the homepage assets. Spent the morning fixing auth bugs instead. Not sure if that's the best use of my time."
+                />
 
-              {captureLoading && (
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  <span className="font-mono text-xs text-muted">
-                    ANALYZING ALIGNMENT...
-                  </span>
+                {!captureInput && !captureAudioUrl && (
+                  <button
+                    onClick={() => setCaptureInputMode("voice")}
+                    className="font-mono text-xs text-muted underline underline-offset-4 cursor-pointer hover:text-foreground transition-colors mb-4 block"
+                  >
+                    or use voice instead
+                  </button>
+                )}
+
+                {captureAudioUrl && (
+                  <p className="font-mono text-xs text-muted mb-4">
+                    Voice recorded. Review the transcription above, then submit.
+                  </p>
+                )}
+
+                <div className="flex items-center gap-4">
+                  <SlantedButton
+                    onClick={handleCapture}
+                    disabled={captureLoading || captureInput.trim().length < 5}
+                  >
+                    {captureLoading ? "ANALYZING..." : "SUBMIT"}
+                  </SlantedButton>
+
+                  {captureLoading && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                      <span className="font-mono text-xs text-muted">
+                        ANALYZING ALIGNMENT...
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
+
+            {error && (
+              <p className="font-mono text-xs text-red-400 mt-4">{error}</p>
+            )}
           </FadeIn>
         )}
 
@@ -403,7 +502,7 @@ export default function WelcomePage() {
             <p className="font-body text-base text-muted mb-8 max-w-[500px]">
               {role === "manager"
                 ? "This is what your team members will see after every update. Alignment scored, actions extracted, coaching delivered -- automatically."
-                : "Every time you dump what's on your mind, Tensient turns it into this. No more agonizing over weekly summaries."}
+                : "Every time you talk out what's on your mind, Tensient turns it into this. No more agonizing over weekly summaries."}
             </p>
 
             {/* Scores Row */}

@@ -195,6 +195,7 @@ export const captures = pgTable(
       .notNull(),
     content: text("content").notNull(),
     source: captureSourceEnum("source").notNull().default("web"),
+    audioUrl: text("audio_url"), // Vercel Blob URL, set when source = 'voice'
     processedAt: timestamp("processed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

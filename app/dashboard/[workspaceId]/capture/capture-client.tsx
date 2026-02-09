@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { GlitchText } from "@/components/glitch-text";
 import { SlantedButton } from "@/components/slanted-button";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { StatusPill } from "@/components/status-pill";
+import { VoiceRecorder } from "@/components/voice-recorder";
 
 interface ActionItem {
   task: string;
@@ -45,6 +46,8 @@ interface CaptureClientProps {
 
 export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) {
   const [content, setContent] = useState("");
+  const [inputMode, setInputMode] = useState<"text" | "voice">("voice");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CaptureResult | null>(null);
   const [error, setError] = useState("");
@@ -57,7 +60,11 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
       const res = await fetch(`/api/workspaces/${workspaceId}/captures`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          content,
+          source: audioUrl ? "voice" : "web",
+          audioUrl: audioUrl || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -73,6 +80,23 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
     }
   }
 
+  function handleTranscription(text: string, url: string) {
+    setContent(text);
+    setAudioUrl(url);
+    setInputMode("text"); // Switch to text so user can review/edit
+  }
+
+  function handleVoiceError(errMsg: string, url?: string) {
+    if (url) setAudioUrl(url);
+    setError(`Audio saved. ${errMsg} -- you can type manually or try again.`);
+    setInputMode("text");
+  }
+
+  // If voice is unsupported (in-app browser, etc), fall back to typing
+  const handleVoiceUnsupported = useCallback(() => {
+    setInputMode("text");
+  }, []);
+
   return (
     <div className="mx-auto max-w-[800px] px-6 pt-24 pb-24">
       <Link
@@ -82,46 +106,84 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
         &larr; BACK TO DASHBOARD
       </Link>
 
-      <MonoLabel className="mb-4 block text-primary">
-        CAPTURE / UNLOAD
-      </MonoLabel>
+      <GlitchText
+        text="WHAT'S ON YOUR MIND?"
+        as="h1"
+        className="text-4xl mb-4"
+      />
 
-      <GlitchText text="CLEAR YOUR CACHE" as="h1" className="text-4xl mb-6" />
-
-      <p className="font-body text-base text-muted mb-8 max-w-[600px]">
-        Unload what is on your mind. What is blocking you? What did you
-        accomplish? The system extracts signal, scores alignment, and surfaces
-        action items.
+      <p className="font-body text-base text-muted mb-8 max-w-[600px] leading-relaxed">
+        Just ramble. We transcribe every word with superhuman accuracy,
+        then synthesize the signal and extract your action items.
       </p>
 
       {!result ? (
         <div className="space-y-6">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={8}
-            className="w-full rounded-lg border border-border bg-panel px-6 py-4 font-body text-base text-foreground leading-relaxed placeholder:text-muted focus:border-primary focus:outline-none resize-none"
-            placeholder={placeholder}
-          />
+          {/* Voice-first input */}
+          {inputMode === "voice" && (
+            <>
+              <VoiceRecorder
+                workspaceId={workspaceId}
+                onTranscription={handleTranscription}
+                onError={handleVoiceError}
+                onUnsupported={handleVoiceUnsupported}
+              />
+
+              <button
+                onClick={() => setInputMode("text")}
+                className="block mx-auto font-mono text-xs text-muted underline underline-offset-4 cursor-pointer hover:text-foreground transition-colors"
+              >
+                or type instead
+              </button>
+            </>
+          )}
+
+          {/* Text input (fallback or after transcription) */}
+          {inputMode === "text" && (
+            <>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={8}
+                className="w-full rounded-lg border border-border bg-panel px-6 py-4 font-body text-base text-foreground leading-relaxed placeholder:text-muted focus:border-primary focus:outline-none resize-none"
+                placeholder={placeholder}
+              />
+
+              {audioUrl && (
+                <p className="font-mono text-xs text-muted">
+                  Voice recorded. Review the transcription above, then submit.
+                </p>
+              )}
+
+              {!audioUrl && (
+                <button
+                  onClick={() => setInputMode("voice")}
+                  className="font-mono text-xs text-muted underline underline-offset-4 cursor-pointer hover:text-foreground transition-colors"
+                >
+                  or use voice instead
+                </button>
+              )}
+
+              <SlantedButton
+                onClick={handleSubmit}
+                disabled={loading || content.trim().length < 5}
+              >
+                {loading ? "ANALYZING..." : "SUBMIT"}
+              </SlantedButton>
+
+              {loading && (
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span className="font-mono text-xs text-muted">
+                    ANALYZING ALIGNMENT...
+                  </span>
+                </div>
+              )}
+            </>
+          )}
 
           {error && (
             <p className="font-mono text-xs text-destructive">{error}</p>
-          )}
-
-          <SlantedButton
-            onClick={handleSubmit}
-            disabled={loading || content.trim().length < 5}
-          >
-            {loading ? "PROCESSING..." : "SUBMIT CAPTURE"}
-          </SlantedButton>
-
-          {loading && (
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-secondary animate-pulse" />
-              <span className="font-mono text-xs text-secondary">
-                ANALYZING ALIGNMENT...
-              </span>
-            </div>
           )}
         </div>
       ) : (
@@ -208,6 +270,8 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
               onClick={() => {
                 setResult(null);
                 setContent("");
+                setAudioUrl(null);
+                setInputMode("voice");
               }}
               variant="outline"
             >
