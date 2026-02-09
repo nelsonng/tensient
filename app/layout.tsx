@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Syncopate, Space_Mono } from "next/font/google";
 import localFont from "next/font/local";
+import { NoiseBackground } from "@/components/noise-background";
 import "./globals.css";
 
 const syncopate = Syncopate({
@@ -40,6 +41,14 @@ export const metadata: Metadata = {
   title: "TENSIENT | Enterprise Traction Control",
   description:
     "Your team generates noise. We extract signal. Every update measured against the strategy. Drift detected. Traction scored.",
+  openGraph: {
+    title: "TENSIENT | Enterprise Traction Control",
+    description:
+      "Your team generates noise. We extract signal. Every update measured against the strategy.",
+    url: "https://tensient.com",
+    siteName: "Tensient",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -53,7 +62,8 @@ export default function RootLayout({
       className={`${syncopate.variable} ${spaceMono.variable} ${satoshi.variable}`}
     >
       <body className="bg-background text-foreground font-body antialiased">
-        {children}
+        <NoiseBackground />
+        <div className="relative z-10">{children}</div>
       </body>
     </html>
   );
