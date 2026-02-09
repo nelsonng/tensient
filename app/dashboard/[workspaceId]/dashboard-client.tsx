@@ -120,7 +120,7 @@ export function DashboardClient({
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <Link href="/" className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+            <Link href="/" className="font-display text-base font-bold uppercase tracking-wider text-foreground">
             TENSIENT
           </Link>
           <div className="flex items-center gap-3 mt-1">
@@ -175,7 +175,7 @@ export function DashboardClient({
               <MonoLabel className="block mb-3 text-muted">
                 NO CANON DEFINED
               </MonoLabel>
-              <p className="font-body text-sm text-muted mb-4">
+              <p className="font-body text-base text-muted mb-4">
                 Run Genesis to define your strategic direction.
               </p>
               <SlantedButton href={`/dashboard/${workspace.id}/genesis`}>
@@ -203,7 +203,7 @@ export function DashboardClient({
             <MonoLabel className="mb-4 block">RECENT ARTIFACTS</MonoLabel>
             {recentArtifacts.length === 0 ? (
               <PanelCard className="text-center py-8">
-                <p className="font-body text-sm text-muted">
+                <p className="font-body text-base text-muted">
                   No captures yet. Start by submitting your first update.
                 </p>
               </PanelCard>
@@ -213,7 +213,7 @@ export function DashboardClient({
                   <PanelCard key={artifact.id} className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="font-body text-sm text-foreground leading-relaxed line-clamp-2">
+                        <p className="font-body text-base text-foreground leading-relaxed line-clamp-2">
                           {artifact.content}
                         </p>
                         <div className="flex items-center gap-4 mt-2">
@@ -250,7 +250,7 @@ export function DashboardClient({
               TEAM TRACTION
             </MonoLabel>
             {teamMembers.length === 0 ? (
-              <p className="font-body text-sm text-muted">No team members.</p>
+              <p className="font-body text-base text-muted">No team members.</p>
             ) : (
               <div className="space-y-4">
                 {teamMembers.map((member, i) => (
@@ -267,7 +267,7 @@ export function DashboardClient({
                         <span className="font-mono text-xs text-muted">
                           #{i + 1}
                         </span>
-                        <span className="font-body text-sm font-medium text-foreground">
+                        <span className="font-body text-base font-medium text-foreground">
                           {member.name}
                         </span>
                       </div>
@@ -299,7 +299,7 @@ export function DashboardClient({
               <MonoLabel className="mb-3 block text-primary">
                 INVITE YOUR TEAM
               </MonoLabel>
-              <p className="font-body text-sm text-muted mb-4 leading-relaxed">
+              <p className="font-body text-base text-muted mb-4 leading-relaxed">
                 Tensient works best with your whole team. Share this code
                 so they can join your workspace.
               </p>
@@ -320,13 +320,13 @@ export function DashboardClient({
             <div className="space-y-2">
               <Link
                 href={`/dashboard/${workspace.id}/capture`}
-                className="block font-body text-sm text-muted hover:text-primary transition-colors"
+                className="block font-body text-base text-muted hover:text-primary transition-colors"
               >
                 &rarr; Submit a capture
               </Link>
               <Link
                 href={`/dashboard/${workspace.id}/genesis`}
-                className="block font-body text-sm text-muted hover:text-primary transition-colors"
+                className="block font-body text-base text-muted hover:text-primary transition-colors"
               >
                 &rarr; Update The Canon
               </Link>

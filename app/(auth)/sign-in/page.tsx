@@ -40,17 +40,17 @@ export default function SignInPage() {
           <Link href="/">
             <GlitchText text="TENSIENT" as="h1" className="text-3xl mb-2" />
           </Link>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted mb-1">
+          <p className="font-mono text-sm uppercase tracking-widest text-muted mb-1">
             AMBIENT ENTERPRISE TENSION
           </p>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted/60">
+          <p className="font-mono text-sm uppercase tracking-widest text-muted/60">
             SIGN IN
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block font-mono text-xs uppercase tracking-widest text-muted mb-2">
+            <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
               EMAIL
             </label>
             <input
@@ -64,7 +64,7 @@ export default function SignInPage() {
           </div>
 
           <div>
-            <label className="block font-mono text-xs uppercase tracking-widest text-muted mb-2">
+            <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
               PASSWORD
             </label>
             <input
@@ -88,7 +88,7 @@ export default function SignInPage() {
           </SlantedButton>
         </form>
 
-        <p className="mt-6 text-center font-body text-sm text-muted">
+        <p className="mt-6 text-center font-body text-base text-muted">
           No account?{" "}
           <Link href="/sign-up" className="text-primary hover:underline">
             Create one

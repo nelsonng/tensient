@@ -178,7 +178,7 @@ export default function CapturePage() {
                     key={i}
                     className="flex items-center justify-between border-b border-border pb-2 last:border-0"
                   >
-                    <span className="font-body text-sm text-foreground">
+                    <span className="font-body text-base text-foreground">
                       {item.task}
                     </span>
                     <StatusPill
@@ -201,7 +201,7 @@ export default function CapturePage() {
           {result.artifact.feedback && (
             <PanelCard>
               <MonoLabel className="mb-3 block">COACHING</MonoLabel>
-              <p className="font-body text-sm text-muted leading-relaxed">
+              <p className="font-body text-base text-muted leading-relaxed">
                 {result.artifact.feedback}
               </p>
             </PanelCard>

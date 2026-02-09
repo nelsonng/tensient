@@ -14,7 +14,7 @@ export function Nav() {
       <nav className="mx-auto flex h-14 max-w-[1200px] items-center justify-between px-6">
         <Link
           href="/"
-          className="font-display text-sm font-bold uppercase tracking-wider text-foreground"
+          className="font-display text-base font-bold uppercase tracking-wider text-foreground"
         >
           TENSIENT
         </Link>
@@ -24,7 +24,7 @@ export function Nav() {
             <Link
               key={item.href}
               href={item.href}
-              className="hidden font-mono text-xs uppercase tracking-widest text-muted transition-colors duration-150 hover:text-primary sm:inline-block"
+              className="hidden font-mono text-sm uppercase tracking-widest text-muted transition-colors duration-150 hover:text-primary sm:inline-block"
             >
               {item.label}
             </Link>

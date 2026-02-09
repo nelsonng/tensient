@@ -13,7 +13,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   Overview
                 </a>
@@ -21,7 +21,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   Documentation
                 </a>
@@ -29,7 +29,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   Changelog
                 </a>
@@ -44,7 +44,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   About
                 </a>
@@ -52,7 +52,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   Blog
                 </a>
@@ -60,7 +60,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   Careers
                 </a>
@@ -75,7 +75,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   GitHub
                 </a>
@@ -83,7 +83,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   X / Twitter
                 </a>
@@ -91,7 +91,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="font-body text-sm text-muted transition-colors hover:text-primary"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   Discord
                 </a>
@@ -100,10 +100,10 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-16 border-t border-border pt-8">
-          <p className="font-mono text-xs text-muted/60 mb-1">
+          <p className="font-mono text-sm text-muted/60 mb-1">
             AMBIENT ENTERPRISE TENSION
           </p>
-          <p className="font-mono text-xs text-muted">
+          <p className="font-mono text-sm text-muted">
             &copy; {new Date().getFullYear()} Tensient. All rights reserved.
           </p>
         </div>

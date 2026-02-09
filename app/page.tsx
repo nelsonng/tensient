@@ -68,7 +68,7 @@ export default function Home() {
                 <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
                   {step.title}
                 </h3>
-                <p className="font-body text-sm leading-relaxed text-muted">
+                <p className="font-body text-base leading-relaxed text-muted">
                   {step.description}
                 </p>
               </PanelCard>
@@ -89,7 +89,7 @@ export default function Home() {
             </div>
             <div className="md:col-span-3 space-y-6">
               <div>
-                <h4 className="font-display text-sm font-bold uppercase tracking-tight text-foreground mb-2">
+                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
                   THE WEEKLY UPDATE IS EXCRUCIATING
                 </h4>
                 <p className="font-body text-base leading-relaxed text-muted">
@@ -102,7 +102,7 @@ export default function Home() {
                 </p>
               </div>
               <div>
-                <h4 className="font-display text-sm font-bold uppercase tracking-tight text-foreground mb-2">
+                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
                   EVERY INTERACTION WITHOUT COACHING IS WASTED
                 </h4>
                 <p className="font-body text-base leading-relaxed text-muted">
@@ -114,7 +114,7 @@ export default function Home() {
                 </p>
               </div>
               <div>
-                <h4 className="font-display text-sm font-bold uppercase tracking-tight text-foreground mb-2">
+                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
                   TEAMS DRIFT WITHOUT KNOWING IT
                 </h4>
                 <p className="font-body text-base leading-relaxed text-muted">
@@ -187,7 +187,7 @@ export default function Home() {
                 <span className="font-mono text-xs text-muted block mb-2">
                   SYNTHESIZED UPDATE
                 </span>
-                <p className="font-body text-sm leading-relaxed text-foreground">
+                <p className="font-body text-base leading-relaxed text-foreground">
                   Resolved authentication bugs (latency reduction). Blocked on
                   design assets for homepage. Payment integration ownership is
                   unresolved and at risk of slipping.
@@ -199,20 +199,20 @@ export default function Home() {
                   ACTION ITEMS
                 </span>
                 <ul className="space-y-1">
-                  <li className="font-body text-sm text-foreground flex items-start gap-2">
-                    <span className="text-red-400 font-mono text-xs mt-0.5">
+                  <li className="font-body text-base text-foreground flex items-start gap-2">
+                    <span className="text-red-400 font-mono text-sm mt-0.5">
                       BLOCKED
                     </span>
                     <span>Follow up with design team on homepage assets</span>
                   </li>
-                  <li className="font-body text-sm text-foreground flex items-start gap-2">
-                    <span className="text-yellow-400 font-mono text-xs mt-0.5">
+                  <li className="font-body text-base text-foreground flex items-start gap-2">
+                    <span className="text-yellow-400 font-mono text-sm mt-0.5">
                       ESCALATE
                     </span>
                     <span>Assign owner for payment integration</span>
                   </li>
-                  <li className="font-body text-sm text-primary flex items-start gap-2">
-                    <span className="text-primary font-mono text-xs mt-0.5">
+                  <li className="font-body text-base text-primary flex items-start gap-2">
+                    <span className="text-primary font-mono text-sm mt-0.5">
                       DONE
                     </span>
                     <span>Auth bug fixes shipped</span>
@@ -224,7 +224,7 @@ export default function Home() {
                 <span className="font-mono text-xs text-muted block mb-2">
                   COACHING
                 </span>
-                <p className="font-body text-sm leading-relaxed text-muted">
+                <p className="font-body text-base leading-relaxed text-muted">
                   Good instinct to stay productive while blocked. Auth work
                   aligns with Q1 reliability goals. Flag the payment integration
                   gap to your lead -- unowned risks are the #1 cause of drift.

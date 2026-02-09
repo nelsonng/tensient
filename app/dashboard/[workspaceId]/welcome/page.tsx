@@ -216,7 +216,7 @@ export default function WelcomePage() {
                 <h3 className="font-display text-lg font-bold uppercase tracking-tight mb-2">
                   MANAGER
                 </h3>
-                <p className="font-body text-sm text-muted leading-relaxed">
+                <p className="font-body text-base text-muted leading-relaxed">
                   Define what matters. AI turns your direction into a strategic
                   reference your whole team aligns to.
                 </p>
@@ -232,7 +232,7 @@ export default function WelcomePage() {
                 <h3 className="font-display text-lg font-bold uppercase tracking-tight mb-2">
                   INDIVIDUAL CONTRIBUTOR
                 </h3>
-                <p className="font-body text-sm text-muted leading-relaxed">
+                <p className="font-body text-base text-muted leading-relaxed">
                   Dump what&apos;s on your mind. AI extracts action items, scores
                   your alignment, and gives you coaching.
                 </p>
@@ -300,7 +300,7 @@ export default function WelcomePage() {
                         <span className="font-mono text-xs text-primary mt-0.5">
                           {String(i + 1).padStart(2, "0")}
                         </span>
-                        <p className="font-body text-sm text-foreground">
+                        <p className="font-body text-base text-foreground">
                           {pillar}
                         </p>
                       </div>
@@ -467,7 +467,7 @@ export default function WelcomePage() {
                       key={i}
                       className="flex items-center justify-between border-b border-border pb-2 last:border-0"
                     >
-                      <span className="font-body text-sm text-foreground">
+                      <span className="font-body text-base text-foreground">
                         {item.task}
                       </span>
                       <StatusPill
@@ -490,7 +490,7 @@ export default function WelcomePage() {
             {captureResult.artifact.feedback && (
               <PanelCard className="mb-8">
                 <MonoLabel className="mb-3 block">COACHING</MonoLabel>
-                <p className="font-body text-sm leading-relaxed text-muted">
+                <p className="font-body text-base leading-relaxed text-muted">
                   {captureResult.artifact.feedback}
                 </p>
               </PanelCard>

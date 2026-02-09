@@ -62,10 +62,10 @@ export default function SignUpPage() {
           <Link href="/">
             <GlitchText text="TENSIENT" as="h1" className="text-3xl mb-2" />
           </Link>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted mb-1">
+          <p className="font-mono text-sm uppercase tracking-widest text-muted mb-1">
             AMBIENT ENTERPRISE TENSION
           </p>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted/60">
+          <p className="font-mono text-sm uppercase tracking-widest text-muted/60">
             CREATE ACCOUNT
           </p>
         </div>
@@ -73,7 +73,7 @@ export default function SignUpPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-mono text-xs uppercase tracking-widest text-muted mb-2">
+              <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
                 FIRST NAME
               </label>
               <input
@@ -84,7 +84,7 @@ export default function SignUpPage() {
               />
             </div>
             <div>
-              <label className="block font-mono text-xs uppercase tracking-widest text-muted mb-2">
+              <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
                 LAST NAME
               </label>
               <input
@@ -97,7 +97,7 @@ export default function SignUpPage() {
           </div>
 
           <div>
-            <label className="block font-mono text-xs uppercase tracking-widest text-muted mb-2">
+            <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
               EMAIL
             </label>
             <input
@@ -111,7 +111,7 @@ export default function SignUpPage() {
           </div>
 
           <div>
-            <label className="block font-mono text-xs uppercase tracking-widest text-muted mb-2">
+            <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
               PASSWORD
             </label>
             <input
@@ -136,7 +136,7 @@ export default function SignUpPage() {
           </SlantedButton>
         </form>
 
-        <p className="mt-6 text-center font-body text-sm text-muted">
+        <p className="mt-6 text-center font-body text-base text-muted">
           Already have an account?{" "}
           <Link href="/sign-in" className="text-primary hover:underline">
             Sign in
