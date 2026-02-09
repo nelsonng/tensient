@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { processCapture } from "@/lib/services/process-capture";
+import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 
 export async function POST(
   request: Request,
@@ -9,6 +10,15 @@ export async function POST(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Usage guard
+  const usageCheck = await checkUsageAllowed(session.user.id);
+  if (!usageCheck.allowed) {
+    return NextResponse.json(
+      { error: usageCheck.reason },
+      { status: 429 }
+    );
   }
 
   const { workspaceId } = await params;
@@ -22,11 +32,22 @@ export async function POST(
   }
 
   try {
-    const result = await processCapture(
+    const { result, usage } = await processCapture(
       session.user.id,
       workspaceId,
       content
     );
+
+    // Log usage
+    await logUsage({
+      userId: session.user.id,
+      workspaceId,
+      operation: "capture",
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      estimatedCostCents: usage.estimatedCostCents,
+    });
+
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message =

@@ -7,7 +7,7 @@ import {
   canons,
   memberships,
 } from "@/lib/db/schema";
-import { openai, generateEmbedding } from "@/lib/openai";
+import { ai, DEFAULT_MODEL, generateEmbedding, calculateCostCents } from "@/lib/ai";
 
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
@@ -41,11 +41,17 @@ export interface CaptureResult {
   tractionScore: number;
 }
 
+export interface CaptureUsage {
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostCents: number;
+}
+
 export async function processCapture(
   userId: string,
   workspaceId: string,
   content: string
-): Promise<CaptureResult> {
+): Promise<{ result: CaptureResult; usage: CaptureUsage }> {
   // 1. Create the capture record
   const [capture] = await db
     .insert(captures)
@@ -79,35 +85,59 @@ export async function processCapture(
   }
 
   // 5. Extract sentiment, action items, and synthesize via LLM
-  const analysis = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
+  const analysis = await ai.models.generateContent({
+    model: DEFAULT_MODEL,
+    contents: [
       {
-        role: "system",
-        content: `You are an organizational intelligence agent. Analyze this employee update and extract:
+        role: "user",
+        parts: [
+          {
+            text: `You are an organizational intelligence agent. Analyze this employee update and extract:
 1. sentiment_score: Float from -1.0 (very negative) to 1.0 (very positive)
-2. action_items: Array of { task: string, status: "open" | "blocked" | "done" }
+2. action_items: Array of objects with task and status fields
 3. synthesis: A clean, professional summary of the update (2-3 sentences)
 4. feedback: Coaching advice for the employee (1-2 sentences). Be direct and actionable.
 
-Respond in JSON:
-{
-  "sentiment_score": 0.3,
-  "action_items": [{"task": "...", "status": "open"}],
-  "synthesis": "...",
-  "feedback": "..."
-}`,
-      },
-      {
-        role: "user",
-        content: content,
+Here is the employee update:
+
+${content}`,
+          },
+        ],
       },
     ],
-    response_format: { type: "json_object" },
-    temperature: 0.3,
+    config: {
+      temperature: 0.3,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "object" as const,
+        properties: {
+          sentiment_score: { type: "number" as const },
+          action_items: {
+            type: "array" as const,
+            items: {
+              type: "object" as const,
+              properties: {
+                task: { type: "string" as const },
+                status: {
+                  type: "string" as const,
+                  enum: ["open", "blocked", "done"],
+                },
+              },
+              required: ["task", "status"],
+            },
+          },
+          synthesis: { type: "string" as const },
+          feedback: { type: "string" as const },
+        },
+        required: ["sentiment_score", "action_items", "synthesis", "feedback"],
+      },
+    },
   });
 
-  const parsed = JSON.parse(analysis.choices[0].message.content || "{}");
+  const parsed = JSON.parse(analysis.text ?? "{}");
+
+  const inputTokens = analysis.usageMetadata?.promptTokenCount ?? 0;
+  const outputTokens = analysis.usageMetadata?.candidatesTokenCount ?? 0;
 
   // 6. Create artifact
   const [artifact] = await db
@@ -139,6 +169,21 @@ Respond in JSON:
     )
     .limit(1);
 
+  const artifactResult = {
+    id: artifact.id,
+    driftScore: Math.round(driftScore * 100) / 100,
+    sentimentScore: parsed.sentiment_score || 0,
+    content: parsed.synthesis || content,
+    actionItems: parsed.action_items || [],
+    feedback: parsed.feedback || "",
+  };
+
+  const usageData: CaptureUsage = {
+    inputTokens,
+    outputTokens,
+    estimatedCostCents: calculateCostCents(inputTokens, outputTokens),
+  };
+
   if (membership) {
     // Calculate streak: if last capture was within 48 hours, increment
     const now = new Date();
@@ -168,31 +213,23 @@ Respond in JSON:
       .where(eq(memberships.id, membership.id));
 
     return {
-      capture: { id: capture.id, content: capture.content },
-      artifact: {
-        id: artifact.id,
-        driftScore: Math.round(driftScore * 100) / 100,
-        sentimentScore: parsed.sentiment_score || 0,
-        content: parsed.synthesis || content,
-        actionItems: parsed.action_items || [],
-        feedback: parsed.feedback || "",
+      result: {
+        capture: { id: capture.id, content: capture.content },
+        artifact: artifactResult,
+        streakCount: newStreak,
+        tractionScore: Math.round(newTractionScore * 100) / 100,
       },
-      streakCount: newStreak,
-      tractionScore: Math.round(newTractionScore * 100) / 100,
+      usage: usageData,
     };
   }
 
   return {
-    capture: { id: capture.id, content: capture.content },
-    artifact: {
-      id: artifact.id,
-      driftScore: Math.round(driftScore * 100) / 100,
-      sentimentScore: parsed.sentiment_score || 0,
-      content: parsed.synthesis || content,
-      actionItems: parsed.action_items || [],
-      feedback: parsed.feedback || "",
+    result: {
+      capture: { id: capture.id, content: capture.content },
+      artifact: artifactResult,
+      streakCount: 0,
+      tractionScore: 0,
     },
-    streakCount: 0,
-    tractionScore: 0,
+    usage: usageData,
   };
 }

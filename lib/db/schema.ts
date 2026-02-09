@@ -36,6 +36,12 @@ export const protocolOwnerTypeEnum = pgEnum("protocol_owner_type", [
   "user",
 ]);
 
+export const userTierEnum = pgEnum("user_tier", [
+  "trial",
+  "active",
+  "suspended",
+]);
+
 // ── Organizations ──────────────────────────────────────────────────────
 
 export const organizations = pgTable("organizations", {
@@ -60,6 +66,7 @@ export const users = pgTable("users", {
   lastName: text("last_name"),
   passwordHash: text("password_hash"),
   organizationId: uuid("organization_id").references(() => organizations.id),
+  tier: userTierEnum("tier").notNull().default("trial"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -220,5 +227,31 @@ export const artifacts = pgTable(
   (table) => [
     index("idx_artifacts_capture").on(table.captureId),
     index("idx_artifacts_canon").on(table.canonId),
+  ]
+);
+
+// ── Usage Logs (Cost Control) ──────────────────────────────────────────
+
+export const usageLogs = pgTable(
+  "usage_logs",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id)
+      .notNull(),
+    operation: text("operation").notNull(), // 'genesis' | 'capture'
+    inputTokens: integer("input_tokens").default(0).notNull(),
+    outputTokens: integer("output_tokens").default(0).notNull(),
+    estimatedCostCents: integer("estimated_cost_cents").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_usage_logs_user").on(table.userId),
+    index("idx_usage_logs_created").on(table.createdAt),
   ]
 );

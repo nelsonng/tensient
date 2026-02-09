@@ -2,7 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
 import { canons, protocols, workspaces } from "@/lib/db/schema";
-import { openai, generateEmbedding } from "@/lib/openai";
+import { ai, DEFAULT_MODEL, generateEmbedding, calculateCostCents } from "@/lib/ai";
 
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
@@ -21,39 +21,62 @@ interface GenesisResult {
   tone: string;
 }
 
+export interface GenesisUsage {
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostCents: number;
+}
+
 export async function runGenesis(
   workspaceId: string,
   rawInput: string
-): Promise<GenesisResult> {
+): Promise<{ result: GenesisResult; usage: GenesisUsage }> {
   // 1. Extract strategic pillars and tone via LLM
-  const extraction = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
+  const extraction = await ai.models.generateContent({
+    model: DEFAULT_MODEL,
+    contents: [
       {
-        role: "system",
-        content: `You are a strategic advisor. Given a leader's raw strategic input, extract:
+        role: "user",
+        parts: [
+          {
+            text: `You are a strategic advisor. Given a leader's raw strategic input, extract:
 1. The core 3-5 strategic pillars (concise, actionable statements)
 2. The overall tone (one of: "wartime", "peacetime", "analytical", "growth")
 3. A synthesized strategy document (2-3 paragraphs)
 
-Respond in JSON format:
-{
-  "pillars": ["pillar 1", "pillar 2", ...],
-  "tone": "wartime|peacetime|analytical|growth",
-  "synthesis": "The synthesized strategy..."
-}`,
-      },
-      {
-        role: "user",
-        content: rawInput,
+Here is the strategic input:
+
+${rawInput}`,
+          },
+        ],
       },
     ],
-    response_format: { type: "json_object" },
-    temperature: 0.3,
+    config: {
+      temperature: 0.3,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "object" as const,
+        properties: {
+          pillars: {
+            type: "array" as const,
+            items: { type: "string" as const },
+          },
+          tone: {
+            type: "string" as const,
+            enum: ["wartime", "peacetime", "analytical", "growth"],
+          },
+          synthesis: { type: "string" as const },
+        },
+        required: ["pillars", "tone", "synthesis"],
+      },
+    },
   });
 
-  const parsed = JSON.parse(extraction.choices[0].message.content || "{}");
+  const parsed = JSON.parse(extraction.text ?? "{}");
   const { pillars, tone, synthesis } = parsed;
+
+  const inputTokens = extraction.usageMetadata?.promptTokenCount ?? 0;
+  const outputTokens = extraction.usageMetadata?.candidatesTokenCount ?? 0;
 
   // 2. Generate embedding for the synthesized strategy
   const embedding = await generateEmbedding(synthesis);
@@ -93,13 +116,20 @@ Respond in JSON format:
   }
 
   return {
-    canon: {
-      id: canon.id,
-      content: canon.content,
-      rawInput: rawInput,
+    result: {
+      canon: {
+        id: canon.id,
+        content: canon.content,
+        rawInput: rawInput,
+      },
+      protocol: protocol ? { id: protocol.id, name: protocol.name } : null,
+      pillars,
+      tone,
     },
-    protocol: protocol ? { id: protocol.id, name: protocol.name } : null,
-    pillars,
-    tone,
+    usage: {
+      inputTokens,
+      outputTokens,
+      estimatedCostCents: calculateCostCents(inputTokens, outputTokens),
+    },
   };
 }

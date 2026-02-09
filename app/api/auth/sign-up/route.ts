@@ -4,12 +4,22 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { users, organizations, workspaces, memberships } from "@/lib/db/schema";
 import { nanoid } from "@/lib/utils";
+import { checkSignupAllowed } from "@/lib/usage-guard";
 
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
 
 export async function POST(request: Request) {
   try {
+    // Platform capacity check
+    const signupCheck = await checkSignupAllowed();
+    if (!signupCheck.allowed) {
+      return NextResponse.json(
+        { error: signupCheck.reason },
+        { status: 403 }
+      );
+    }
+
     const { email, password, firstName, lastName } = await request.json();
 
     if (!email || !password) {
@@ -29,7 +39,7 @@ export async function POST(request: Request) {
       })
       .returning();
 
-    // Create user
+    // Create user (tier defaults to 'trial' via schema)
     const [user] = await db
       .insert(users)
       .values({
