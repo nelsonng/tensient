@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { PanelCard } from "@/components/panel-card";
@@ -7,7 +9,7 @@ import { MonoLabel } from "@/components/mono-label";
 import { SlantedButton } from "@/components/slanted-button";
 
 interface DashboardProps {
-  workspace: { id: string; name: string; joinCode: string };
+  workspace: { id: string; name: string; joinCode: string; isDemo: boolean };
   canon: { id: string; content: string; createdAt: string } | null;
   recentArtifacts: Array<{
     id: string;
@@ -115,8 +117,49 @@ export function DashboardClient({
   driftTrend,
   currentUserId,
 }: DashboardProps) {
+  const router = useRouter();
+  const [resetting, setResetting] = useState(false);
+
+  async function handleStartFresh() {
+    if (!confirm("This will permanently delete all data in this workspace. Are you sure?")) {
+      return;
+    }
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/workspaces/${workspace.id}/demo`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        router.push(`/dashboard/${workspace.id}/welcome`);
+      }
+    } catch {
+      // Silently fail -- user can retry
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1200px] px-6 pt-8 pb-24">
+      {/* Demo Banner */}
+      {workspace.isDemo && (
+        <div className="mb-6 flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-5 py-3">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs text-primary font-bold">DEMO MODE</span>
+            <span className="font-body text-sm text-muted">
+              You&apos;re viewing sample data. Ready to use Tensient for real?
+            </span>
+          </div>
+          <button
+            onClick={handleStartFresh}
+            disabled={resetting}
+            className="font-mono text-xs text-primary hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {resetting ? "RESETTING..." : "START FRESH"}
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>

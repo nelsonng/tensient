@@ -94,6 +94,9 @@ export default function WelcomePage() {
   const [captureLoading, setCaptureLoading] = useState(false);
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
 
+  // Demo state
+  const [demoLoading, setDemoLoading] = useState(false);
+
   const [error, setError] = useState("");
 
   // ── Handlers ───────────────────────────────────────────────────
@@ -105,6 +108,30 @@ export default function WelcomePage() {
     } else {
       // ICs skip Genesis and go straight to Capture
       setStep("capture");
+    }
+  }
+
+  async function handleShowMe() {
+    setError("");
+    setDemoLoading(true);
+
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/demo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to load demo");
+      } else {
+        // Go straight to the populated dashboard
+        router.push(`/dashboard/${workspaceId}`);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setDemoLoading(false);
     }
   }
 
@@ -208,7 +235,8 @@ export default function WelcomePage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <button
                 onClick={() => handleRoleSelect("manager")}
-                className="group cursor-pointer text-left rounded-lg border border-border bg-panel p-6 transition-colors hover:border-primary"
+                disabled={demoLoading}
+                className="group cursor-pointer text-left rounded-lg border border-border bg-panel p-6 transition-colors hover:border-primary disabled:opacity-50"
               >
                 <MonoLabel className="mb-3 block text-primary group-hover:text-primary">
                   I SET STRATEGY
@@ -224,7 +252,8 @@ export default function WelcomePage() {
 
               <button
                 onClick={() => handleRoleSelect("ic")}
-                className="group cursor-pointer text-left rounded-lg border border-border bg-panel p-6 transition-colors hover:border-primary"
+                disabled={demoLoading}
+                className="group cursor-pointer text-left rounded-lg border border-border bg-panel p-6 transition-colors hover:border-primary disabled:opacity-50"
               >
                 <MonoLabel className="mb-3 block text-primary group-hover:text-primary">
                   I DO THE WORK
@@ -238,6 +267,37 @@ export default function WelcomePage() {
                 </p>
               </button>
             </div>
+
+            {/* ── Show Me (Instant Demo) ────────────────────────── */}
+            <div className="mt-10 pt-8 border-t border-border">
+              <p className="font-body text-base text-muted mb-4">
+                Just want to see how it works?
+              </p>
+              <button
+                onClick={handleShowMe}
+                disabled={demoLoading}
+                className="group cursor-pointer flex items-center gap-3 font-mono text-sm text-muted hover:text-primary transition-colors disabled:opacity-50"
+              >
+                {demoLoading ? (
+                  <>
+                    <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    <span>LOADING DEMO DATA...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-primary">&rarr;</span>
+                    <span>SHOW ME -- LOAD A DEMO WORKSPACE</span>
+                  </>
+                )}
+              </button>
+              <p className="font-mono text-xs text-muted/60 mt-2">
+                Pre-built strategy, team updates, and drift scores. No AI credits used. You can clear it later.
+              </p>
+            </div>
+
+            {error && (
+              <p className="font-mono text-xs text-red-400 mt-4">{error}</p>
+            )}
           </FadeIn>
         )}
 
@@ -488,12 +548,29 @@ export default function WelcomePage() {
 
             {/* Coaching */}
             {captureResult.artifact.feedback && (
-              <PanelCard className="mb-8">
+              <PanelCard className="mb-4">
                 <MonoLabel className="mb-3 block">COACHING</MonoLabel>
                 <p className="font-body text-base leading-relaxed text-muted">
                   {captureResult.artifact.feedback}
                 </p>
               </PanelCard>
+            )}
+
+            {/* Active Protocol */}
+            {genesisResult?.protocol && (
+              <div className="mb-8 rounded-lg border border-border bg-panel/50 px-5 py-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MonoLabel className="text-primary">ACTIVE PROTOCOL</MonoLabel>
+                  <span className="font-mono text-xs text-foreground uppercase">
+                    {genesisResult.protocol.name}
+                  </span>
+                </div>
+                <p className="font-body text-sm text-muted leading-relaxed">
+                  This protocol shaped how your capture was analyzed. Different
+                  protocols produce different synthesis styles, coaching tones,
+                  and scoring priorities.
+                </p>
+              </div>
             )}
 
             {/* CTA to Dashboard */}

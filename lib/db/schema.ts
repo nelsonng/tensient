@@ -123,6 +123,7 @@ export const workspaces = pgTable(
     activeProtocolId: uuid("active_protocol_id").references(
       () => protocols.id
     ),
+    isDemo: boolean("is_demo").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

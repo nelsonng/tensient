@@ -111,6 +111,7 @@ export default async function WorkspaceDashboard({
         id: workspace.id,
         name: workspace.name,
         joinCode: workspace.joinCode,
+        isDemo: workspace.isDemo,
       }}
       canon={
         canon

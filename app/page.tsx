@@ -38,7 +38,7 @@ export default function Home() {
           </MonoLabel>
 
           <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tight mb-6 max-w-[900px]">
-            Your team can&apos;t summarize what they did this week.{" "}
+            Your team can&apos;t summarize their week.{" "}
             <span className="text-primary">We fix that.</span>
           </h1>
 
@@ -53,79 +53,6 @@ export default function Home() {
             <SlantedButton variant="outline" href="#how-it-works">
               SEE HOW IT WORKS
             </SlantedButton>
-          </div>
-        </section>
-
-        {/* How It Works */}
-        <section id="how-it-works" className="mb-24">
-          <MonoLabel className="mb-8 block">HOW IT WORKS</MonoLabel>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {steps.map((step) => (
-              <PanelCard key={step.number}>
-                <span className="font-mono text-xs text-primary mb-4 block">
-                  {step.number}
-                </span>
-                <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
-                  {step.title}
-                </h3>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  {step.description}
-                </p>
-              </PanelCard>
-            ))}
-          </div>
-        </section>
-
-        {/* Why This Exists */}
-        <section className="mb-24">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-5">
-            <div className="md:col-span-2">
-              <MonoLabel className="mb-4 block text-primary">
-                WHY THIS EXISTS
-              </MonoLabel>
-              <h2 className="font-display text-3xl font-bold uppercase tracking-tight">
-                SLACK IS WHERE ALIGNMENT GOES TO DIE
-              </h2>
-            </div>
-            <div className="md:col-span-3 space-y-6">
-              <div>
-                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
-                  THE WEEKLY UPDATE IS EXCRUCIATING
-                </h4>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  You do standups every day. So why is it so hard to summarize
-                  your week? Because most people can&apos;t synthesize. If you
-                  can&apos;t synthesize, you can&apos;t see the system
-                  you&apos;re in. If you can&apos;t see the system, you
-                  can&apos;t make trade-offs. If you can&apos;t make trade-offs,
-                  you can&apos;t prioritize.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
-                  EVERY INTERACTION WITHOUT COACHING IS WASTED
-                </h4>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  We have access to the thinking of the best operators in the
-                  world -- Huang, Graham, Benioff. But none of that expertise
-                  shows up when people are actually doing the work. Every Slack
-                  message and every status update is a missed coaching
-                  opportunity.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
-                  TEAMS DRIFT WITHOUT KNOWING IT
-                </h4>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  Every word and every hour should move the company toward its
-                  goals. But without constant comparison to strategy, teams go
-                  off course. Most of what goes into Slack is noise. Tensient
-                  measures the gap between what your team is doing and what
-                  actually matters.
-                </p>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -234,6 +161,79 @@ export default function Home() {
           </div>
         </section>
 
+        {/* How It Works */}
+        <section id="how-it-works" className="mb-24">
+          <MonoLabel className="mb-8 block">HOW IT WORKS</MonoLabel>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {steps.map((step) => (
+              <PanelCard key={step.number}>
+                <span className="font-mono text-xs text-primary mb-4 block">
+                  {step.number}
+                </span>
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
+                  {step.title}
+                </h3>
+                <p className="font-body text-base leading-relaxed text-muted">
+                  {step.description}
+                </p>
+              </PanelCard>
+            ))}
+          </div>
+        </section>
+
+        {/* Why This Exists */}
+        <section className="mb-24">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-5">
+            <div className="md:col-span-2">
+              <MonoLabel className="mb-4 block text-primary">
+                WHY THIS EXISTS
+              </MonoLabel>
+              <h2 className="font-display text-3xl font-bold uppercase tracking-tight">
+                SLACK IS WHERE ALIGNMENT GOES TO DIE
+              </h2>
+            </div>
+            <div className="md:col-span-3 space-y-6">
+              <div>
+                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
+                  THE WEEKLY UPDATE IS EXCRUCIATING
+                </h4>
+                <p className="font-body text-base leading-relaxed text-muted">
+                  You do standups every day. So why is it so hard to summarize
+                  your week? Because most people can&apos;t synthesize. If you
+                  can&apos;t synthesize, you can&apos;t see the system
+                  you&apos;re in. If you can&apos;t see the system, you
+                  can&apos;t make trade-offs. If you can&apos;t make trade-offs,
+                  you can&apos;t prioritize.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
+                  EVERY INTERACTION WITHOUT COACHING IS WASTED
+                </h4>
+                <p className="font-body text-base leading-relaxed text-muted">
+                  We have access to the thinking of the best operators in the
+                  world -- Huang, Graham, Benioff. But none of that expertise
+                  shows up when people are actually doing the work. Every Slack
+                  message and every status update is a missed coaching
+                  opportunity.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
+                  TEAMS DRIFT WITHOUT KNOWING IT
+                </h4>
+                <p className="font-body text-base leading-relaxed text-muted">
+                  Every word and every hour should move the company toward its
+                  goals. But without constant comparison to strategy, teams go
+                  off course. Most of what goes into Slack is noise. Tensient
+                  measures the gap between what your team is doing and what
+                  actually matters.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Final CTA */}
         <section className="text-center mb-12">
           <GlitchText
@@ -244,13 +244,8 @@ export default function Home() {
           <MonoLabel className="block text-muted mb-6">
             AMBIENT ENTERPRISE TENSION
           </MonoLabel>
-          <p className="mx-auto max-w-[500px] font-body text-lg leading-relaxed text-foreground mb-2">
-            Your team is drifting right now.
-          </p>
-          <p className="mx-auto max-w-[500px] font-body text-base leading-relaxed text-muted mb-8">
-            Find out how much. Set your strategy, submit your first update, and
-            see the gap between what your team is doing and what actually
-            matters.
+          <p className="mx-auto max-w-[500px] font-body text-lg leading-relaxed text-foreground mb-8">
+            Your team is drifting right now. Find out how much.
           </p>
           <div className="flex justify-center gap-4">
             <SlantedButton size="lg" href="/sign-up">
