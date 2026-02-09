@@ -56,12 +56,11 @@ export default async function WorkspaceDashboard({
 
   if (!workspace) redirect("/dashboard");
 
-  // Latest Canon -- explicit column selection to ensure JSONB fields return
+  // Latest Canon (include healthAnalysis for pillar names)
   const [canon] = await db
     .select({
       id: canons.id,
       content: canons.content,
-      healthScore: canons.healthScore,
       healthAnalysis: canons.healthAnalysis,
       createdAt: canons.createdAt,
     })
@@ -231,6 +230,81 @@ export default async function WorkspaceDashboard({
     ? (canon.content.match(/^\d+\./gm) || []).length || 5
     : 0;
 
+  // ── Per-pillar activity ───────────────────────────────────────────────
+
+  const pillarNames: string[] = canon?.healthAnalysis
+    ? (((canon.healthAnalysis as Record<string, unknown>).pillars as Array<{ title: string }>) || []).map((p) => p.title)
+    : [];
+
+  // Artifacts grouped by pillar in window
+  const pillarActivity = await db
+    .select({
+      goalPillar: artifacts.goalPillar,
+      userName: dsql<string>`concat(${users.firstName}, ' ', ${users.lastName})`,
+      synthesisSnippet: dsql<string>`left(${artifacts.content}, 120)`,
+      createdAt: artifacts.createdAt,
+    })
+    .from(artifacts)
+    .innerJoin(captures, eq(artifacts.captureId, captures.id))
+    .innerJoin(users, eq(captures.userId, users.id))
+    .where(
+      and(
+        eq(captures.workspaceId, workspaceId),
+        gte(artifacts.createdAt, windowStart)
+      )
+    )
+    .orderBy(desc(artifacts.createdAt));
+
+  // Actions grouped by pillar in window
+  const pillarActions = await db
+    .select({
+      goalPillar: actions.goalPillar,
+      title: actions.title,
+      status: actions.status,
+      priority: actions.priority,
+    })
+    .from(actions)
+    .where(
+      and(
+        eq(actions.workspaceId, workspaceId),
+        gte(actions.createdAt, windowStart)
+      )
+    );
+
+  // Aggregate per-pillar data
+  const goalPillarMap = new Map<string, {
+    contributors: string[];
+    synthSnippets: string[];
+    actions: Array<{ title: string; status: string; priority: string }>;
+    blockers: string[];
+  }>();
+
+  for (const name of pillarNames) {
+    goalPillarMap.set(name, { contributors: [], synthSnippets: [], actions: [], blockers: [] });
+  }
+
+  for (const row of pillarActivity) {
+    if (!row.goalPillar) continue;
+    const entry = goalPillarMap.get(row.goalPillar) || { contributors: [], synthSnippets: [], actions: [], blockers: [] };
+    const name = (row.userName ?? "").trim();
+    if (name && !entry.contributors.includes(name)) entry.contributors.push(name);
+    if (entry.synthSnippets.length < 2 && row.synthesisSnippet) entry.synthSnippets.push(row.synthesisSnippet);
+    goalPillarMap.set(row.goalPillar, entry);
+  }
+
+  for (const row of pillarActions) {
+    if (!row.goalPillar) continue;
+    const entry = goalPillarMap.get(row.goalPillar) || { contributors: [], synthSnippets: [], actions: [], blockers: [] };
+    if (entry.actions.length < 3) entry.actions.push({ title: row.title, status: row.status, priority: row.priority });
+    if (row.status === "blocked" && entry.blockers.length < 2) entry.blockers.push(row.title);
+    goalPillarMap.set(row.goalPillar, entry);
+  }
+
+  const goalPillars = pillarNames.map((name) => ({
+    name,
+    ...(goalPillarMap.get(name) || { contributors: [], synthSnippets: [], actions: [], blockers: [] }),
+  }));
+
   return (
     <DashboardClient
       workspace={{
@@ -258,25 +332,9 @@ export default async function WorkspaceDashboard({
                 title: string;
                 detail: string;
                 coachAttribution: string;
-                goalLinked: boolean;
+                goalPillar: string | null;
                 priority: string;
               }>,
-            }
-          : null
-      }
-      goalHealth={
-        canon?.healthScore != null && canon?.healthAnalysis
-          ? {
-              overallScore: canon.healthScore,
-              analysis: canon.healthAnalysis as {
-                overallScore: number;
-                pillars: Array<{
-                  title: string;
-                  score: number;
-                  smart: Record<string, boolean>;
-                  suggestion: string;
-                }>;
-              },
             }
           : null
       }
@@ -313,6 +371,7 @@ export default async function WorkspaceDashboard({
         actions: Number(actionsInWindow?.newCount ?? 0),
       }}
       hasStrategy={!!canon}
+      goalPillars={goalPillars}
     />
   );
 }

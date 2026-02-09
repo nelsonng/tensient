@@ -192,7 +192,7 @@ Output structured JSON with overallScore (0-1), pillars array with per-pillar SM
         detail:
           "AES-256 encryption migration complete in staging. Gap assessment starts in 2 weeks. Incident response plan drafted. This unlocks enterprise pipeline.",
         coachAttribution: "Jensen T5T",
-        goalLinked: true,
+        goalPillar: "Dominate top 20 health systems",
         priority: "critical",
       },
       {
@@ -201,7 +201,7 @@ Output structured JSON with overallScore (0-1), pillars array with per-pillar SM
         detail:
           "Credential verification live with first nurse cohort. Early metrics show 40% reduction in manual verification time. Adoption needs monitoring -- 7 yellow accounts flagged.",
         coachAttribution: "YC Protocol",
-        goalLinked: true,
+        goalPillar: "Deliver hard ROI data",
         priority: "critical",
       },
       {
@@ -210,7 +210,7 @@ Output structured JSON with overallScore (0-1), pillars array with per-pillar SM
         detail:
           "Board approved second product line. Product brief written, customer discovery calls scheduled with Rachel. Finance beachhead strategy validated. Need to move from strategy to shipping.",
         coachAttribution: "Wartime General",
-        goalLinked: true,
+        goalPillar: "Compliance automation",
         priority: "high",
       },
       {
@@ -219,7 +219,7 @@ Output structured JSON with overallScore (0-1), pillars array with per-pillar SM
         detail:
           "DevOps lead hired but Senior SRE and Frontend still open. FHIR adapter timeline slipping without dedicated resource. Marcus is single-threaded on too many critical paths.",
         coachAttribution: "Growth Mindset",
-        goalLinked: true,
+        goalPillar: "Staffing intelligence",
         priority: "high",
       },
       {
@@ -228,7 +228,7 @@ Output structured JSON with overallScore (0-1), pillars array with per-pillar SM
         detail:
           "Strategic decision to delay scheduling engine launch to ensure Adventist pilot stability. 3 customer discovery calls completed for requirements validation. Intent-based approach validated but needs more data.",
         coachAttribution: "Jensen T5T",
-        goalLinked: true,
+        goalPillar: "Staffing intelligence",
         priority: "medium",
       },
     ],

@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { users, organizations, workspaces, memberships } from "@/lib/db/schema";
 import { nanoid } from "@/lib/utils";
 import { checkSignupAllowed } from "@/lib/usage-guard";
+import { createEmailVerificationToken } from "@/lib/auth-tokens";
+import { sendEmail } from "@/lib/email";
+import { verifyEmailHtml } from "@/lib/emails/verify-email";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   try {
@@ -63,6 +67,28 @@ export async function POST(request: Request) {
       workspaceId: workspace.id,
       role: "owner",
     });
+
+    // Send email verification (non-blocking -- don't fail signup if email fails)
+    try {
+      const verifyToken = await createEmailVerificationToken(user.id);
+      const baseUrl = process.env.NEXTAUTH_URL || "https://tensient.vercel.app";
+      const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
+
+      const emailId = await sendEmail({
+        to: user.email,
+        subject: "Verify your Tensient email",
+        html: verifyEmailHtml({ verifyUrl, firstName: firstName || null }),
+      });
+
+      if (!emailId) {
+        logger.warn("Failed to send verification email", { userId: user.id });
+      }
+    } catch (emailError: unknown) {
+      logger.warn("Verification email error (non-fatal)", {
+        userId: user.id,
+        error: emailError instanceof Error ? emailError.message : "Unknown",
+      });
+    }
 
     return NextResponse.json({
       user: { id: user.id, email: user.email },

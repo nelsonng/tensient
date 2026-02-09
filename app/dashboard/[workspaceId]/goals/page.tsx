@@ -9,6 +9,33 @@ import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { SlantedButton } from "@/components/slanted-button";
 
+function SmartBadges({ smart }: { smart: Record<string, boolean> }) {
+  const labels: Record<string, string> = {
+    specific: "S",
+    measurable: "M",
+    achievable: "A",
+    relevant: "R",
+    timeBound: "T",
+  };
+  return (
+    <span className="inline-flex gap-1">
+      {Object.entries(labels).map(([key, letter]) => (
+        <span
+          key={key}
+          className={`inline-block w-5 h-5 text-center leading-5 rounded font-mono text-xs ${
+            smart[key]
+              ? "bg-primary/20 text-primary"
+              : "bg-border/30 text-muted"
+          }`}
+          title={`${key}: ${smart[key] ? "yes" : "needs work"}`}
+        >
+          {letter}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   if (seconds < 60) return "just now";
@@ -44,11 +71,31 @@ export default async function GoalsPage({
       id: canons.id,
       content: canons.content,
       rawInput: canons.rawInput,
+      healthScore: canons.healthScore,
+      healthAnalysis: canons.healthAnalysis,
       createdAt: canons.createdAt,
     })
     .from(canons)
     .where(eq(canons.workspaceId, workspaceId))
     .orderBy(desc(canons.createdAt));
+
+  // Goal health from latest canon
+  const latestCanon = allCanons[0] ?? null;
+  const goalHealth =
+    latestCanon?.healthScore != null && latestCanon?.healthAnalysis
+      ? {
+          overallScore: latestCanon.healthScore,
+          analysis: latestCanon.healthAnalysis as {
+            overallScore: number;
+            pillars: Array<{
+              title: string;
+              score: number;
+              smart: Record<string, boolean>;
+              suggestion: string;
+            }>;
+          },
+        }
+      : null;
 
   return (
     <div className="mx-auto max-w-[1000px] px-6 pt-8 pb-24">
@@ -73,6 +120,44 @@ export default async function GoalsPage({
           + SET GOALS
         </SlantedButton>
       </div>
+
+      {/* Goal Health Analysis */}
+      {goalHealth && (
+        <PanelCard className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <MonoLabel className="text-primary">GOAL HEALTH</MonoLabel>
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-bold text-primary">
+                {Math.round(goalHealth.overallScore * 100)}%
+              </span>
+              <span className="font-mono text-xs text-muted">SMART score</span>
+            </div>
+          </div>
+          <div className="w-full h-2 bg-border rounded-full mb-5 overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full"
+              style={{ width: `${goalHealth.overallScore * 100}%` }}
+            />
+          </div>
+          <div className="space-y-3">
+            {goalHealth.analysis.pillars.map((pillar, i) => (
+              <div key={i} className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-body text-sm text-foreground">
+                      {pillar.title}
+                    </span>
+                    <SmartBadges smart={pillar.smart} />
+                  </div>
+                  <p className="font-mono text-xs text-muted leading-relaxed">
+                    {pillar.suggestion}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </PanelCard>
+      )}
 
       {allCanons.length === 0 ? (
         <PanelCard className="text-center py-12">

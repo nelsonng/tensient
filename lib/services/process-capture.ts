@@ -64,6 +64,11 @@ export async function processCapture(
     .orderBy(desc(canons.createdAt))
     .limit(1);
 
+  // 3b. Extract goal pillar titles from healthAnalysis
+  const pillarTitles: string[] = canon?.healthAnalysis
+    ? (((canon.healthAnalysis as Record<string, unknown>).pillars as Array<{ title: string }>) || []).map((p) => p.title)
+    : [];
+
   // 4. Calculate drift score
   let driftScore = 0.5; // default if no canon
   if (canon?.embedding) {
@@ -108,7 +113,11 @@ Analyze this employee update and extract:
 1. sentiment_score: Float from -1.0 (very negative) to 1.0 (very positive)
 2. action_items: Array of objects with task, status, and coach_attribution fields
 3. synthesis: A clean, professional summary of the update (2-3 sentences)
-4. feedback: Coaching advice for the employee (2-4 sentences). Be direct and actionable. Attribute each piece of advice to the relevant coaching lens.
+4. feedback: Coaching advice for the employee (2-4 sentences). Be direct and actionable. Attribute each piece of advice to the relevant coaching lens.${pillarTitles.length > 0 ? `
+5. goal_pillar: Which single strategic goal pillar this update most closely relates to. Use the EXACT title from the list below, or null if none apply.
+
+The organization has these strategic goal pillars:
+${pillarTitles.map((t, i) => `${i + 1}. ${t}`).join("\n")}` : ""}
 
 Here is the employee update:
 
@@ -141,6 +150,7 @@ ${content}`,
           },
           synthesis: { type: "string" as const },
           feedback: { type: "string" as const },
+          goal_pillar: { type: "string" as const },
         },
         required: ["sentiment_score", "action_items", "synthesis", "feedback"],
       },
@@ -153,6 +163,8 @@ ${content}`,
   const outputTokens = analysis.usageMetadata?.candidatesTokenCount ?? 0;
 
   // 7. Create artifact
+  const assignedPillar = parsed.goal_pillar || null;
+
   const [artifact] = await db
     .insert(artifacts)
     .values({
@@ -163,6 +175,7 @@ ${content}`,
       content: parsed.synthesis || content,
       actionItems: parsed.action_items || [],
       feedback: parsed.feedback || "",
+      goalPillar: assignedPillar,
       embedding: captureEmbedding,
     })
     .returning();
@@ -199,6 +212,7 @@ ${content}`,
         priority: "medium",
         goalAlignmentScore,
         coachAttribution: item.coach_attribution || null,
+        goalPillar: assignedPillar,
       });
     }
   } else if (actionItems.length > 0) {
@@ -212,6 +226,7 @@ ${content}`,
         status: item.status === "done" ? "done" : item.status === "blocked" ? "blocked" : "open",
         priority: "medium",
         coachAttribution: item.coach_attribution || null,
+        goalPillar: assignedPillar,
       });
     }
   }

@@ -15,15 +15,8 @@ interface DigestItem {
   title: string;
   detail: string;
   coachAttribution: string;
-  goalLinked: boolean;
+  goalPillar: string | null;
   priority: string;
-}
-
-interface GoalHealthPillar {
-  title: string;
-  score: number;
-  smart: Record<string, boolean>;
-  suggestion: string;
 }
 
 interface DashboardProps {
@@ -42,13 +35,6 @@ interface DashboardProps {
   digest: {
     summary: string;
     items: DigestItem[];
-  } | null;
-  goalHealth: {
-    overallScore: number;
-    analysis: {
-      overallScore: number;
-      pillars: GoalHealthPillar[];
-    };
   } | null;
   teamMembers: Array<{
     userId: string;
@@ -78,6 +64,13 @@ interface DashboardProps {
     actions: number;
   };
   hasStrategy: boolean;
+  goalPillars: Array<{
+    name: string;
+    contributors: string[];
+    synthSnippets: string[];
+    actions: Array<{ title: string; status: string; priority: string }>;
+    blockers: string[];
+  }>;
 }
 
 const NAV_ITEMS = [
@@ -202,35 +195,6 @@ function AlignmentSparkline({
   );
 }
 
-// ── SMART Badge ──────────────────────────────────────────────────────────
-
-function SmartBadges({ smart }: { smart: Record<string, boolean> }) {
-  const labels: Record<string, string> = {
-    specific: "S",
-    measurable: "M",
-    achievable: "A",
-    relevant: "R",
-    timeBound: "T",
-  };
-  return (
-    <div className="flex gap-1">
-      {Object.entries(labels).map(([key, letter]) => (
-        <span
-          key={key}
-          className={`inline-block w-5 h-5 text-center leading-5 rounded font-mono text-xs ${
-            smart[key]
-              ? "bg-primary/20 text-primary"
-              : "bg-border/30 text-muted"
-          }`}
-          title={`${key}: ${smart[key] ? "yes" : "needs work"}`}
-        >
-          {letter}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 // ── Main Component ───────────────────────────────────────────────────────
 
 export function DashboardClient({
@@ -239,7 +203,6 @@ export function DashboardClient({
   isCurrentWeek,
   weekPulse,
   digest,
-  goalHealth,
   teamMembers,
   alignmentTrend,
   allCoaches,
@@ -247,6 +210,7 @@ export function DashboardClient({
   needsAttention,
   flowCounts,
   hasStrategy,
+  goalPillars,
 }: DashboardProps) {
   const pathname = usePathname();
   const basePath = `/dashboard/${workspace.id}`;
@@ -362,7 +326,7 @@ export function DashboardClient({
                   <div className="divide-y divide-border/50">
                     {digest.items.map((item) => (
                       <div key={item.rank} className="flex gap-3 py-3 first:pt-0">
-                        <span className="font-mono text-lg font-bold text-primary/40 shrink-0 w-6 text-right pt-0.5">
+                        <span className="font-mono text-lg font-bold text-muted/60 shrink-0 w-6 text-right pt-0.5">
                           {item.rank}
                         </span>
                         <div className="flex-1 min-w-0">
@@ -380,12 +344,9 @@ export function DashboardClient({
                             >
                               {item.priority.toUpperCase()}
                             </span>
-                            <span className="font-mono text-xs text-muted">
-                              via {item.coachAttribution}
-                            </span>
-                            {item.goalLinked ? (
-                              <span className="font-mono text-xs text-primary/60">
-                                GOAL-LINKED
+                            {item.goalPillar ? (
+                              <span className="font-mono text-xs text-muted">
+                                GOAL: {item.goalPillar}
                               </span>
                             ) : (
                               <span className="font-mono text-xs text-warning">
@@ -404,6 +365,74 @@ export function DashboardClient({
                 </p>
               )}
             </PanelCard>
+
+            {/* GOALS THIS WEEK */}
+            {goalPillars.length > 0 && (
+              <PanelCard>
+                <div className="flex items-center justify-between mb-4">
+                  <MonoLabel className="text-primary">GOALS THIS WEEK</MonoLabel>
+                  <Link
+                    href={`${basePath}/goals`}
+                    className="font-mono text-xs text-muted hover:text-primary transition-colors"
+                  >
+                    VIEW ALL &rarr;
+                  </Link>
+                </div>
+                <div className="divide-y divide-border/50">
+                  {goalPillars.map((pillar) => {
+                    const isSilent = pillar.contributors.length === 0;
+                    const isBlocked = pillar.blockers.length > 0;
+                    return (
+                      <div key={pillar.name} className="py-3 first:pt-0 last:pb-0">
+                        <p className="font-body text-sm font-semibold text-foreground mb-1">
+                          {pillar.name}
+                        </p>
+
+                        {isSilent ? (
+                          <span className="font-mono text-xs text-warning">
+                            No activity this week
+                          </span>
+                        ) : (
+                          <>
+                            <p className="font-mono text-xs text-muted mb-1">
+                              {pillar.contributors.join(", ")}
+                            </p>
+
+                            {pillar.synthSnippets.length > 0 && (
+                              <p className="font-body text-xs text-muted leading-relaxed mb-1 line-clamp-2">
+                                {pillar.synthSnippets[0]}
+                                {pillar.synthSnippets[0] && !pillar.synthSnippets[0].endsWith(".") ? "..." : ""}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-3">
+                              {pillar.actions.length > 0 && (
+                                <span className="font-mono text-xs text-muted">
+                                  {pillar.actions.length} action{pillar.actions.length !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                            </div>
+
+                            {isBlocked && (
+                              <div className="mt-1.5">
+                                {pillar.blockers.map((b, i) => (
+                                  <p
+                                    key={i}
+                                    className="font-mono text-xs text-destructive leading-relaxed"
+                                  >
+                                    BLOCKED: {b}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PanelCard>
+            )}
 
             {/* ALIGNMENT THIS WEEK */}
             {alignmentTrend.length > 1 && (
@@ -505,64 +534,6 @@ export function DashboardClient({
 
           {/* ── Right column (1/3) ─────────────────────────────────────── */}
           <div className="space-y-6">
-            {/* GOAL HEALTH */}
-            {goalHealth && (
-              <PanelCard>
-                <div className="flex items-center justify-between mb-3">
-                  <MonoLabel className="text-primary">GOAL HEALTH</MonoLabel>
-                  <Link
-                    href={`${basePath}/goals`}
-                    className="font-mono text-xs text-muted hover:text-primary transition-colors"
-                  >
-                    VIEW &rarr;
-                  </Link>
-                </div>
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="font-mono text-3xl font-bold text-primary">
-                    {Math.round(goalHealth.overallScore * 100)}%
-                  </span>
-                  <span className="font-mono text-xs text-muted">SMART score</span>
-                </div>
-                {/* SMART progress bar */}
-                <div className="w-full h-2 bg-border rounded-full mb-4 overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full"
-                    style={{ width: `${goalHealth.overallScore * 100}%` }}
-                  />
-                </div>
-                {/* Pillar breakdown */}
-                <div className="space-y-3">
-                  {goalHealth.analysis.pillars.slice(0, 3).map((pillar, i) => (
-                    <div key={i}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-body text-sm text-foreground line-clamp-1">
-                          {pillar.title}
-                        </span>
-                        <SmartBadges smart={pillar.smart} />
-                      </div>
-                      {pillar.smart.timeBound === false && (
-                        <p className="font-mono text-xs text-warning leading-relaxed">
-                          {pillar.suggestion}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                  {goalHealth.analysis.pillars.length > 3 && (
-                    <Link
-                      href={`${basePath}/goals`}
-                      className="font-mono text-xs text-muted hover:text-primary transition-colors"
-                    >
-                      +{goalHealth.analysis.pillars.length - 3} more pillars &rarr;
-                    </Link>
-                  )}
-                </div>
-                <p className="font-mono text-xs text-muted mt-3 leading-relaxed">
-                  Your goals are {Math.round(goalHealth.overallScore * 100)}% dialed in.
-                  Sharpen timelines and metrics to improve.
-                </p>
-              </PanelCard>
-            )}
-
             {/* TEAM PULSE */}
             <PanelCard>
               <MonoLabel className="mb-3 block text-primary">TEAM PULSE</MonoLabel>

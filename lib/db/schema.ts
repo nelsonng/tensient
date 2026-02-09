@@ -62,6 +62,7 @@ export const users = pgTable("users", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
+  emailVerified: timestamp("email_verified"), // null = unverified
   firstName: text("first_name"),
   lastName: text("last_name"),
   passwordHash: text("password_hash"),
@@ -224,6 +225,7 @@ export const artifacts = pgTable(
     content: text("content"),
     actionItems: jsonb("action_items"), // [{ task: string, status: string }]
     feedback: text("feedback"),
+    goalPillar: text("goal_pillar"), // which strategic pillar this relates to
     embedding: vector("embedding", { dimensions: 1536 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -270,6 +272,7 @@ export const actions = pgTable(
     priority: actionPriorityEnum("priority").notNull().default("medium"),
     goalAlignmentScore: real("goal_alignment_score"), // 0-1, AI-calculated
     coachAttribution: text("coach_attribution"), // which coach surfaced this
+    goalPillar: text("goal_pillar"), // which strategic pillar this relates to
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -299,6 +302,48 @@ export const digests = pgTable(
   },
   (table) => [
     index("idx_digests_workspace_week").on(table.workspaceId, table.weekStart),
+  ]
+);
+
+// ── Password Reset Tokens ───────────────────────────────────────────────
+
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    token: text("token").notNull(), // SHA-256 hash of the raw token
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_password_reset_tokens_user").on(table.userId),
+    index("idx_password_reset_tokens_token").on(table.token),
+  ]
+);
+
+// ── Email Verification Tokens ──────────────────────────────────────────
+
+export const emailVerificationTokens = pgTable(
+  "email_verification_tokens",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    token: text("token").notNull(), // SHA-256 hash of the raw token
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_email_verification_tokens_user").on(table.userId),
+    index("idx_email_verification_tokens_token").on(table.token),
   ]
 );
 
