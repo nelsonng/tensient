@@ -2,6 +2,7 @@ import { GlitchText } from "@/components/glitch-text";
 import { SlantedButton } from "@/components/slanted-button";
 import { MonoLabel } from "@/components/mono-label";
 import { PanelCard } from "@/components/panel-card";
+import { ArchetypeTabs } from "@/components/archetype-tabs";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 
@@ -56,99 +57,68 @@ export default function Home() {
           </div>
         </section>
 
-        {/* See It In Action -- Before/After Mock */}
+        {/* See It In Action -- Archetype Tabs */}
         <section className="mb-24">
           <MonoLabel className="mb-8 block">SEE IT IN ACTION</MonoLabel>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Before: Raw Input */}
+          <ArchetypeTabs />
+        </section>
+
+        {/* You Already Know These People */}
+        <section className="mb-24">
+          <MonoLabel className="mb-4 block text-primary">
+            YOU ALREADY KNOW THESE PEOPLE
+          </MonoLabel>
+          <h2 className="font-display text-3xl font-bold uppercase tracking-tight mb-8 max-w-[700px]">
+            SLACK CAN&apos;T SHOW YOU THIS.{" "}
+            <span className="text-muted">TENSIENT CAN.</span>
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <PanelCard>
-              <MonoLabel className="mb-4 block text-muted">
-                WHAT YOUR TEAM MEMBER TYPES
+              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
+                Your team has a Marcus.
+              </span>
+              <MonoLabel className="block mb-3 text-muted">
+                Senior Engineer
               </MonoLabel>
-              <p className="font-body text-base leading-relaxed text-muted italic">
-                &quot;Honestly kind of a frustrating week. I spent most of
-                Monday and Tuesday waiting on the design team for the homepage
-                assets so I just started fixing auth bugs instead. Not sure if
-                that was the best use of my time. Also had a couple meetings
-                about the mobile app timeline that didn&apos;t really go
-                anywhere. I think we need to figure out the payment integration
-                before anything else but nobody seems to be owning that.&quot;
+              <p className="font-body text-base leading-relaxed text-muted">
+                His work is critical. His updates are hieroglyphics. Leadership
+                can&apos;t see what he&apos;s doing.
               </p>
             </PanelCard>
-
-            {/* After: Structured Artifact */}
-            <PanelCard className="border-primary/30">
-              <MonoLabel className="mb-4 block text-primary">
-                WHAT TENSIENT PRODUCES
+            <PanelCard>
+              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
+                Your team has a Sam.
+              </span>
+              <MonoLabel className="block mb-3 text-muted">
+                Customer Success Lead
               </MonoLabel>
-
-              {/* Scores Row */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="text-center">
-                  <span className="font-mono text-xs text-muted block mb-1">
-                    ALIGNMENT
-                  </span>
-                  <span className="font-mono text-xl font-bold text-yellow-400">
-                    59%
-                  </span>
-                </div>
-                <div className="text-center">
-                  <span className="font-mono text-xs text-muted block mb-1">
-                    SENTIMENT
-                  </span>
-                  <span className="font-mono text-xl font-bold text-red-400">
-                    -0.3
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-3 mb-3">
-                <span className="font-mono text-xs text-muted block mb-2">
-                  SYNTHESIZED UPDATE
-                </span>
-                <p className="font-body text-base leading-relaxed text-foreground">
-                  Resolved authentication bugs (latency reduction). Blocked on
-                  design assets for homepage. Payment integration ownership is
-                  unresolved and at risk of slipping.
-                </p>
-              </div>
-
-              <div className="border-t border-border pt-3 mb-3">
-                <span className="font-mono text-xs text-muted block mb-2">
-                  ACTION ITEMS
-                </span>
-                <ul className="space-y-1">
-                  <li className="font-body text-base text-foreground flex items-start gap-2">
-                    <span className="text-red-400 font-mono text-sm mt-0.5">
-                      BLOCKED
-                    </span>
-                    <span>Follow up with design team on homepage assets</span>
-                  </li>
-                  <li className="font-body text-base text-foreground flex items-start gap-2">
-                    <span className="text-yellow-400 font-mono text-sm mt-0.5">
-                      ESCALATE
-                    </span>
-                    <span>Assign owner for payment integration</span>
-                  </li>
-                  <li className="font-body text-base text-primary flex items-start gap-2">
-                    <span className="text-primary font-mono text-sm mt-0.5">
-                      DONE
-                    </span>
-                    <span>Auth bug fixes shipped</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="border-t border-border pt-3">
-                <span className="font-mono text-xs text-muted block mb-2">
-                  COACHING
-                </span>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  Good instinct to stay productive while blocked. Auth work
-                  aligns with Q1 reliability goals. Flag the payment integration
-                  gap to your lead -- unowned risks are the #1 cause of drift.
-                </p>
-              </div>
+              <p className="font-body text-base leading-relaxed text-muted">
+                He&apos;s drowning in tickets. You won&apos;t know until he
+                quits.
+              </p>
+            </PanelCard>
+            <PanelCard>
+              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
+                Your team has a Kai.
+              </span>
+              <MonoLabel className="block mb-3 text-muted">
+                Junior Engineer
+              </MonoLabel>
+              <p className="font-body text-base leading-relaxed text-muted">
+                He&apos;s doing great work. He thinks he&apos;s failing.
+              </p>
+            </PanelCard>
+            <PanelCard>
+              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
+                Your team has a Priya.
+              </span>
+              <MonoLabel className="block mb-3 text-muted">
+                Product Marketing
+              </MonoLabel>
+              <p className="font-body text-base leading-relaxed text-muted">
+                Everything is &quot;game-changing.&quot; The real work is buried
+                under adjectives.
+              </p>
             </PanelCard>
           </div>
         </section>
