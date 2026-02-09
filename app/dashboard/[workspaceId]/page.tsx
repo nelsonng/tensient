@@ -10,6 +10,7 @@ import {
   memberships,
   users,
   workspaces,
+  protocols,
 } from "@/lib/db/schema";
 import { DashboardClient } from "./dashboard-client";
 
@@ -105,15 +106,25 @@ export default async function WorkspaceDashboard({
     .orderBy(desc(artifacts.createdAt))
     .limit(20);
 
+  // Active protocol
+  let activeProtocol: { id: string; name: string; description: string | null } | null = null;
+  if (workspace.activeProtocolId) {
+    const [p] = await db
+      .select({ id: protocols.id, name: protocols.name, description: protocols.description })
+      .from(protocols)
+      .where(eq(protocols.id, workspace.activeProtocolId))
+      .limit(1);
+    if (p) activeProtocol = p;
+  }
+
   return (
     <DashboardClient
       workspace={{
         id: workspace.id,
         name: workspace.name,
         joinCode: workspace.joinCode,
-        isDemo: workspace.isDemo,
       }}
-      canon={
+      strategy={
         canon
           ? {
               id: canon.id,
@@ -124,7 +135,7 @@ export default async function WorkspaceDashboard({
       }
       recentArtifacts={recentArtifacts.map((a) => ({
         id: a.artifactId,
-        driftScore: a.driftScore ?? 0,
+        alignmentScore: 1 - (a.driftScore ?? 0),
         sentimentScore: a.sentimentScore ?? 0,
         content: a.content ?? "",
         actionItemCount: Array.isArray(a.actionItems)
@@ -139,15 +150,16 @@ export default async function WorkspaceDashboard({
           [m.firstName, m.lastName].filter(Boolean).join(" ") || m.email,
         role: m.role,
         streakCount: m.streakCount,
-        tractionScore: m.tractionScore,
+        alignmentScore: m.tractionScore,
         lastCaptureAt: m.lastCaptureAt?.toISOString() ?? null,
       }))}
-      driftTrend={driftTrend
+      alignmentTrend={driftTrend
         .map((d) => ({
-          driftScore: d.driftScore ?? 0,
+          alignmentScore: 1 - (d.driftScore ?? 0),
           createdAt: d.createdAt.toISOString(),
         }))
         .reverse()}
+      activeProtocol={activeProtocol}
       currentUserId={session.user.id}
     />
   );

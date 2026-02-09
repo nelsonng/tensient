@@ -31,14 +31,14 @@ export interface CaptureResult {
   };
   artifact: {
     id: string;
-    driftScore: number;
+    alignmentScore: number;
     sentimentScore: number;
     content: string;
     actionItems: Array<{ task: string; status: string }>;
     feedback: string;
   };
   streakCount: number;
-  tractionScore: number;
+  alignmentScore: number;
 }
 
 export interface CaptureUsage {
@@ -169,9 +169,11 @@ ${content}`,
     )
     .limit(1);
 
+  const alignmentScore = Math.round((1 - driftScore) * 100) / 100;
+
   const artifactResult = {
     id: artifact.id,
-    driftScore: Math.round(driftScore * 100) / 100,
+    alignmentScore,
     sentimentScore: parsed.sentiment_score || 0,
     content: parsed.synthesis || content,
     actionItems: parsed.action_items || [],
@@ -195,19 +197,18 @@ ${content}`,
     const newStreak =
       hoursElapsed <= 48 ? membership.streakCount + 1 : 1;
 
-    // Rolling average traction score (inverse of drift)
-    const traction = 1 - driftScore;
-    const newTractionScore =
+    // Rolling average alignment score (inverse of drift)
+    const newAlignmentScore =
       membership.tractionScore === 0
-        ? traction
-        : membership.tractionScore * 0.7 + traction * 0.3;
+        ? alignmentScore
+        : membership.tractionScore * 0.7 + alignmentScore * 0.3;
 
     await db
       .update(memberships)
       .set({
         lastCaptureAt: now,
         streakCount: newStreak,
-        tractionScore: Math.round(newTractionScore * 100) / 100,
+        tractionScore: Math.round(newAlignmentScore * 100) / 100,
         updatedAt: now,
       })
       .where(eq(memberships.id, membership.id));
@@ -217,7 +218,7 @@ ${content}`,
         capture: { id: capture.id, content: capture.content },
         artifact: artifactResult,
         streakCount: newStreak,
-        tractionScore: Math.round(newTractionScore * 100) / 100,
+        alignmentScore: Math.round(newAlignmentScore * 100) / 100,
       },
       usage: usageData,
     };
@@ -228,7 +229,7 @@ ${content}`,
       capture: { id: capture.id, content: capture.content },
       artifact: artifactResult,
       streakCount: 0,
-      tractionScore: 0,
+      alignmentScore: 0,
     },
     usage: usageData,
   };

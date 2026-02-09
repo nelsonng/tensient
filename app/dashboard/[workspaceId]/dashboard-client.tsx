@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { PanelCard } from "@/components/panel-card";
@@ -9,11 +7,11 @@ import { MonoLabel } from "@/components/mono-label";
 import { SlantedButton } from "@/components/slanted-button";
 
 interface DashboardProps {
-  workspace: { id: string; name: string; joinCode: string; isDemo: boolean };
-  canon: { id: string; content: string; createdAt: string } | null;
+  workspace: { id: string; name: string; joinCode: string };
+  strategy: { id: string; content: string; createdAt: string } | null;
   recentArtifacts: Array<{
     id: string;
-    driftScore: number;
+    alignmentScore: number;
     sentimentScore: number;
     content: string;
     actionItemCount: number;
@@ -25,19 +23,20 @@ interface DashboardProps {
     name: string;
     role: string;
     streakCount: number;
-    tractionScore: number;
+    alignmentScore: number;
     lastCaptureAt: string | null;
   }>;
-  driftTrend: Array<{
-    driftScore: number;
+  alignmentTrend: Array<{
+    alignmentScore: number;
     createdAt: string;
   }>;
+  activeProtocol: { id: string; name: string; description: string | null } | null;
   currentUserId: string;
 }
 
-function getDriftColor(score: number): string {
-  if (score <= 0.2) return "text-primary";
-  if (score <= 0.5) return "text-warning";
+function getAlignmentColor(score: number): string {
+  if (score >= 0.8) return "text-primary";
+  if (score >= 0.5) return "text-warning";
   return "text-destructive";
 }
 
@@ -51,19 +50,19 @@ function timeAgo(date: string): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-function DriftChart({ data }: { data: Array<{ driftScore: number }> }) {
+function AlignmentChart({ data }: { data: Array<{ alignmentScore: number }> }) {
   if (data.length === 0) return null;
 
   const width = 400;
   const height = 80;
   const padding = 4;
 
-  const maxDrift = Math.max(...data.map((d) => d.driftScore), 0.5);
+  // Up = good (high alignment)
   const points = data.map((d, i) => {
     const x =
       padding + (i / Math.max(data.length - 1, 1)) * (width - padding * 2);
     const y =
-      height - padding - (d.driftScore / maxDrift) * (height - padding * 2);
+      height - padding - d.alignmentScore * (height - padding * 2);
     return `${x},${y}`;
   });
 
@@ -75,7 +74,7 @@ function DriftChart({ data }: { data: Array<{ driftScore: number }> }) {
       className="w-full h-20"
       preserveAspectRatio="none"
     >
-      {/* Grid line at 0.5 */}
+      {/* Grid line at 50% */}
       <line
         x1={padding}
         y1={height / 2}
@@ -92,16 +91,14 @@ function DriftChart({ data }: { data: Array<{ driftScore: number }> }) {
           padding +
           (i / Math.max(data.length - 1, 1)) * (width - padding * 2);
         const y =
-          height -
-          padding -
-          (d.driftScore / maxDrift) * (height - padding * 2);
+          height - padding - d.alignmentScore * (height - padding * 2);
         return (
           <circle
             key={i}
             cx={x}
             cy={y}
             r="3"
-            fill={d.driftScore <= 0.2 ? "#CCFF00" : d.driftScore <= 0.5 ? "#FFB800" : "#FF3333"}
+            fill={d.alignmentScore >= 0.8 ? "#CCFF00" : d.alignmentScore >= 0.5 ? "#FFB800" : "#FF3333"}
           />
         );
       })}
@@ -111,55 +108,15 @@ function DriftChart({ data }: { data: Array<{ driftScore: number }> }) {
 
 export function DashboardClient({
   workspace,
-  canon,
+  strategy,
   recentArtifacts,
   teamMembers,
-  driftTrend,
+  alignmentTrend,
+  activeProtocol,
   currentUserId,
 }: DashboardProps) {
-  const router = useRouter();
-  const [resetting, setResetting] = useState(false);
-
-  async function handleStartFresh() {
-    if (!confirm("This will permanently delete all data in this workspace. Are you sure?")) {
-      return;
-    }
-    setResetting(true);
-    try {
-      const res = await fetch(`/api/workspaces/${workspace.id}/demo`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        router.push(`/dashboard/${workspace.id}/welcome`);
-      }
-    } catch {
-      // Silently fail -- user can retry
-    } finally {
-      setResetting(false);
-    }
-  }
-
   return (
     <div className="mx-auto max-w-[1200px] px-6 pt-8 pb-24">
-      {/* Demo Banner */}
-      {workspace.isDemo && (
-        <div className="mb-6 flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-5 py-3">
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-xs text-primary font-bold">DEMO MODE</span>
-            <span className="font-body text-sm text-muted">
-              You&apos;re viewing sample data. Ready to use Tensient for real?
-            </span>
-          </div>
-          <button
-            onClick={handleStartFresh}
-            disabled={resetting}
-            className="font-mono text-xs text-primary hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {resetting ? "RESETTING..." : "START FRESH"}
-          </button>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -180,13 +137,13 @@ export function DashboardClient({
             href={`/dashboard/${workspace.id}/capture`}
             variant="primary"
           >
-            NEW CAPTURE
+            UNLOAD
           </SlantedButton>
           <SlantedButton
-            href={`/dashboard/${workspace.id}/genesis`}
+            href={`/dashboard/${workspace.id}/strategy`}
             variant="outline"
           >
-            GENESIS
+            SET STRATEGY
           </SlantedButton>
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
@@ -198,42 +155,42 @@ export function DashboardClient({
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left column: Canon + Drift Trend */}
+        {/* Left column: Strategy + Alignment Trend */}
         <div className="lg:col-span-2 space-y-6">
-          {/* The Canon */}
-          {canon ? (
+          {/* Your Strategy */}
+          {strategy ? (
             <PanelCard>
               <div className="flex items-center justify-between mb-4">
-                <MonoLabel className="text-primary">THE CANON</MonoLabel>
+                <MonoLabel className="text-primary">YOUR STRATEGY</MonoLabel>
                 <span className="font-mono text-xs text-muted">
-                  {timeAgo(canon.createdAt)}
+                  {timeAgo(strategy.createdAt)}
                 </span>
               </div>
               <p className="font-body text-base leading-relaxed text-foreground whitespace-pre-wrap">
-                {canon.content}
+                {strategy.content}
               </p>
             </PanelCard>
           ) : (
             <PanelCard className="text-center py-12">
               <MonoLabel className="block mb-3 text-muted">
-                NO CANON DEFINED
+                NO STRATEGY SET
               </MonoLabel>
               <p className="font-body text-base text-muted mb-4">
-                Run Genesis to define your strategic direction.
+                Set your strategy to define your team&apos;s direction.
               </p>
-              <SlantedButton href={`/dashboard/${workspace.id}/genesis`}>
-                RUN GENESIS
+              <SlantedButton href={`/dashboard/${workspace.id}/strategy`}>
+                SET STRATEGY
               </SlantedButton>
             </PanelCard>
           )}
 
-          {/* Drift Trend */}
-          {driftTrend.length > 1 && (
+          {/* Alignment Trend */}
+          {alignmentTrend.length > 1 && (
             <PanelCard>
               <MonoLabel className="mb-4 block text-primary">
-                DRIFT TREND
+                ALIGNMENT TREND
               </MonoLabel>
-              <DriftChart data={driftTrend} />
+              <AlignmentChart data={alignmentTrend} />
               <div className="flex justify-between mt-2">
                 <span className="font-mono text-xs text-muted">OLDEST</span>
                 <span className="font-mono text-xs text-muted">LATEST</span>
@@ -243,7 +200,7 @@ export function DashboardClient({
 
           {/* Recent Artifacts */}
           <div>
-            <MonoLabel className="mb-4 block">RECENT ARTIFACTS</MonoLabel>
+            <MonoLabel className="mb-4 block">RECENT UPDATES</MonoLabel>
             {recentArtifacts.length === 0 ? (
               <PanelCard className="text-center py-8">
                 <p className="font-body text-base text-muted">
@@ -270,13 +227,13 @@ export function DashboardClient({
                       </div>
                       <div className="text-right shrink-0">
                         <span
-                          className={`font-mono text-xl font-bold ${getDriftColor(
-                            artifact.driftScore
+                          className={`font-mono text-xl font-bold ${getAlignmentColor(
+                            artifact.alignmentScore
                           )}`}
                         >
-                          {artifact.driftScore.toFixed(2)}
+                          {Math.round(artifact.alignmentScore * 100)}%
                         </span>
-                        <MonoLabel className="block text-xs">DRIFT</MonoLabel>
+                        <MonoLabel className="block text-xs">ALIGNMENT</MonoLabel>
                       </div>
                     </div>
                   </PanelCard>
@@ -286,11 +243,11 @@ export function DashboardClient({
           </div>
         </div>
 
-        {/* Right column: Team Traction */}
+        {/* Right column: Team Alignment */}
         <div className="space-y-6">
           <PanelCard>
             <MonoLabel className="mb-4 block text-primary">
-              TEAM TRACTION
+              TEAM ALIGNMENT
             </MonoLabel>
             {teamMembers.length === 0 ? (
               <p className="font-body text-base text-muted">No team members.</p>
@@ -327,13 +284,40 @@ export function DashboardClient({
                     </div>
                     <div className="text-right">
                       <span className="font-mono text-2xl font-bold text-primary">
-                        {Math.round(member.tractionScore * 100)}%
+                        {Math.round(member.alignmentScore * 100)}%
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
+          </PanelCard>
+
+          {/* Protocols */}
+          <PanelCard>
+            <MonoLabel className="mb-3 block text-primary">
+              PROTOCOLS
+            </MonoLabel>
+            {activeProtocol ? (
+              <div>
+                <span className="font-display text-base font-bold uppercase text-foreground">
+                  {activeProtocol.name}
+                </span>
+                {activeProtocol.description && (
+                  <p className="font-body text-sm text-muted mt-2 leading-relaxed line-clamp-3">
+                    {activeProtocol.description}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="font-body text-sm text-muted">
+                No protocol active. A protocol shapes how captures are analyzed.
+              </p>
+            )}
+            <p className="font-mono text-xs text-muted mt-3">
+              Protocols determine coaching style, scoring priorities, and
+              synthesis tone.
+            </p>
           </PanelCard>
 
           {/* Invite Team */}
@@ -365,13 +349,13 @@ export function DashboardClient({
                 href={`/dashboard/${workspace.id}/capture`}
                 className="block font-body text-base text-muted hover:text-primary transition-colors"
               >
-                &rarr; Submit a capture
+                &rarr; Unload an update
               </Link>
               <Link
-                href={`/dashboard/${workspace.id}/genesis`}
+                href={`/dashboard/${workspace.id}/strategy`}
                 className="block font-body text-base text-muted hover:text-primary transition-colors"
               >
-                &rarr; Update The Canon
+                &rarr; Update strategy
               </Link>
             </div>
           </PanelCard>

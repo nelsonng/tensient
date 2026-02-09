@@ -7,7 +7,7 @@ import { ai, DEFAULT_MODEL, generateEmbedding, calculateCostCents } from "@/lib/
 const sql = neon(process.env.DATABASE_URL!);
 const db = drizzle(sql);
 
-interface GenesisResult {
+interface StrategyResult {
   canon: {
     id: string;
     content: string;
@@ -21,16 +21,16 @@ interface GenesisResult {
   tone: string;
 }
 
-export interface GenesisUsage {
+export interface StrategyUsage {
   inputTokens: number;
   outputTokens: number;
   estimatedCostCents: number;
 }
 
-export async function runGenesis(
+export async function runStrategy(
   workspaceId: string,
   rawInput: string
-): Promise<{ result: GenesisResult; usage: GenesisUsage }> {
+): Promise<{ result: StrategyResult; usage: StrategyUsage }> {
   // 1. Extract strategic pillars and tone via LLM
   const extraction = await ai.models.generateContent({
     model: DEFAULT_MODEL,

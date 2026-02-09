@@ -8,19 +8,19 @@ import { SlantedButton } from "@/components/slanted-button";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 
-interface GenesisResult {
+interface StrategyResult {
   canon: { id: string; content: string };
   protocol: { id: string; name: string } | null;
   pillars: string[];
   tone: string;
 }
 
-export default function GenesisPage() {
+export default function StrategyPage() {
   const params = useParams();
   const workspaceId = params.workspaceId as string;
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<GenesisResult | null>(null);
+  const [result, setResult] = useState<StrategyResult | null>(null);
   const [error, setError] = useState("");
 
   async function handleSubmit() {
@@ -28,7 +28,7 @@ export default function GenesisPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/workspaces/${workspaceId}/genesis`, {
+      const res = await fetch(`/api/workspaces/${workspaceId}/strategy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawInput: input }),
@@ -36,7 +36,7 @@ export default function GenesisPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Genesis failed");
+        setError(data.error || "Strategy setup failed");
       } else {
         setResult(data);
       }
@@ -57,10 +57,10 @@ export default function GenesisPage() {
       </Link>
 
       <MonoLabel className="mb-4 block text-primary">
-        GENESIS / DOWNLOAD YOUR STRATEGY
+        STRATEGY / DOWNLOAD YOUR DIRECTION
       </MonoLabel>
 
-      <GlitchText text="THE CANON" as="h1" className="text-4xl mb-6" />
+      <GlitchText text="YOUR STRATEGY" as="h1" className="text-4xl mb-6" />
 
       <p className="font-body text-base text-muted mb-8 max-w-[600px]">
         Download your strategy. Speak what matters most. The system distills
@@ -86,7 +86,7 @@ export default function GenesisPage() {
             onClick={handleSubmit}
             disabled={loading || input.trim().length < 10}
           >
-            {loading ? "PROCESSING..." : "SUBMIT"}
+            {loading ? "PROCESSING..." : "SET STRATEGY"}
           </SlantedButton>
 
           {loading && (
@@ -135,10 +135,10 @@ export default function GenesisPage() {
             </PanelCard>
           </div>
 
-          {/* Synthesized Canon */}
+          {/* Synthesized Strategy */}
           <PanelCard>
             <MonoLabel className="mb-4 block text-primary">
-              THE CANON
+              YOUR STRATEGY
             </MonoLabel>
             <p className="font-body text-base leading-relaxed text-foreground whitespace-pre-wrap">
               {result.canon.content}
@@ -153,7 +153,7 @@ export default function GenesisPage() {
               }}
               variant="outline"
             >
-              REDO GENESIS
+              UPDATE STRATEGY
             </SlantedButton>
             <SlantedButton href={`/dashboard/${workspaceId}`}>
               GO TO DASHBOARD

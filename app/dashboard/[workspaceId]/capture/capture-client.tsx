@@ -16,19 +16,19 @@ interface ActionItem {
 interface CaptureResult {
   artifact: {
     id: string;
-    driftScore: number;
+    alignmentScore: number;
     sentimentScore: number;
     content: string;
     actionItems: ActionItem[];
     feedback: string;
   };
   streakCount: number;
-  tractionScore: number;
+  alignmentScore: number;
 }
 
-function getDriftColor(score: number): string {
-  if (score <= 0.2) return "text-primary";
-  if (score <= 0.5) return "text-warning";
+function getAlignmentColor(score: number): string {
+  if (score >= 0.8) return "text-primary";
+  if (score >= 0.5) return "text-warning";
   return "text-destructive";
 }
 
@@ -90,7 +90,7 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
 
       <p className="font-body text-base text-muted mb-8 max-w-[600px]">
         Unload what is on your mind. What is blocking you? What did you
-        accomplish? The system extracts signal, detects drift, and surfaces
+        accomplish? The system extracts signal, scores alignment, and surfaces
         action items.
       </p>
 
@@ -119,7 +119,7 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 rounded-full bg-secondary animate-pulse" />
               <span className="font-mono text-xs text-secondary">
-                ANALYZING DRIFT AND SENTIMENT...
+                ANALYZING ALIGNMENT...
               </span>
             </div>
           )}
@@ -127,15 +127,18 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
       ) : (
         <div className="space-y-6">
           {/* Scores Row */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <PanelCard>
-              <MonoLabel className="mb-2 block">DRIFT SCORE</MonoLabel>
+              <MonoLabel className="mb-2 block">ALIGNMENT</MonoLabel>
               <span
-                className={`font-mono text-3xl font-bold ${getDriftColor(
-                  result.artifact.driftScore
+                className={`font-mono text-3xl font-bold ${getAlignmentColor(
+                  result.artifact.alignmentScore
                 )}`}
               >
-                {result.artifact.driftScore.toFixed(2)}
+                {Math.round(result.artifact.alignmentScore * 100)}%
+              </span>
+              <span className="block font-mono text-xs text-muted mt-1">
+                STREAK: {result.streakCount}
               </span>
             </PanelCard>
             <PanelCard>
@@ -145,15 +148,6 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
               </span>
               <span className="block font-mono text-xs text-muted mt-1">
                 {result.artifact.sentimentScore.toFixed(2)}
-              </span>
-            </PanelCard>
-            <PanelCard>
-              <MonoLabel className="mb-2 block">TRACTION</MonoLabel>
-              <span className="font-mono text-3xl font-bold text-primary">
-                {Math.round(result.tractionScore * 100)}%
-              </span>
-              <span className="block font-mono text-xs text-muted mt-1">
-                STREAK: {result.streakCount}
               </span>
             </PanelCard>
           </div>

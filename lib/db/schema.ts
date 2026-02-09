@@ -123,7 +123,6 @@ export const workspaces = pgTable(
     activeProtocolId: uuid("active_protocol_id").references(
       () => protocols.id
     ),
-    isDemo: boolean("is_demo").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -245,7 +244,7 @@ export const usageLogs = pgTable(
     workspaceId: uuid("workspace_id")
       .references(() => workspaces.id)
       .notNull(),
-    operation: text("operation").notNull(), // 'genesis' | 'capture'
+    operation: text("operation").notNull(), // 'strategy' | 'capture'
     inputTokens: integer("input_tokens").default(0).notNull(),
     outputTokens: integer("output_tokens").default(0).notNull(),
     estimatedCostCents: integer("estimated_cost_cents").default(0).notNull(),

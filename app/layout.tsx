@@ -38,11 +38,11 @@ const satoshi = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "TENSIENT | Enterprise Traction Control",
+  title: "TENSIENT",
   description:
-    "Your team generates noise. We extract signal. Every update measured against the strategy. Drift detected. Traction scored.",
+    "Your team generates noise. We extract signal. Every update measured against the strategy. Alignment scored.",
   openGraph: {
-    title: "TENSIENT | Enterprise Traction Control",
+    title: "TENSIENT",
     description:
       "Your team generates noise. We extract signal. Every update measured against the strategy.",
     url: "https://tensient.com",

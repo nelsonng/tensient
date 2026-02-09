@@ -22,7 +22,7 @@ const steps = [
     number: "03",
     title: "AI DOES THE SYNTHESIS",
     description:
-      "Every update is compared against the strategy. Drift score, action items, coaching feedback. The manager sees who's aligned and who's drifting.",
+      "Every update is compared against the strategy. Alignment scored, action items extracted, coaching delivered. The manager sees who's aligned and who needs attention.",
   },
 ];
 
@@ -83,13 +83,13 @@ export default function Home() {
               </MonoLabel>
 
               {/* Scores Row */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="text-center">
                   <span className="font-mono text-xs text-muted block mb-1">
-                    DRIFT
+                    ALIGNMENT
                   </span>
                   <span className="font-mono text-xl font-bold text-yellow-400">
-                    0.41
+                    59%
                   </span>
                 </div>
                 <div className="text-center">
@@ -98,14 +98,6 @@ export default function Home() {
                   </span>
                   <span className="font-mono text-xl font-bold text-red-400">
                     -0.3
-                  </span>
-                </div>
-                <div className="text-center">
-                  <span className="font-mono text-xs text-muted block mb-1">
-                    TRACTION
-                  </span>
-                  <span className="font-mono text-xl font-bold text-primary">
-                    72%
                   </span>
                 </div>
               </div>
@@ -220,14 +212,13 @@ export default function Home() {
               </div>
               <div>
                 <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
-                  TEAMS DRIFT WITHOUT KNOWING IT
+                  ALIGNMENT ERODES SILENTLY
                 </h4>
                 <p className="font-body text-base leading-relaxed text-muted">
                   Every word and every hour should move the company toward its
-                  goals. But without constant comparison to strategy, teams go
-                  off course. Most of what goes into Slack is noise. Tensient
-                  measures the gap between what your team is doing and what
-                  actually matters.
+                  goals. But without constant comparison to strategy, alignment
+                  erodes quietly. Most of what goes into Slack is noise. Tensient
+                  measures how aligned your team is to what actually matters.
                 </p>
               </div>
             </div>
@@ -245,7 +236,7 @@ export default function Home() {
             AMBIENT ENTERPRISE TENSION
           </MonoLabel>
           <p className="mx-auto max-w-[500px] font-body text-lg leading-relaxed text-foreground mb-8">
-            Your team is drifting right now. Find out how much.
+            Your team&apos;s alignment is eroding right now. Measure it.
           </p>
           <div className="flex justify-center gap-4">
             <SlantedButton size="lg" href="/sign-up">

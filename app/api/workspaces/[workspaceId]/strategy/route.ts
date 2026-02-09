@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { runGenesis } from "@/lib/services/genesis-setup";
+import { runStrategy } from "@/lib/services/genesis-setup";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 
 export async function POST(
@@ -32,13 +32,13 @@ export async function POST(
   }
 
   try {
-    const { result, usage } = await runGenesis(workspaceId, rawInput);
+    const { result, usage } = await runStrategy(workspaceId, rawInput);
 
     // Log usage
     await logUsage({
       userId: session.user.id,
       workspaceId,
-      operation: "genesis",
+      operation: "strategy",
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       estimatedCostCents: usage.estimatedCostCents,
@@ -47,8 +47,8 @@ export async function POST(
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message =
-      error instanceof Error ? error.message : "Genesis failed";
-    console.error("Genesis error:", error);
+      error instanceof Error ? error.message : "Strategy setup failed";
+    console.error("Strategy error:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
