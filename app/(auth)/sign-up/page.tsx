@@ -134,6 +134,18 @@ export default function SignUpPage() {
           >
             {loading ? "CREATING..." : "CREATE ACCOUNT"}
           </SlantedButton>
+
+          <p className="font-mono text-xs text-muted/60 text-center mt-3">
+            By creating an account, you agree to our{" "}
+            <Link href="/terms" className="text-muted hover:text-primary underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-muted hover:text-primary underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </form>
 
         <p className="mt-6 text-center font-body text-base text-muted">

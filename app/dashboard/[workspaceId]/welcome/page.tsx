@@ -372,7 +372,7 @@ export default function WelcomePage() {
                   </span>
                   {strategyResult.protocol && (
                     <span className="font-mono text-xs text-muted">
-                      PROTOCOL: <span className="text-foreground uppercase">{strategyResult.protocol.name}</span>
+                      COACH: <span className="text-foreground uppercase">{strategyResult.protocol.name}</span>
                     </span>
                   )}
                 </div>
@@ -490,7 +490,7 @@ export default function WelcomePage() {
         {step === "result" && captureResult && (
           <FadeIn stepKey="result">
             <MonoLabel className="mb-4 block text-primary">
-              YOUR FIRST ARTIFACT
+              YOUR FIRST SYNTHESIS
             </MonoLabel>
 
             <GlitchText
@@ -594,14 +594,14 @@ export default function WelcomePage() {
             {strategyResult?.protocol && (
               <div className="mb-8 rounded-lg border border-border bg-panel/50 px-5 py-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <MonoLabel className="text-primary">ACTIVE PROTOCOL</MonoLabel>
+                  <MonoLabel className="text-primary">ACTIVE COACH</MonoLabel>
                   <span className="font-mono text-xs text-foreground uppercase">
                     {strategyResult.protocol.name}
                   </span>
                 </div>
                 <p className="font-body text-sm text-muted leading-relaxed">
-                  This protocol shaped how your capture was analyzed. Different
-                  protocols produce different synthesis styles, coaching tones,
+                  This coach shaped how your thought was analyzed. Different
+                  coaches produce different synthesis styles, coaching tones,
                   and scoring priorities.
                 </p>
               </div>

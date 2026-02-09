@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-background py-16">
       <div className="mx-auto max-w-[1200px] px-6">
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-4">
           <div>
             <MonoLabel className="mb-4 block text-foreground">
               PRODUCT
@@ -94,6 +94,29 @@ export function Footer() {
                   className="font-body text-base text-muted transition-colors hover:text-primary"
                 >
                   Discord
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <MonoLabel className="mb-4 block text-foreground">
+              LEGAL
+            </MonoLabel>
+            <ul className="space-y-2">
+              <li>
+                <a
+                  href="/privacy"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
+                >
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/terms"
+                  className="font-body text-base text-muted transition-colors hover:text-primary"
+                >
+                  Terms of Service
                 </a>
               </li>
             </ul>

@@ -9,13 +9,13 @@ import { Footer } from "@/components/footer";
 const steps = [
   {
     number: "01",
-    title: "SET THE STRATEGY",
+    title: "SET YOUR GOALS",
     description:
-      "A manager types or speaks what matters most right now. AI distills it into a strategic reference document -- your team's single source of truth.",
+      "A manager types or speaks what matters most right now. AI distills it into clear objectives -- your team's single source of truth.",
   },
   {
     number: "02",
-    title: "TEAM MEMBERS UNLOAD",
+    title: "SHARE YOUR THOUGHTS",
     description:
       "Instead of writing polished status reports, people dump what's on their mind. Blockers, progress, frustrations -- raw and unfiltered.",
   },
@@ -23,7 +23,7 @@ const steps = [
     number: "03",
     title: "AI DOES THE SYNTHESIS",
     description:
-      "Every update is compared against the strategy. Alignment scored, action items extracted, coaching delivered. The manager sees who's aligned and who needs attention.",
+      "Every thought is compared against the goals. Alignment scored, action items extracted, coaching delivered. The manager sees who's aligned and who needs attention.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function Home() {
           <p className="max-w-[640px] font-body text-lg leading-relaxed text-muted mb-10">
             Team members dump what&apos;s on their mind. AI turns it into
             aligned updates, surfaces blockers, and scores how on-track they
-            are against your strategy.
+            are against your goals.
           </p>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -99,13 +99,14 @@ export default function Home() {
             </PanelCard>
             <PanelCard>
               <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
-                Your team has a Kai.
+                Your team has a Jordan.
               </span>
               <MonoLabel className="block mb-3 text-muted">
-                Junior Engineer
+                Product Manager
               </MonoLabel>
               <p className="font-body text-base leading-relaxed text-muted">
-                He&apos;s doing great work. He thinks he&apos;s failing.
+                She validated demand from two paying customers. Her update
+                buried the lead.
               </p>
             </PanelCard>
             <PanelCard>
@@ -186,7 +187,7 @@ export default function Home() {
                 </h4>
                 <p className="font-body text-base leading-relaxed text-muted">
                   Every word and every hour should move the company toward its
-                  goals. But without constant comparison to strategy, alignment
+                  goals. But without constant comparison to your goals, alignment
                   erodes quietly. Most of what goes into Slack is noise. Tensient
                   measures how aligned your team is to what actually matters.
                 </p>

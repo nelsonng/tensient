@@ -11,6 +11,7 @@ import {
   users,
   workspaces,
   protocols,
+  actions,
 } from "@/lib/db/schema";
 import { DashboardClient } from "./dashboard-client";
 
@@ -117,6 +118,21 @@ export default async function WorkspaceDashboard({
     if (p) activeProtocol = p;
   }
 
+  // All public coaches
+  const allCoaches = await db
+    .select({ id: protocols.id, name: protocols.name })
+    .from(protocols)
+    .where(eq(protocols.isPublic, true));
+
+  // Action counts
+  const [actionCounts] = await db
+    .select({
+      openCount: dsql<number>`count(*) filter (where ${actions.status} in ('open', 'in_progress', 'blocked'))`,
+      unlinkedCount: dsql<number>`count(*) filter (where ${actions.goalId} is null and ${actions.status} in ('open', 'in_progress', 'blocked'))`,
+    })
+    .from(actions)
+    .where(eq(actions.workspaceId, workspaceId));
+
   return (
     <DashboardClient
       workspace={{
@@ -160,7 +176,10 @@ export default async function WorkspaceDashboard({
         }))
         .reverse()}
       activeProtocol={activeProtocol}
+      allCoaches={allCoaches}
       currentUserId={session.user.id}
+      openActionCount={Number(actionCounts?.openCount ?? 0)}
+      unlinkedActionCount={Number(actionCounts?.unlinkedCount ?? 0)}
     />
   );
 }

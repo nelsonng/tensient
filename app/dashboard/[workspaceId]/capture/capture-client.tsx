@@ -275,7 +275,7 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
               }}
               variant="outline"
             >
-              NEW CAPTURE
+              NEW THOUGHT
             </SlantedButton>
             <SlantedButton href={`/dashboard/${workspaceId}`}>
               DASHBOARD

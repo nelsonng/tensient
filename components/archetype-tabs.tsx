@@ -38,7 +38,7 @@ const archetypes: Archetype[] = [
       { status: "OPEN", statusColor: "text-yellow-400", task: "AES-256 migration in progress" },
     ],
     coaching:
-      "Your work is high-impact but your updates read like a git log. Lead with business outcomes: \"Hospital data integration is now 2x faster, unblocking 3 pilot deployments.\" The people who fund your projects can't parse FHIR and ADT A08.",
+      "I translated your technical work into business impact. The FHIR adapter refactor directly unblocks 3 pilot deployments -- I've led with that in your synthesis so leadership sees the strategic value immediately. I also flagged your PR review bottleneck as a blocker since it's been 3+ days.",
   },
   {
     id: "csm",
@@ -59,28 +59,28 @@ const archetypes: Archetype[] = [
       { status: "OPEN", statusColor: "text-yellow-400", task: "Re-engage St. David's -- identify new power user" },
     ],
     coaching:
-      "You're firefighting, not strategizing. Escalate the systemic issue: you need a second CSM hire or a product-led approach to reduce support burden. Present the data to leadership -- 4 accounts at risk is a revenue problem, not a personal one.",
+      "I organized your account risks by severity and flagged Memorial Health for executive outreach -- that one needs your CEO, not just you. The pattern across your accounts points to a capacity issue, not a performance one. I've framed it that way in the synthesis so leadership sees the systemic problem.",
   },
   {
-    id: "junior",
-    label: "THE ANXIOUS JUNIOR",
-    role: "Frontend Engineer",
+    id: "underseller",
+    label: "THE UNDERSELLER",
+    role: "Product Manager",
     input:
-      "The credential dashboard is mostly working I think? The card components and admin table are done. But the bundle went from 340kb to 510kb after the compliance module and I'm not sure if that's bad. Also the accessibility audit found issues. Should I be worried? I keep bouncing between tasks and I'm not sure what to focus on.",
-    alignment: 62,
-    alignmentColor: "text-yellow-400",
-    sentiment: -0.2,
+      "Had a bunch of customer calls this week I guess. Two CFOs said they'd pay for the compliance module. Also finished the product brief and got it approved. The pilot feedback is mostly positive but there are some edge cases with the discrepancy workflow. I'm juggling the SOC2 docs and the new product scope at the same time and it's a lot. Not sure everything is landing.",
+    alignment: 68,
+    alignmentColor: "text-primary",
+    sentiment: -0.1,
     sentimentColor: "text-yellow-400",
     synthesis:
-      "Credential dashboard core components shipped and tested in pilot. Identified bundle size regression (+50%) and 4 accessibility gaps. Needs clearer prioritization across competing workstreams.",
+      "Validated compliance automation demand with 2 paying-intent signals from hospital CFOs. Product brief approved for second product line. Adventist pilot feedback positive with one UX gap identified. SOC2 documentation on track.",
     actionItems: [
-      { status: "DONE", statusColor: "text-primary", task: "Credential dashboard cards and admin table shipped" },
-      { status: "OPEN", statusColor: "text-yellow-400", task: "Bundle size optimization (lazy-load compliance module)" },
-      { status: "OPEN", statusColor: "text-yellow-400", task: "Fix 4 WCAG contrast issues in status indicators" },
-      { status: "OPEN", statusColor: "text-yellow-400", task: "Shift calendar keyboard navigation (60% complete)" },
+      { status: "DONE", statusColor: "text-primary", task: "Compliance automation product brief approved" },
+      { status: "DONE", statusColor: "text-primary", task: "2 CFOs confirmed willingness to pay for compliance module" },
+      { status: "OPEN", statusColor: "text-yellow-400", task: "Spec the credential discrepancy resolution workflow" },
+      { status: "OPEN", statusColor: "text-yellow-400", task: "Complete final SOC2 process doc (vendor review procedures)" },
     ],
     coaching:
-      "Stop framing progress as uncertainty. You shipped the core dashboard that the pilot depends on -- that's a win. On bundle size: propose Option 1 (lazy loading) to your lead with data. Making a recommendation is better than asking \"should I be worried?\"",
+      "Two CFOs saying they'd pay is a major demand signal -- I elevated that to the top of your synthesis because it validates the entire second product line. You buried the lead. I also reframed your workload concern as parallel progress on two strategic tracks, not scattered effort.",
   },
 ];
 
@@ -148,14 +148,23 @@ export function ArchetypeTabs() {
 
           <div className="border-t border-border pt-3 mb-3">
             <span className="font-mono text-xs text-muted block mb-2">
-              SYNTHESIZED UPDATE
+              AI COACH
             </span>
             <p className="font-body text-base leading-relaxed text-foreground">
-              {active.synthesis}
+              {active.coaching}
             </p>
           </div>
 
           <div className="border-t border-border pt-3 mb-3">
+            <span className="font-mono text-xs text-muted block mb-2">
+              ELEVATED SYNTHESIS
+            </span>
+            <p className="font-body text-base leading-relaxed text-muted">
+              {active.synthesis}
+            </p>
+          </div>
+
+          <div className="border-t border-border pt-3">
             <span className="font-mono text-xs text-muted block mb-2">
               ACTION ITEMS
             </span>
@@ -172,15 +181,6 @@ export function ArchetypeTabs() {
                 </li>
               ))}
             </ul>
-          </div>
-
-          <div className="border-t border-border pt-3">
-            <span className="font-mono text-xs text-muted block mb-2">
-              COACHING
-            </span>
-            <p className="font-body text-base leading-relaxed text-muted">
-              {active.coaching}
-            </p>
           </div>
         </PanelCard>
       </div>

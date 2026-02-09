@@ -40,11 +40,11 @@ const satoshi = localFont({
 export const metadata: Metadata = {
   title: "TENSIENT",
   description:
-    "Your team generates noise. We extract signal. Every update measured against the strategy. Alignment scored.",
+    "Your team generates noise. We extract signal. Every thought measured against your goals. Alignment scored.",
   openGraph: {
     title: "TENSIENT",
     description:
-      "Your team generates noise. We extract signal. Every update measured against the strategy.",
+      "Your team generates noise. We extract signal. Every thought measured against your goals.",
     url: "https://tensient.com",
     siteName: "Tensient",
     type: "website",

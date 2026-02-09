@@ -7,7 +7,7 @@ import { workspaces, protocols } from "@/lib/db/schema";
 import { CaptureClient } from "./capture-client";
 
 const DEFAULT_PLACEHOLDER =
-  "Unload. What's on your mind? What's blocking you? What did you ship?";
+  "What's on your mind? What's blocking you? What did you ship? Just ramble.";
 
 const sqlFn = neon(process.env.DATABASE_URL!);
 const db = drizzle(sqlFn);

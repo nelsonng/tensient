@@ -231,6 +231,54 @@ export const artifacts = pgTable(
   ]
 );
 
+// ── Actions (First-Class Work Items) ───────────────────────────────────
+
+export const actionStatusEnum = pgEnum("action_status", [
+  "open",
+  "in_progress",
+  "blocked",
+  "done",
+  "wont_do",
+]);
+
+export const actionPriorityEnum = pgEnum("action_priority", [
+  "critical",
+  "high",
+  "medium",
+  "low",
+]);
+
+export const actions = pgTable(
+  "actions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id)
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id)
+      .notNull(),
+    artifactId: uuid("artifact_id").references(() => artifacts.id), // nullable for manual actions
+    goalId: uuid("goal_id").references(() => canons.id), // which goal this relates to
+    title: text("title").notNull(),
+    description: text("description"),
+    status: actionStatusEnum("status").notNull().default("open"),
+    priority: actionPriorityEnum("priority").notNull().default("medium"),
+    goalAlignmentScore: real("goal_alignment_score"), // 0-1, AI-calculated
+    coachAttribution: text("coach_attribution"), // which coach surfaced this
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_actions_workspace").on(table.workspaceId),
+    index("idx_actions_user").on(table.userId),
+    index("idx_actions_status").on(table.status),
+    index("idx_actions_goal").on(table.goalId),
+  ]
+);
+
 // ── Usage Logs (Cost Control) ──────────────────────────────────────────
 
 export const usageLogs = pgTable(

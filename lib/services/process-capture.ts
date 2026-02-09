@@ -6,6 +6,8 @@ import {
   artifacts,
   canons,
   memberships,
+  protocols,
+  actions,
 } from "@/lib/db/schema";
 import { ai, DEFAULT_MODEL, generateEmbedding, calculateCostCents } from "@/lib/ai";
 
@@ -34,7 +36,7 @@ export interface CaptureResult {
     alignmentScore: number;
     sentimentScore: number;
     content: string;
-    actionItems: Array<{ task: string; status: string }>;
+    actionItems: Array<{ task: string; status: string; coach_attribution?: string }>;
     feedback: string;
   };
   streakCount: number;
@@ -87,7 +89,27 @@ export async function processCapture(
     driftScore = Math.max(0, Math.min(1, 1 - similarity));
   }
 
-  // 5. Extract sentiment, action items, and synthesize via LLM
+  // 5. Fetch all public coaches for composite prompt
+  const allCoaches = await db
+    .select({
+      name: protocols.name,
+      systemPrompt: protocols.systemPrompt,
+    })
+    .from(protocols)
+    .where(eq(protocols.isPublic, true));
+
+  // Build composite coaching context
+  let coachingContext = "";
+  if (allCoaches.length > 0) {
+    coachingContext = `\n\nYou have access to multiple coaching perspectives. Apply ALL of the following lenses when analyzing:\n\n`;
+    coachingContext += allCoaches
+      .map((c) => `[COACH: ${c.name}]\n${c.systemPrompt}`)
+      .join("\n\n");
+    coachingContext += `\n\nWhen providing feedback, attribute specific advice to the relevant coaching lens (e.g., "From ${allCoaches[0].name}: ...").`;
+    coachingContext += `\nWhen extracting action items, note which coaching lens surfaced each one in the coach_attribution field.`;
+  }
+
+  // 6. Extract sentiment, action items, and synthesize via LLM
   const analysis = await ai.models.generateContent({
     model: DEFAULT_MODEL,
     contents: [
@@ -95,11 +117,13 @@ export async function processCapture(
         role: "user",
         parts: [
           {
-            text: `You are an organizational intelligence agent. Analyze this employee update and extract:
+            text: `You are an organizational intelligence agent with multiple coaching perspectives.${coachingContext}
+
+Analyze this employee update and extract:
 1. sentiment_score: Float from -1.0 (very negative) to 1.0 (very positive)
-2. action_items: Array of objects with task and status fields
+2. action_items: Array of objects with task, status, and coach_attribution fields
 3. synthesis: A clean, professional summary of the update (2-3 sentences)
-4. feedback: Coaching advice for the employee (1-2 sentences). Be direct and actionable.
+4. feedback: Coaching advice for the employee (2-4 sentences). Be direct and actionable. Attribute each piece of advice to the relevant coaching lens.
 
 Here is the employee update:
 
@@ -125,6 +149,7 @@ ${content}`,
                   type: "string" as const,
                   enum: ["open", "blocked", "done"],
                 },
+                coach_attribution: { type: "string" as const },
               },
               required: ["task", "status"],
             },
@@ -142,7 +167,7 @@ ${content}`,
   const inputTokens = analysis.usageMetadata?.promptTokenCount ?? 0;
   const outputTokens = analysis.usageMetadata?.candidatesTokenCount ?? 0;
 
-  // 6. Create artifact
+  // 7. Create artifact
   const [artifact] = await db
     .insert(artifacts)
     .values({
@@ -157,13 +182,62 @@ ${content}`,
     })
     .returning();
 
-  // 7. Mark capture as processed
+  // 8. Create action items as first-class rows
+  const actionItems: Array<{ task: string; status: string; coach_attribution?: string }> =
+    parsed.action_items || [];
+
+  if (actionItems.length > 0 && canon?.embedding) {
+    for (const item of actionItems) {
+      // Compute goal-alignment for each action
+      let goalAlignmentScore: number | null = null;
+      let goalId: string | null = null;
+
+      try {
+        const actionEmbedding = await generateEmbedding(item.task);
+        const similarity = cosineSimilarity(actionEmbedding, canon.embedding as number[]);
+        goalAlignmentScore = Math.round(similarity * 100) / 100;
+        // If sufficiently aligned (>0.3), link to the goal
+        if (similarity > 0.3) {
+          goalId = canon.id;
+        }
+      } catch {
+        // Non-critical: skip embedding if it fails
+      }
+
+      await db.insert(actions).values({
+        workspaceId,
+        userId,
+        artifactId: artifact.id,
+        goalId,
+        title: item.task,
+        status: item.status === "done" ? "done" : item.status === "blocked" ? "blocked" : "open",
+        priority: "medium",
+        goalAlignmentScore,
+        coachAttribution: item.coach_attribution || null,
+      });
+    }
+  } else if (actionItems.length > 0) {
+    // No canon to compare against -- insert without goal linkage
+    for (const item of actionItems) {
+      await db.insert(actions).values({
+        workspaceId,
+        userId,
+        artifactId: artifact.id,
+        title: item.task,
+        status: item.status === "done" ? "done" : item.status === "blocked" ? "blocked" : "open",
+        priority: "medium",
+        coachAttribution: item.coach_attribution || null,
+      });
+    }
+  }
+
+  // 9. Mark capture as processed
   await db
     .update(captures)
     .set({ processedAt: new Date() })
     .where(eq(captures.id, capture.id));
 
-  // 8. Update membership gamification
+  // 10. Update membership gamification
   const [membership] = await db
     .select()
     .from(memberships)

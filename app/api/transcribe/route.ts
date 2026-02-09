@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { put } from "@vercel/blob";
-import { groq } from "@/lib/groq";
+import { getGroq } from "@/lib/groq";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 
 export async function POST(request: Request) {
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   let text: string | null = null;
 
   try {
-    const transcription = await groq.audio.transcriptions.create({
+    const transcription = await getGroq().audio.transcriptions.create({
       file: audioFile,
       model: "whisper-large-v3-turbo",
       language: "en",

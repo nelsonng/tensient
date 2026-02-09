@@ -57,15 +57,14 @@ export default function StrategyPage() {
       </Link>
 
       <MonoLabel className="mb-4 block text-primary">
-        STRATEGY / DOWNLOAD YOUR DIRECTION
+        GOALS / SET YOUR DIRECTION
       </MonoLabel>
 
-      <GlitchText text="YOUR STRATEGY" as="h1" className="text-4xl mb-6" />
+      <GlitchText text="YOUR GOALS" as="h1" className="text-4xl mb-6" />
 
       <p className="font-body text-base text-muted mb-8 max-w-[600px]">
-        Download your strategy. Speak what matters most. The system distills
-        direction into strategic pillars and selects the right protocol for your
-        team.
+        Share what matters most. The system distills your direction
+        into clear objectives and selects the right coach for your team.
       </p>
 
       {!result ? (
@@ -75,7 +74,7 @@ export default function StrategyPage() {
             onChange={(e) => setInput(e.target.value)}
             rows={10}
             className="w-full rounded-lg border border-border bg-panel px-6 py-4 font-body text-base text-foreground leading-relaxed placeholder:text-muted focus:border-primary focus:outline-none resize-none"
-            placeholder="Download your strategy. What matters most? What will kill you? What does winning look like in 90 days?"
+            placeholder="What matters most right now? What are the goals? What does winning look like in 90 days?"
           />
 
           {error && (
@@ -86,14 +85,14 @@ export default function StrategyPage() {
             onClick={handleSubmit}
             disabled={loading || input.trim().length < 10}
           >
-            {loading ? "PROCESSING..." : "SET STRATEGY"}
+            {loading ? "PROCESSING..." : "SET GOALS"}
           </SlantedButton>
 
           {loading && (
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 rounded-full bg-secondary animate-pulse" />
               <span className="font-mono text-xs text-secondary">
-                EXTRACTING STRATEGIC PILLARS...
+                EXTRACTING OBJECTIVES...
               </span>
             </div>
           )}
@@ -128,7 +127,7 @@ export default function StrategyPage() {
               </span>
             </PanelCard>
             <PanelCard>
-              <MonoLabel className="mb-2 block">ACTIVE PROTOCOL</MonoLabel>
+              <MonoLabel className="mb-2 block">ACTIVE COACH</MonoLabel>
               <span className="font-display text-lg font-bold uppercase text-foreground">
                 {result.protocol?.name || "NONE"}
               </span>
@@ -138,7 +137,7 @@ export default function StrategyPage() {
           {/* Synthesized Strategy */}
           <PanelCard>
             <MonoLabel className="mb-4 block text-primary">
-              YOUR STRATEGY
+              YOUR GOALS
             </MonoLabel>
             <p className="font-body text-base leading-relaxed text-foreground whitespace-pre-wrap">
               {result.canon.content}
@@ -153,7 +152,7 @@ export default function StrategyPage() {
               }}
               variant="outline"
             >
-              UPDATE STRATEGY
+              UPDATE GOALS
             </SlantedButton>
             <SlantedButton href={`/dashboard/${workspaceId}`}>
               GO TO DASHBOARD
