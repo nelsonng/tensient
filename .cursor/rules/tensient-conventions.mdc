@@ -1,0 +1,13 @@
+---
+description: Tensient project conventions and constraints
+alwaysApply: true
+---
+
+# Tensient Conventions
+
+- **Name**: "Tensient" (not "Tenscient" -- no "c")
+- **No middleware.ts**: Next.js 16 deprecated it; use auth() in server components/API routes
+- **No OpenAI**: Use Google Gemini 3 Pro (lib/ai.ts)
+- **Terminology**: "Download" (manager input), "Unload" (IC input) -- never "rant" or "spew"
+- **Context library**: Read promptfood/BOOTSTRAP.md first for full project context
+- **Cost controls**: Every AI route must call checkUsageAllowed() before and logUsage() after

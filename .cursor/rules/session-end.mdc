@@ -1,0 +1,18 @@
+---
+description: Reminds the AI agent to update promptfood/ context docs before ending a session
+alwaysApply: true
+---
+
+# Session End Protocol
+
+Before ending any coding session, update these promptfood/ files:
+
+1. **journal.md** -- Add an entry for what was built this session
+2. **current_state.md** -- Update if deployment state, URLs, or features changed
+3. **decisions.md** -- Add an ADR if any architectural decisions were made
+4. **technical_debt.md** -- Add new debt items or mark resolved ones
+5. **BOOTSTRAP.md** -- Update reading order if new files were added
+
+This ensures the next AI agent session starts with full situational awareness.
+
+Do NOT skip this. Stale docs mislead future sessions.
