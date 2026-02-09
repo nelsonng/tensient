@@ -293,6 +293,27 @@ export function DashboardClient({
             )}
           </PanelCard>
 
+          {/* Invite Team */}
+          {teamMembers.length <= 1 && (
+            <PanelCard className="border-primary/30">
+              <MonoLabel className="mb-3 block text-primary">
+                INVITE YOUR TEAM
+              </MonoLabel>
+              <p className="font-body text-sm text-muted mb-4 leading-relaxed">
+                Tensient works best with your whole team. Share this code
+                so they can join your workspace.
+              </p>
+              <div className="rounded-lg border border-border bg-background px-4 py-3 text-center">
+                <span className="font-mono text-2xl font-bold tracking-widest text-primary">
+                  {workspace.joinCode}
+                </span>
+              </div>
+              <p className="font-mono text-xs text-muted mt-3 text-center">
+                WORKSPACE JOIN CODE
+              </p>
+            </PanelCard>
+          )}
+
           {/* Quick Actions */}
           <PanelCard>
             <MonoLabel className="mb-4 block">QUICK ACTIONS</MonoLabel>

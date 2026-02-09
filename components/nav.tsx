@@ -4,9 +4,8 @@ import Link from "next/link";
 import { SlantedButton } from "./slanted-button";
 
 const navItems = [
-  { label: "PRODUCT", href: "#product" },
-  { label: "PROTOCOLS", href: "#protocols" },
-  { label: "DOCS", href: "#" },
+  { label: "HOW IT WORKS", href: "#how-it-works" },
+  { label: "SIGN IN", href: "/sign-in" },
 ];
 
 export function Nav() {
@@ -30,7 +29,7 @@ export function Nav() {
               {item.label}
             </Link>
           ))}
-          <SlantedButton size="default">REQUEST ACCESS</SlantedButton>
+          <SlantedButton size="default" href="/sign-up">TRY IT FREE</SlantedButton>
         </div>
       </nav>
     </header>

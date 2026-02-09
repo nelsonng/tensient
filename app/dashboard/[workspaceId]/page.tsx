@@ -43,6 +43,21 @@ export default async function WorkspaceDashboard({
     .orderBy(desc(canons.createdAt))
     .limit(1);
 
+  // Check if this is a brand-new workspace (no canon AND no artifacts)
+  // If so, redirect to the welcome/onboarding flow
+  if (!canon) {
+    const [anyArtifact] = await db
+      .select({ id: artifacts.id })
+      .from(artifacts)
+      .innerJoin(captures, eq(artifacts.captureId, captures.id))
+      .where(eq(captures.workspaceId, workspaceId))
+      .limit(1);
+
+    if (!anyArtifact) {
+      redirect(`/dashboard/${workspaceId}/welcome`);
+    }
+  }
+
   // Recent artifacts (with captures for user info)
   const recentArtifacts = await db
     .select({

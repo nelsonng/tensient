@@ -5,54 +5,24 @@ import { PanelCard } from "@/components/panel-card";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 
-const primitives = [
+const steps = [
   {
-    label: "THE CANON",
-    heading: "STRATEGIC VECTOR",
-    body: "Download your strategy. Speak it, paste it, type it. AI distills your direction into strategic pillars. One source of truth for the entire organization.",
-    metric: "DRIFT BASELINE",
-    metricValue: "0.00",
-  },
-  {
-    label: "THE CAPTURE",
-    heading: "SIGNAL EXTRACTION",
-    body: "Unload what is stuck. The system extracts signal from noise, detects drift against The Canon, and clears the mental cache. Reporting becomes unblocking.",
-    metric: "DRIFT SCORE",
-    metricValue: "0.12",
-  },
-  {
-    label: "THE ARTIFACT",
-    heading: "PROCESSED TRUTH",
-    body: "Actions surfaced. Sentiment read. Traction measured. Every capture produces a high-fidelity artifact with drift score, action items, and coaching feedback.",
-    metric: "TRACTION",
-    metricValue: "94%",
-  },
-];
-
-const mechanics = [
-  {
-    label: "01",
-    title: "THE THERAPIST EFFECT",
+    number: "01",
+    title: "SET THE STRATEGY",
     description:
-      "Do not ask what they did. Ask what is blocking them. The system validates frustration, flags blockers, and clears the emotional cache so ICs can flow.",
+      "A manager types or speaks what matters most right now. AI distills it into a strategic reference document -- your team's single source of truth.",
   },
   {
-    label: "02",
-    title: "THE MIRROR OF COMPETENCE",
+    number: "02",
+    title: "TEAM MEMBERS UNLOAD",
     description:
-      "Turns \"I fixed some stuff\" into \"Refactored authentication to reduce latency by 200ms.\" Gives ICs the language to describe their own value.",
+      "Instead of writing polished status reports, people dump what's on their mind. Blockers, progress, frustrations -- raw and unfiltered.",
   },
   {
-    label: "03",
-    title: "MONDAY AMMO",
+    number: "03",
+    title: "AI DOES THE SYNTHESIS",
     description:
-      "Pre-loaded context for Monday morning. The one critical task, the links you need, three hours of deep work before your first meeting. Flow state on demand.",
-  },
-  {
-    label: "04",
-    title: "TRACTION STREAKS",
-    description:
-      "Gamified alignment. Every capture scored against The Canon. Teams compete on coherence, not volume. No one wants to be the slipping wheel.",
+      "Every update is compared against the strategy. Drift score, action items, coaching feedback. The manager sees who's aligned and who's drifting.",
   },
 ];
 
@@ -64,173 +34,225 @@ export default function Home() {
         {/* Hero */}
         <section className="mb-24">
           <MonoLabel className="mb-4 block text-primary">
-            ENTERPRISE TRACTION CONTROL
+            FOR TEAMS THAT SHIP
           </MonoLabel>
 
-          <GlitchText
-            text="TENSIENT"
-            className="text-5xl md:text-6xl mb-6"
-          />
+          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tight mb-6 max-w-[900px]">
+            Your team can&apos;t summarize what they did this week.{" "}
+            <span className="text-primary">We fix that.</span>
+          </h1>
 
           <p className="max-w-[640px] font-body text-lg leading-relaxed text-muted mb-10">
-            Your team generates noise. We extract signal. Every update measured
-            against the strategy. Drift detected. Traction scored. The lightbulb
-            becomes a laser.
+            Team members dump what&apos;s on their mind. AI turns it into
+            aligned updates, surfaces blockers, and scores how on-track they
+            are against your strategy.
           </p>
 
           <div className="flex flex-wrap items-center gap-4">
-            <SlantedButton>REQUEST ACCESS</SlantedButton>
-            <SlantedButton variant="outline">VIEW DOCS</SlantedButton>
+            <SlantedButton href="/sign-up">TRY IT FREE</SlantedButton>
+            <SlantedButton variant="outline" href="#how-it-works">
+              SEE HOW IT WORKS
+            </SlantedButton>
           </div>
         </section>
 
-        {/* The Three Primitives */}
-        <section id="product" className="mb-24">
-          <MonoLabel className="mb-8 block">CORE PRIMITIVES</MonoLabel>
+        {/* How It Works */}
+        <section id="how-it-works" className="mb-24">
+          <MonoLabel className="mb-8 block">HOW IT WORKS</MonoLabel>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {primitives.map((p) => (
-              <PanelCard key={p.label}>
-                <MonoLabel className="mb-3 block text-primary">
-                  {p.label}
-                </MonoLabel>
+            {steps.map((step) => (
+              <PanelCard key={step.number}>
+                <span className="font-mono text-xs text-primary mb-4 block">
+                  {step.number}
+                </span>
                 <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
-                  {p.heading}
+                  {step.title}
                 </h3>
-                <p className="font-body text-sm leading-relaxed text-muted mb-6">
-                  {p.body}
+                <p className="font-body text-sm leading-relaxed text-muted">
+                  {step.description}
                 </p>
-                <div className="border-t border-border pt-4">
-                  <MonoLabel className="block mb-1">{p.metric}</MonoLabel>
-                  <span className="font-mono text-2xl font-bold text-primary">
-                    {p.metricValue}
-                  </span>
-                </div>
               </PanelCard>
             ))}
           </div>
         </section>
 
-        {/* The Thesis */}
+        {/* Why This Exists */}
         <section className="mb-24">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-5">
             <div className="md:col-span-2">
               <MonoLabel className="mb-4 block text-primary">
-                THE THESIS
+                WHY THIS EXISTS
               </MonoLabel>
               <h2 className="font-display text-3xl font-bold uppercase tracking-tight">
-                SLACK IS SLOP
+                SLACK IS WHERE ALIGNMENT GOES TO DIE
               </h2>
             </div>
-            <div className="md:col-span-3">
-              <p className="font-body text-base leading-relaxed text-muted mb-6">
-                Tools like Slack and Teams rely on indefinite optimism. They
-                assume 500 smart people self-organizing in a chat box will
-                naturally align with company goals. This is false. Humans
-                generate as much slop as AI. Without a forcing function,
-                collaboration tools generate heat, not light.
-              </p>
-              <p className="font-body text-base leading-relaxed text-foreground">
-                A functioning enterprise should feel like directed energy. Every
-                ounce of caloric energy burned by the team hits the exact same
-                target. Most companies act like lightbulbs: bright and hot, but
-                scattered. That is entropy. Tensient is the infrastructure for
-                coherence. We turn the lightbulb into a laser.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Growth Mechanics */}
-        <section className="mb-24">
-          <MonoLabel className="mb-8 block">GROWTH MECHANICS</MonoLabel>
-          <div className="grid grid-cols-1 gap-px bg-border md:grid-cols-2">
-            {mechanics.map((m) => (
-              <div
-                key={m.label}
-                className="bg-background p-8"
-              >
-                <span className="font-mono text-xs text-muted mb-3 block">
-                  {m.label}
-                </span>
-                <h3 className="font-display text-lg font-bold uppercase tracking-tight mb-3">
-                  {m.title}
-                </h3>
-                <p className="font-body text-sm leading-relaxed text-muted">
-                  {m.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Protocols Marketplace Teaser */}
-        <section id="protocols" className="mb-24">
-          <PanelCard className="p-8 md:p-12">
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 items-center">
+            <div className="md:col-span-3 space-y-6">
               <div>
-                <MonoLabel className="mb-4 block text-primary">
-                  PROTOCOL MARKETPLACE
-                </MonoLabel>
-                <h2 className="font-display text-2xl font-bold uppercase tracking-tight mb-4">
-                  SHAREABLE INTELLIGENCE
-                </h2>
+                <h4 className="font-display text-sm font-bold uppercase tracking-tight text-foreground mb-2">
+                  THE WEEKLY UPDATE IS EXCRUCIATING
+                </h4>
                 <p className="font-body text-base leading-relaxed text-muted">
-                  Protocols are the digital brains that process your captures.
-                  Fork them. Tune them. Share them across teams. Build your own
-                  and publish to the marketplace. Like Figma Community for
-                  organizational intelligence.
+                  You do standups every day. So why is it so hard to summarize
+                  your week? Because most people can&apos;t synthesize. If you
+                  can&apos;t synthesize, you can&apos;t see the system
+                  you&apos;re in. If you can&apos;t see the system, you
+                  can&apos;t make trade-offs. If you can&apos;t make trade-offs,
+                  you can&apos;t prioritize.
                 </p>
               </div>
-              <div className="space-y-3">
-                {[
-                  { name: "Jensen T5T", category: "LEADERSHIP", uses: "2.4K" },
-                  {
-                    name: "Growth Mindset",
-                    category: "PERSONAL",
-                    uses: "1.8K",
-                  },
-                  {
-                    name: "Wartime General",
-                    category: "STRATEGY",
-                    uses: "956",
-                  },
-                  { name: "YC Protocol", category: "STARTUP", uses: "3.1K" },
-                ].map((protocol) => (
-                  <div
-                    key={protocol.name}
-                    className="flex items-center justify-between border-b border-border pb-3"
-                  >
-                    <div>
-                      <span className="font-display text-sm font-bold uppercase tracking-tight">
-                        {protocol.name}
-                      </span>
-                      <span className="ml-3 font-mono text-xs text-muted">
-                        {protocol.category}
-                      </span>
-                    </div>
-                    <span className="font-mono text-xs text-primary">
-                      {protocol.uses} USES
-                    </span>
-                  </div>
-                ))}
+              <div>
+                <h4 className="font-display text-sm font-bold uppercase tracking-tight text-foreground mb-2">
+                  EVERY INTERACTION WITHOUT COACHING IS WASTED
+                </h4>
+                <p className="font-body text-base leading-relaxed text-muted">
+                  We have access to the thinking of the best operators in the
+                  world -- Huang, Graham, Benioff. But none of that expertise
+                  shows up when people are actually doing the work. Every Slack
+                  message and every status update is a missed coaching
+                  opportunity.
+                </p>
+              </div>
+              <div>
+                <h4 className="font-display text-sm font-bold uppercase tracking-tight text-foreground mb-2">
+                  TEAMS DRIFT WITHOUT KNOWING IT
+                </h4>
+                <p className="font-body text-base leading-relaxed text-muted">
+                  Every word and every hour should move the company toward its
+                  goals. But without constant comparison to strategy, teams go
+                  off course. Most of what goes into Slack is noise. Tensient
+                  measures the gap between what your team is doing and what
+                  actually matters.
+                </p>
               </div>
             </div>
-          </PanelCard>
+          </div>
         </section>
 
-        {/* CTA */}
+        {/* See It In Action -- Before/After Mock */}
+        <section className="mb-24">
+          <MonoLabel className="mb-8 block">SEE IT IN ACTION</MonoLabel>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Before: Raw Input */}
+            <PanelCard>
+              <MonoLabel className="mb-4 block text-muted">
+                WHAT YOUR TEAM MEMBER TYPES
+              </MonoLabel>
+              <p className="font-body text-base leading-relaxed text-muted italic">
+                &quot;Honestly kind of a frustrating week. I spent most of
+                Monday and Tuesday waiting on the design team for the homepage
+                assets so I just started fixing auth bugs instead. Not sure if
+                that was the best use of my time. Also had a couple meetings
+                about the mobile app timeline that didn&apos;t really go
+                anywhere. I think we need to figure out the payment integration
+                before anything else but nobody seems to be owning that.&quot;
+              </p>
+            </PanelCard>
+
+            {/* After: Structured Artifact */}
+            <PanelCard className="border-primary/30">
+              <MonoLabel className="mb-4 block text-primary">
+                WHAT TENSIENT PRODUCES
+              </MonoLabel>
+
+              {/* Scores Row */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="text-center">
+                  <span className="font-mono text-xs text-muted block mb-1">
+                    DRIFT
+                  </span>
+                  <span className="font-mono text-xl font-bold text-yellow-400">
+                    0.41
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="font-mono text-xs text-muted block mb-1">
+                    SENTIMENT
+                  </span>
+                  <span className="font-mono text-xl font-bold text-red-400">
+                    -0.3
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="font-mono text-xs text-muted block mb-1">
+                    TRACTION
+                  </span>
+                  <span className="font-mono text-xl font-bold text-primary">
+                    72%
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-3 mb-3">
+                <span className="font-mono text-xs text-muted block mb-2">
+                  SYNTHESIZED UPDATE
+                </span>
+                <p className="font-body text-sm leading-relaxed text-foreground">
+                  Resolved authentication bugs (latency reduction). Blocked on
+                  design assets for homepage. Payment integration ownership is
+                  unresolved and at risk of slipping.
+                </p>
+              </div>
+
+              <div className="border-t border-border pt-3 mb-3">
+                <span className="font-mono text-xs text-muted block mb-2">
+                  ACTION ITEMS
+                </span>
+                <ul className="space-y-1">
+                  <li className="font-body text-sm text-foreground flex items-start gap-2">
+                    <span className="text-red-400 font-mono text-xs mt-0.5">
+                      BLOCKED
+                    </span>
+                    <span>Follow up with design team on homepage assets</span>
+                  </li>
+                  <li className="font-body text-sm text-foreground flex items-start gap-2">
+                    <span className="text-yellow-400 font-mono text-xs mt-0.5">
+                      ESCALATE
+                    </span>
+                    <span>Assign owner for payment integration</span>
+                  </li>
+                  <li className="font-body text-sm text-primary flex items-start gap-2">
+                    <span className="text-primary font-mono text-xs mt-0.5">
+                      DONE
+                    </span>
+                    <span>Auth bug fixes shipped</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <span className="font-mono text-xs text-muted block mb-2">
+                  COACHING
+                </span>
+                <p className="font-body text-sm leading-relaxed text-muted">
+                  Good instinct to stay productive while blocked. Auth work
+                  aligns with Q1 reliability goals. Flag the payment integration
+                  gap to your lead -- unowned risks are the #1 cause of drift.
+                </p>
+              </div>
+            </PanelCard>
+          </div>
+        </section>
+
+        {/* Final CTA */}
         <section className="text-center mb-12">
           <GlitchText
-            text="BUILD COHERENCE"
+            text="TENSIENT"
             as="h2"
             className="text-4xl md:text-5xl mb-6"
           />
+          <p className="mx-auto max-w-[500px] font-body text-lg leading-relaxed text-foreground mb-2">
+            Your team is drifting right now.
+          </p>
           <p className="mx-auto max-w-[500px] font-body text-base leading-relaxed text-muted mb-8">
-            Stop measuring activity. Start measuring alignment. Tensient turns
-            organizational noise into directed energy.
+            Find out how much. Set your strategy, submit your first update, and
+            see the gap between what your team is doing and what actually
+            matters.
           </p>
           <div className="flex justify-center gap-4">
-            <SlantedButton size="lg">REQUEST ACCESS</SlantedButton>
+            <SlantedButton size="lg" href="/sign-up">
+              START FREE
+            </SlantedButton>
           </div>
         </section>
       </main>
