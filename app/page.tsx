@@ -239,8 +239,11 @@ export default function Home() {
           <GlitchText
             text="TENSIENT"
             as="h2"
-            className="text-4xl md:text-5xl mb-6"
+            className="text-4xl md:text-5xl mb-3"
           />
+          <MonoLabel className="block text-muted mb-6">
+            AMBIENT ENTERPRISE TENSION
+          </MonoLabel>
           <p className="mx-auto max-w-[500px] font-body text-lg leading-relaxed text-foreground mb-2">
             Your team is drifting right now.
           </p>

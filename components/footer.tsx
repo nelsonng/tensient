@@ -100,6 +100,9 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-16 border-t border-border pt-8">
+          <p className="font-mono text-xs text-muted/60 mb-1">
+            AMBIENT ENTERPRISE TENSION
+          </p>
           <p className="font-mono text-xs text-muted">
             &copy; {new Date().getFullYear()} Tensient. All rights reserved.
           </p>

@@ -9,7 +9,7 @@
   --color-secondary: #8A2BE2;
   --color-secondary-foreground: #FFFFFF;
   --color-panel: #111111;
-  --color-muted: #666666;
+  --color-muted: #999999;
   --color-border: #2A2A2A;
   --color-destructive: #FF3333;
   --color-success: #00FF88;
@@ -23,10 +23,10 @@
   --font-mono: var(--font-mono);
 
   /* Font sizes */
-  --text-xs: 10px;
-  --text-sm: 12px;
-  --text-base: 14px;
-  --text-md: 16px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-md: 18px;
   --text-lg: 18px;
   --text-xl: 20px;
   --text-2xl: 24px;

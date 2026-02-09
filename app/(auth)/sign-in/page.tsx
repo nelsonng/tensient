@@ -40,7 +40,10 @@ export default function SignInPage() {
           <Link href="/">
             <GlitchText text="TENSIENT" as="h1" className="text-3xl mb-2" />
           </Link>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted mb-1">
+            AMBIENT ENTERPRISE TENSION
+          </p>
+          <p className="font-mono text-xs uppercase tracking-widest text-muted/60">
             SIGN IN
           </p>
         </div>
