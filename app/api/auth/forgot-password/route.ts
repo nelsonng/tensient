@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const rawToken = await createPasswordResetToken(user.id);
 
     // Build reset URL
-    const baseUrl = process.env.NEXTAUTH_URL || "https://tensient.vercel.app";
+    const baseUrl = process.env.NEXTAUTH_URL || "https://tensient.com";
     const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
 
     // Send email

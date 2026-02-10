@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     // Send email verification (non-blocking -- don't fail signup if email fails)
     try {
       const verifyToken = await createEmailVerificationToken(user.id);
-      const baseUrl = process.env.NEXTAUTH_URL || "https://tensient.vercel.app";
+      const baseUrl = process.env.NEXTAUTH_URL || "https://tensient.com";
       const verifyUrl = `${baseUrl}/verify-email?token=${verifyToken}`;
 
       const emailId = await sendEmail({
