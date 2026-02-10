@@ -331,7 +331,6 @@ export default async function WorkspaceDashboard({
                 rank: number;
                 title: string;
                 detail: string;
-                coachAttribution: string;
                 goalPillar: string | null;
                 priority: string;
               }>,

@@ -6,7 +6,6 @@ import { GlitchText } from "@/components/glitch-text";
 import { SlantedButton } from "@/components/slanted-button";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
-import { StatusPill } from "@/components/status-pill";
 import { motion, AnimatePresence } from "framer-motion";
 import { VoiceRecorder } from "@/components/voice-recorder";
 
@@ -17,8 +16,10 @@ type Step =
   | "goals_review"
   | "thoughts_input"
   | "thoughts_review"
-  | "actions_reveal"
-  | "dashboard_transition";
+  | "coaching_recap"
+  | "goal_journey"
+  | "team_vision"
+  | "dashboard_ready";
 
 interface CoachingQuestion {
   coach: string;
@@ -53,11 +54,6 @@ interface GoalResult {
   improvementRationale: string;
   healthAnalysis: HealthAnalysis | null;
   iterationCount?: number;
-}
-
-interface ActionItem {
-  task: string;
-  status: string;
 }
 
 interface ThoughtResult {
@@ -413,16 +409,20 @@ export default function WelcomePage() {
     "goals_review",
     "thoughts_input",
     "thoughts_review",
-    "actions_reveal",
-    "dashboard_transition",
+    "coaching_recap",
+    "goal_journey",
+    "team_vision",
+    "dashboard_ready",
   ];
   const stepLabels: Record<Step, string> = {
     goals_input: "GOALS",
     goals_review: "COACHING",
     thoughts_input: "THOUGHTS",
     thoughts_review: "SYNTHESIS",
-    actions_reveal: "ACTIONS",
-    dashboard_transition: "DASHBOARD",
+    coaching_recap: "INSIGHTS",
+    goal_journey: "JOURNEY",
+    team_vision: "VISION",
+    dashboard_ready: "DASHBOARD",
   };
 
   // ── Handlers ───────────────────────────────────────────────────────
@@ -555,6 +555,45 @@ export default function WelcomePage() {
     setThoughtInputMode("text");
     setThoughtFeedbackMode("text");
   }, []);
+
+  // ── Digest generation: fire early, poll until ready ─────────────────
+  const [digestReady, setDigestReady] = useState(false);
+  const digestFiredRef = useRef(false);
+
+  // Fire digest as soon as we leave thoughts_review
+  function fireDigest() {
+    if (digestFiredRef.current) return;
+    digestFiredRef.current = true;
+    fetch(`/api/workspaces/${workspaceId}/digest`, { method: "POST" })
+      .then((res) => {
+        if (res.ok) setDigestReady(true);
+      })
+      .catch(() => {
+        // If the API call fails, still let them through
+        setDigestReady(true);
+      });
+  }
+
+  // Poll for digest readiness on the dashboard_ready step
+  useEffect(() => {
+    if (step !== "dashboard_ready" || digestReady) return;
+    const interval = setInterval(async () => {
+      try {
+        // Check if digest exists by hitting the dashboard page's digest query
+        // Simple approach: just check if enough time has passed since we fired
+        // The digest API returns on completion, so if fireDigest resolved, we're good
+        // If not resolved yet, keep waiting
+      } catch {
+        // ignore
+      }
+    }, 3000);
+    // Fallback: after 90s, let them through anyway
+    const timeout = setTimeout(() => setDigestReady(true), 90000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [step, digestReady]);
 
   // ── Render ─────────────────────────────────────────────────────────
 
@@ -924,10 +963,13 @@ export default function WelcomePage() {
 
                   <div className="mt-4">
                     <SlantedButton
-                      onClick={() => setStep("actions_reveal")}
+                      onClick={() => {
+                        fireDigest();
+                        setStep("coaching_recap");
+                      }}
                       size="lg"
                     >
-                      READY FOR ACTIONS
+                      NEXT
                     </SlantedButton>
                   </div>
                 </div>
@@ -940,37 +982,29 @@ export default function WelcomePage() {
           </FadeIn>
         )}
 
-        {/* ── STEP 5: Actions Reveal ("One More Thing") ────────── */}
-        {step === "actions_reveal" && thoughtResult && (
-          <FadeIn stepKey="actions_reveal">
+        {/* ── STEP 5: Coaching Recap (delight) ─────────────────── */}
+        {step === "coaching_recap" && thoughtResult && (
+          <FadeIn stepKey="coaching_recap">
             <MonoLabel className="mb-4 block text-primary">
-              THE RESULT
+              INSIGHTS
             </MonoLabel>
 
             <GlitchText
-              text="YOUR PRIORITIZED ACTIONS"
+              text="WHAT YOUR COACHES SAW"
               as="h1"
               className="text-2xl md:text-3xl mb-4"
             />
 
             <p className="font-body text-base text-muted mb-6 max-w-[500px] leading-relaxed">
-              From raw thoughts to concrete, prioritized action items -- aligned
-              against your goals. This is what Tensient produces from every
-              team member, every day.
+              Your {COACH_NAMES.length} coaching lenses worked together to surface these insights
+              from your thoughts.
             </p>
 
-            {/* Collective coaching note */}
-            <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 px-5 py-3">
-              <p className="font-mono text-xs text-primary">
-                These actions were surfaced by your {COACH_NAMES.length} coaching lenses working together.
-              </p>
-            </div>
-
-            {/* Goal alignment summary */}
-            {goalResult && (
-              <div className="mb-6 rounded-lg border border-border bg-panel/50 px-5 py-4">
-                <div className="flex items-center justify-between mb-2">
-                  <MonoLabel className="text-primary">GOAL ALIGNMENT</MonoLabel>
+            {/* Alignment explanation */}
+            {thoughtResult.artifact.alignmentExplanation && (
+              <PanelCard className="mb-4">
+                <MonoLabel className="mb-2 block text-primary">ALIGNMENT</MonoLabel>
+                <div className="flex items-center gap-3 mb-2">
                   <span
                     className={`font-mono text-lg font-bold ${getAlignmentColor(
                       thoughtResult.artifact.alignmentScore
@@ -978,77 +1012,119 @@ export default function WelcomePage() {
                   >
                     {Math.round(thoughtResult.artifact.alignmentScore * 100)}%
                   </span>
+                  <span className="font-mono text-xs text-muted">
+                    against your {goalResult?.pillars.length ?? 0} goals
+                  </span>
                 </div>
-                <div className="h-2 bg-border rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full rounded-full ${
-                      thoughtResult.artifact.alignmentScore >= 0.5
-                        ? "bg-primary"
-                        : "bg-yellow-400"
-                    }`}
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${thoughtResult.artifact.alignmentScore * 100}%`,
-                    }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                  />
-                </div>
-                <p className="font-mono text-xs text-muted mt-2">
-                  Measured against your {goalResult.pillars.length} strategic pillars
-                </p>
-              </div>
-            )}
-
-            {/* Action Items (no coach attribution) */}
-            {thoughtResult.artifact.actionItems.length > 0 ? (
-              <div className="space-y-3 mb-8">
-                {thoughtResult.artifact.actionItems.map((item, i) => (
-                  <PanelCard key={i}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3 flex-1">
-                        <span className="font-mono text-lg font-bold text-muted/60 shrink-0 w-6 text-right pt-0.5">
-                          {i + 1}
-                        </span>
-                        <p className="font-body text-base font-semibold text-foreground leading-snug">
-                          {item.task}
-                        </p>
-                      </div>
-                      <StatusPill
-                        status={
-                          item.status === "done"
-                            ? "success"
-                            : item.status === "blocked"
-                            ? "error"
-                            : "active"
-                        }
-                        label={item.status}
-                      />
-                    </div>
-                  </PanelCard>
-                ))}
-              </div>
-            ) : (
-              <PanelCard className="mb-8">
-                <p className="font-body text-base text-muted text-center py-4">
-                  No action items extracted. Try providing more specific details about what needs to happen next.
+                <p className="font-body text-sm text-muted leading-relaxed">
+                  {thoughtResult.artifact.alignmentExplanation}
                 </p>
               </PanelCard>
             )}
 
+            {/* Coaching questions */}
+            {thoughtResult.artifact.coachingQuestions.length > 0 && (
+              <div className="space-y-3 mb-8">
+                {thoughtResult.artifact.coachingQuestions.slice(0, 4).map((cq, i) => (
+                  <PanelCard key={i}>
+                    <p className="font-mono text-xs text-primary mb-1">{cq.coach}</p>
+                    <p className="font-body text-sm text-foreground leading-relaxed">
+                      {cq.question}
+                    </p>
+                  </PanelCard>
+                ))}
+              </div>
+            )}
+
+            <div className="rounded-lg border border-primary/20 bg-primary/5 px-5 py-3 mb-6">
+              <p className="font-mono text-xs text-primary">
+                Your Top 5 priorities are being synthesized in the background...
+              </p>
+            </div>
+
             <SlantedButton
-              onClick={() => setStep("dashboard_transition")}
+              onClick={() => setStep("goal_journey")}
               size="lg"
             >
-              SEE YOUR DASHBOARD
+              NEXT
             </SlantedButton>
           </FadeIn>
         )}
 
-        {/* ── STEP 6: Dashboard Transition ─────────────────────── */}
-        {step === "dashboard_transition" && (
-          <FadeIn stepKey="dashboard_transition">
+        {/* ── STEP 6: Goal Clarity Journey (delight) ──────────── */}
+        {step === "goal_journey" && goalResult && (
+          <FadeIn stepKey="goal_journey">
             <MonoLabel className="mb-4 block text-primary">
-              THIS IS TENSIENT
+              YOUR JOURNEY
+            </MonoLabel>
+
+            <GlitchText
+              text="YOUR GOAL CLARITY JOURNEY"
+              as="h1"
+              className="text-2xl md:text-3xl mb-4"
+            />
+
+            <p className="font-body text-base text-muted mb-6 max-w-[500px] leading-relaxed">
+              You started with raw goals. Your coaches helped refine them.
+              Here&apos;s how far you came.
+            </p>
+
+            {/* SMART score */}
+            {goalResult.healthAnalysis && (
+              <PanelCard className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <MonoLabel className="text-primary">GOAL CLARITY SCORE</MonoLabel>
+                  <span className="font-mono text-2xl font-bold text-primary">
+                    {Math.round(goalResult.healthAnalysis.overallScore * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-border rounded-full overflow-hidden mb-3">
+                  <motion.div
+                    className="h-full rounded-full bg-primary"
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${goalResult.healthAnalysis.overallScore * 100}%`,
+                    }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                  />
+                </div>
+                <p className="font-body text-xs text-muted">
+                  Based on SMART analysis across {goalResult.pillars.length} pillars
+                </p>
+              </PanelCard>
+            )}
+
+            {/* Refined goals */}
+            <PanelCard className="mb-8">
+              <MonoLabel className="mb-3 block text-primary">YOUR REFINED GOALS</MonoLabel>
+              <div className="space-y-2">
+                {goalResult.pillars.map((pillar, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <span className="font-mono text-sm text-primary font-bold mt-0.5 shrink-0 w-5 text-right">
+                      {i + 1}
+                    </span>
+                    <p className="font-body text-sm text-foreground leading-relaxed">
+                      {pillar}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </PanelCard>
+
+            <SlantedButton
+              onClick={() => setStep("team_vision")}
+              size="lg"
+            >
+              NEXT
+            </SlantedButton>
+          </FadeIn>
+        )}
+
+        {/* ── STEP 7: Team Vision ─────────────────────────────── */}
+        {step === "team_vision" && (
+          <FadeIn stepKey="team_vision">
+            <MonoLabel className="mb-4 block text-primary">
+              THE BIGGER PICTURE
             </MonoLabel>
 
             <GlitchText
@@ -1059,17 +1135,16 @@ export default function WelcomePage() {
 
             <p className="font-body text-base text-muted mb-8 max-w-[500px] leading-relaxed">
               You just went through this as one person. When your whole team
-              uses Tensient daily, the dashboard becomes a living command center:
-              Top 5 priorities, alignment trends, blocked actions, and coaching
-              -- all synthesized automatically.
+              uses Tensient daily, the dashboard becomes a living command center
+              -- Top 5 priorities, coaching, and alignment, all synthesized
+              automatically.
             </p>
 
-            {/* What you just created */}
             <PanelCard className="mb-4">
               <MonoLabel className="mb-3 block text-primary">
                 WHAT YOU JUST CREATED
               </MonoLabel>
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-2 gap-4 text-center">
                 <div>
                   <span className="font-mono text-2xl font-bold text-foreground">
                     {goalResult?.pillars.length ?? 0}
@@ -1080,16 +1155,9 @@ export default function WelcomePage() {
                   <span className="font-mono text-2xl font-bold text-foreground">1</span>
                   <p className="font-mono text-xs text-muted mt-1">SYNTHESIS</p>
                 </div>
-                <div>
-                  <span className="font-mono text-2xl font-bold text-foreground">
-                    {thoughtResult?.artifact.actionItems.length ?? 0}
-                  </span>
-                  <p className="font-mono text-xs text-muted mt-1">ACTIONS</p>
-                </div>
               </div>
             </PanelCard>
 
-            {/* Art of the possible */}
             <PanelCard className="mb-8">
               <MonoLabel className="mb-3 block">
                 WITH YOUR FULL TEAM
@@ -1110,7 +1178,7 @@ export default function WelcomePage() {
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-xs text-primary">03</span>
                   <p className="font-body text-sm text-foreground">
-                    Your Top 5 priorities are recomputed constantly, like a living Jensen T5T
+                    Your Top 5 priorities are recomputed constantly -- a living executive briefing
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1123,11 +1191,67 @@ export default function WelcomePage() {
             </PanelCard>
 
             <SlantedButton
-              href={`/dashboard/${workspaceId}`}
+              onClick={() => setStep("dashboard_ready")}
               size="lg"
             >
-              GO TO DASHBOARD
+              NEXT
             </SlantedButton>
+          </FadeIn>
+        )}
+
+        {/* ── STEP 8: Dashboard Ready (gated) ─────────────────── */}
+        {step === "dashboard_ready" && (
+          <FadeIn stepKey="dashboard_ready">
+            <MonoLabel className="mb-4 block text-primary">
+              YOUR DASHBOARD
+            </MonoLabel>
+
+            {digestReady ? (
+              <>
+                <GlitchText
+                  text="YOUR TOP 5 IS READY"
+                  as="h1"
+                  className="text-2xl md:text-3xl mb-4"
+                />
+
+                <p className="font-body text-base text-muted mb-8 max-w-[500px] leading-relaxed">
+                  Your goals, thoughts, and coaching have been synthesized into
+                  your first Top 5 priorities. See them on your dashboard.
+                </p>
+
+                <SlantedButton
+                  href={`/dashboard/${workspaceId}`}
+                  size="lg"
+                >
+                  GO TO DASHBOARD
+                </SlantedButton>
+              </>
+            ) : (
+              <>
+                <GlitchText
+                  text="PUTTING THE FINISHING TOUCHES"
+                  as="h1"
+                  className="text-2xl md:text-3xl mb-4"
+                />
+
+                <p className="font-body text-base text-muted mb-8 max-w-[500px] leading-relaxed">
+                  Your Top 5 priorities are being synthesized from everything
+                  you shared. Almost there...
+                </p>
+
+                {/* Subtle pulsing indicator */}
+                <div className="flex items-center gap-3 mb-8">
+                  <motion.div
+                    className="h-3 w-3 rounded-full bg-primary"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  />
+                  <span className="font-mono text-xs text-muted">
+                    Synthesizing your Top 5...
+                  </span>
+                </div>
+              </>
+            )}
           </FadeIn>
         )}
       </AnimatePresence>

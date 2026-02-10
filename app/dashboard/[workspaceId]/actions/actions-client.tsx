@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
@@ -195,14 +194,7 @@ export function ActionsClient({
   );
 
   return (
-    <div className="mx-auto max-w-[1000px] px-6 pt-8 pb-24">
-      <Link
-        href={`/dashboard/${workspaceId}`}
-        className="font-mono text-xs text-muted hover:text-primary mb-6 block"
-      >
-        &larr; BACK TO HOME
-      </Link>
-
+    <div className="mx-auto max-w-[1000px] px-6 pb-24">
       <div className="flex items-center justify-between mb-6">
         <div>
           <MonoLabel className="mb-2 block text-primary">ACTIONS</MonoLabel>

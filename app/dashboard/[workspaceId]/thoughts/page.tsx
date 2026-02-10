@@ -4,7 +4,6 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { captures, users, workspaces } from "@/lib/db/schema";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
-import Link from "next/link";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { SlantedButton } from "@/components/slanted-button";
@@ -65,14 +64,7 @@ export default async function ThoughtsPage({
     .limit(50);
 
   return (
-    <div className="mx-auto max-w-[1000px] px-6 pt-8 pb-24">
-      <Link
-        href={`/dashboard/${workspaceId}`}
-        className="font-mono text-xs text-muted hover:text-primary mb-6 block"
-      >
-        &larr; BACK TO HOME
-      </Link>
-
+    <div className="mx-auto max-w-[1000px] px-6 pb-24">
       <div className="flex items-center justify-between mb-8">
         <div>
           <MonoLabel className="mb-2 block text-primary">THOUGHTS</MonoLabel>

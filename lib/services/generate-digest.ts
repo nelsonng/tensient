@@ -1,7 +1,7 @@
 /**
  * Generate a weekly Top 5 digest for a workspace.
  *
- * Fetches all artifacts + actions from the given period,
+ * Fetches all artifacts from the given period,
  * calls Anthropic to synthesize the Top 5 priorities ranked by strategic impact,
  * and stores the result in the `digests` table.
  */
@@ -15,8 +15,6 @@ import {
   artifacts,
   captures,
   canons,
-  actions,
-  protocols,
   digests,
 } from "@/lib/db/schema";
 
@@ -24,8 +22,7 @@ interface DigestItem {
   rank: number;
   title: string;
   detail: string;
-  coachAttribution: string;
-  goalLinked: boolean;
+  goalPillar: string | null;
   priority: "critical" | "high" | "medium" | "low";
 }
 
@@ -37,20 +34,34 @@ interface DigestResult {
 const DIGEST_SCHEMA = {
   type: "object",
   properties: {
-    summary: { type: "string" },
+    summary: {
+      type: "string",
+      description: "1-2 sentences, max 20 words. The week in one breath.",
+    },
     items: {
       type: "array",
       items: {
         type: "object",
         properties: {
           rank: { type: "number" },
-          title: { type: "string" },
-          detail: { type: "string" },
-          coachAttribution: { type: "string" },
-          goalLinked: { type: "boolean" },
-          priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+          title: {
+            type: "string",
+            description: "Max 8 words, plain language, no subtitles or em-dashes",
+          },
+          detail: {
+            type: "string",
+            description: "1 sentence, max 15 words. The one fact that makes you feel it.",
+          },
+          goalPillar: {
+            type: ["string", "null"],
+            description: "Exact goal pillar name from the list, or null if emergent",
+          },
+          priority: {
+            type: "string",
+            enum: ["critical", "high", "medium", "low"],
+          },
         },
-        required: ["rank", "title", "detail", "coachAttribution", "goalLinked", "priority"],
+        required: ["rank", "title", "detail", "goalPillar", "priority"],
         additionalProperties: false,
       },
     },
@@ -75,15 +86,29 @@ export async function generateWeeklyDigest({
     return null;
   }
 
-  // Fetch current goals
+  // Fetch current goals + health analysis for pillar names
   const [canon] = await db
-    .select({ content: canons.content })
+    .select({
+      content: canons.content,
+      healthAnalysis: canons.healthAnalysis,
+    })
     .from(canons)
     .where(eq(canons.workspaceId, workspaceId))
     .orderBy(desc(canons.createdAt))
     .limit(1);
 
   if (!canon) return null;
+
+  // Extract pillar names from healthAnalysis
+  const pillarNames: string[] = canon.healthAnalysis
+    ? (
+        ((canon.healthAnalysis as Record<string, unknown>).pillars as Array<{ title: string }>) || []
+      ).map((p) => p.title)
+    : [];
+
+  const goalPillarsText = pillarNames.length > 0
+    ? `GOAL PILLARS:\n${pillarNames.map((n, i) => `${i + 1}. ${n}`).join("\n")}`
+    : `GOALS:\n${canon.content}`;
 
   // Fetch this week's synthesis
   const weekArtifacts = await db
@@ -103,64 +128,37 @@ export async function generateWeeklyDigest({
     .orderBy(desc(artifacts.createdAt))
     .limit(50);
 
-  // Fetch open actions
-  const weekActions = await db
-    .select({
-      title: actions.title,
-      status: actions.status,
-      priority: actions.priority,
-      coachAttribution: actions.coachAttribution,
-      goalAlignmentScore: actions.goalAlignmentScore,
-    })
-    .from(actions)
-    .where(
-      and(
-        eq(actions.workspaceId, workspaceId),
-        gte(actions.createdAt, weekStart)
-      )
-    )
-    .limit(100);
-
-  // Fetch all coaches for attribution context
-  const coaches = await db
-    .select({ name: protocols.name })
-    .from(protocols)
-    .where(eq(protocols.isPublic, true));
-
-  const coachNames = coaches.map((c) => c.name).join(", ");
-
   // Build the prompt
   const synthesisText = weekArtifacts
-    .map((a, i) => `[Synthesis ${i + 1}]\n${a.feedback || a.content || "(no content)"}`)
+    .map((a, i) => `[${i + 1}] ${a.feedback || a.content || "(no content)"}`)
     .join("\n\n");
 
-  const actionsText = weekActions
-    .map(
-      (a) =>
-        `- [${a.priority?.toUpperCase()}] ${a.title} (status: ${a.status}, coach: ${a.coachAttribution || "unknown"}, goal-aligned: ${a.goalAlignmentScore ? Math.round(a.goalAlignmentScore * 100) + "%" : "N/A"})`
-    )
-    .join("\n");
+  const prompt = `You are writing a Top 5 Things memo for an executive. This is the most important document of the week. It must be brutally concise.
 
-  const prompt = `You are synthesizing a week of team updates into the Top 5 Things that matter most to this organization, ranked by strategic impact.
+VOICE: Like you're texting your co-founder at midnight. Plain words. Specific numbers. No jargon, no consulting-speak, no "leading indicators" or "strategic imperatives." Incomplete sentences are fine. Every word must earn its place.
 
-ORGANIZATION GOALS:
-${canon.content}
+${goalPillarsText}
 
-THIS WEEK'S SYNTHESIS (${weekArtifacts.length} items):
-${synthesisText || "(No synthesis yet this week)"}
+THIS WEEK'S UPDATES (${weekArtifacts.length} items):
+${synthesisText || "(No updates yet this week)"}
 
-THIS WEEK'S ACTION ITEMS (${weekActions.length} items):
-${actionsText || "(No new actions this week)"}
+FORMAT RULES (STRICT — violating these is a failure):
+- summary: 1-2 sentences. Max 20 words. The week in one breath.
+- title: Max 8 words. Plain language. No subtitles, no em-dashes, no colons. Say what's happening.
+- detail: 1 sentence. Max 15 words. The one fact that makes you feel it.
+- goalPillar: The exact pillar name from GOAL PILLARS that this relates to, or null if emergent work.
+- priority: "critical" = do it today. "high" = do it this week. "medium" = track it.
 
-AVAILABLE COACHING LENSES: ${coachNames}
+ANTI-PATTERNS (do NOT do these):
+- "The loss of X is not an isolated incident — it's a leading indicator that..." → Just say "Lost X."
+- "Scope a focused 1-2 week sprint to eliminate the top 3 friction points" → Just say "Fix top 3 issues this sprint."
+- Titles with em-dashes or subtitles → "Fix onboarding. Customer quit." not "Emergency Fix the TMS Integration Wizard — Onboarding Is the Strategy"
+- Paragraphs in the detail field → If your detail is more than 1 sentence, you failed.
 
-INSTRUCTIONS:
-1. Identify the 5 most strategically important themes/priorities from this week's data
-2. Rank them by impact on the organization's stated goals (most impactful = #1)
-3. For each item, attribute which coaching lens (${coachNames}) would most naturally surface this insight
-4. Indicate whether each item links to a stated goal (true) or represents emergent work (false)
-5. Assign priority: "critical" (blocking/urgent), "high" (important this week), "medium" (track it), "low" (informational)
-6. For summary, write a 2-3 sentence executive summary of the week`;
+EXAMPLE of a perfect item:
+{ "rank": 1, "title": "Fix onboarding. Customer quit this week.", "detail": "DataFlow ($40K ARR) said \\"we gave up.\\" Top priority.", "goalPillar": "Fix onboarding experience", "priority": "critical" }
+
+Return exactly 5 items ranked by impact on stated goals.`;
 
   let parsed: DigestResult;
   try {

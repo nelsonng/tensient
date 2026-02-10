@@ -4,7 +4,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { protocols, workspaces } from "@/lib/db/schema";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
-import Link from "next/link";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 
@@ -49,14 +48,7 @@ export default async function CoachesPage({
     .where(eq(protocols.isPublic, true));
 
   return (
-    <div className="mx-auto max-w-[1000px] px-6 pt-8 pb-24">
-      <Link
-        href={`/dashboard/${workspaceId}`}
-        className="font-mono text-xs text-muted hover:text-primary mb-6 block"
-      >
-        &larr; BACK TO HOME
-      </Link>
-
+    <div className="mx-auto max-w-[1000px] px-6 pb-24">
       <div className="mb-8">
         <MonoLabel className="mb-2 block text-primary">COACHES</MonoLabel>
         <h1 className="font-display text-2xl font-bold uppercase tracking-tight">
