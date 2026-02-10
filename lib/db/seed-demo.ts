@@ -3,10 +3,10 @@
  * for Tensient Health, a fictional B2B healthcare operations platform.
  *
  * Usage:
- *   DATABASE_URL=... GEMINI_API_KEY=... npx tsx lib/db/seed-demo.ts
+ *   DATABASE_URL=... GEMINI_API_KEY=... ANTHROPIC_API_KEY=... npx tsx lib/db/seed-demo.ts
  *
  * Creates: 1 org, 8 users, 1 workspace, 8 memberships, 1 canon (goals), 34 captures + artifacts
- * Cost: ~35 Gemini API calls (~$0.50-0.70)
+ * Cost: ~35 Anthropic API calls + Gemini embeddings
  * Runtime: ~2-3 minutes
  *
  * This script is self-contained and does not import from service modules
@@ -18,6 +18,7 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { eq, desc } from "drizzle-orm";
 import { hash } from "bcryptjs";
 import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import {
   organizations,
   users,
@@ -33,8 +34,9 @@ import {
 
 const sqlFn = neon(process.env.DATABASE_URL!);
 const db = drizzle(sqlFn);
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-const MODEL = "gemini-3-pro-preview";
+const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+const MODEL = "claude-opus-4-6";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -50,12 +52,33 @@ function nanoid(length: number = 8): string {
 }
 
 async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await ai.models.embedContent({
+  const response = await gemini.models.embedContent({
     model: "gemini-embedding-001",
     contents: text,
     config: { outputDimensionality: 1536 },
   });
   return response.embeddings?.[0]?.values ?? [];
+}
+
+async function generateStructuredJSON<T>(opts: {
+  prompt: string;
+  schema: Record<string, unknown>;
+  temperature?: number;
+}): Promise<T> {
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    messages: [{ role: "user", content: opts.prompt }],
+    output_config: {
+      format: {
+        type: "json_schema" as const,
+        schema: opts.schema,
+      },
+    },
+  });
+  const textBlock = response.content.find((b) => b.type === "text");
+  const text = textBlock && textBlock.type === "text" ? textBlock.text : "{}";
+  return JSON.parse(text) as T;
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -663,16 +686,14 @@ Small win: the skeleton loaders for the admin table are done and they look great
 // ═══════════════════════════════════════════════════════════════════════
 
 async function seedRunStrategy(workspaceId: string, rawInput: string) {
-  console.log("   Extracting strategic pillars via Gemini...");
+  console.log("   Extracting strategic pillars via Anthropic...");
 
-  const extraction = await ai.models.generateContent({
-    model: MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: `You are a strategic advisor. Given a leader's raw strategic input, extract:
+  const parsed = await generateStructuredJSON<{
+    pillars: string[];
+    tone: string;
+    synthesis: string;
+  }>({
+    prompt: `You are a strategic advisor. Given a leader's raw strategic input, extract:
 1. The core 3-5 strategic pillars (concise, actionable statements)
 2. The overall tone (one of: "wartime", "peacetime", "analytical", "growth")
 3. A synthesized strategy document (2-3 paragraphs)
@@ -680,26 +701,19 @@ async function seedRunStrategy(workspaceId: string, rawInput: string) {
 Here is the strategic input:
 
 ${rawInput}`,
-          },
-        ],
+    schema: {
+      type: "object",
+      properties: {
+        pillars: { type: "array", items: { type: "string" } },
+        tone: { type: "string", enum: ["wartime", "peacetime", "analytical", "growth"] },
+        synthesis: { type: "string" },
       },
-    ],
-    config: {
-      temperature: 0.3,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: "object" as const,
-        properties: {
-          pillars: { type: "array" as const, items: { type: "string" as const } },
-          tone: { type: "string" as const, enum: ["wartime", "peacetime", "analytical", "growth"] },
-          synthesis: { type: "string" as const },
-        },
-        required: ["pillars", "tone", "synthesis"],
-      },
+      required: ["pillars", "tone", "synthesis"],
+      additionalProperties: false,
     },
+    temperature: 0.3,
   });
 
-  const parsed = JSON.parse(extraction.text ?? "{}");
   const { pillars, tone, synthesis } = parsed;
 
   console.log("   Generating strategy embedding...");
@@ -759,14 +773,13 @@ async function seedProcessCapture(
   }
 
   // 4. LLM analysis
-  const analysis = await ai.models.generateContent({
-    model: MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: `You are an organizational intelligence agent. Analyze this employee update and extract:
+  const parsed = await generateStructuredJSON<{
+    sentiment_score: number;
+    action_items: Array<{ task: string; status: string }>;
+    synthesis: string;
+    feedback: string;
+  }>({
+    prompt: `You are an organizational intelligence agent. Analyze this employee update and extract:
 1. sentiment_score: Float from -1.0 (very negative) to 1.0 (very positive)
 2. action_items: Array of objects with task and status fields
 3. synthesis: A clean, professional summary of the update (2-3 sentences)
@@ -775,37 +788,30 @@ async function seedProcessCapture(
 Here is the employee update:
 
 ${content}`,
-          },
-        ],
-      },
-    ],
-    config: {
-      temperature: 0.3,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: "object" as const,
-        properties: {
-          sentiment_score: { type: "number" as const },
-          action_items: {
-            type: "array" as const,
-            items: {
-              type: "object" as const,
-              properties: {
-                task: { type: "string" as const },
-                status: { type: "string" as const, enum: ["open", "blocked", "done"] },
-              },
-              required: ["task", "status"],
+    schema: {
+      type: "object",
+      properties: {
+        sentiment_score: { type: "number" },
+        action_items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              task: { type: "string" },
+              status: { type: "string", enum: ["open", "blocked", "done"] },
             },
+            required: ["task", "status"],
+            additionalProperties: false,
           },
-          synthesis: { type: "string" as const },
-          feedback: { type: "string" as const },
         },
-        required: ["sentiment_score", "action_items", "synthesis", "feedback"],
+        synthesis: { type: "string" },
+        feedback: { type: "string" },
       },
+      required: ["sentiment_score", "action_items", "synthesis", "feedback"],
+      additionalProperties: false,
     },
+    temperature: 0.3,
   });
-
-  const parsed = JSON.parse(analysis.text ?? "{}");
 
   // 5. Create artifact
   const [artifact] = await db

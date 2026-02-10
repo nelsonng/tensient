@@ -2,13 +2,13 @@
  * Generate a weekly Top 5 digest for a workspace.
  *
  * Fetches all artifacts + actions from the given period,
- * calls Gemini to synthesize the Top 5 priorities ranked by strategic impact,
+ * calls Anthropic to synthesize the Top 5 priorities ranked by strategic impact,
  * and stores the result in the `digests` table.
  */
 
 import { eq, desc, gte, and } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { ai, DEFAULT_MODEL, calculateCostCents } from "@/lib/ai";
+import { generateStructuredJSON, calculateCostCents } from "@/lib/ai";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { logger } from "@/lib/logger";
 import {
@@ -33,6 +33,31 @@ interface DigestResult {
   summary: string;
   items: DigestItem[];
 }
+
+const DIGEST_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          rank: { type: "number" },
+          title: { type: "string" },
+          detail: { type: "string" },
+          coachAttribution: { type: "string" },
+          goalLinked: { type: "boolean" },
+          priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
+        },
+        required: ["rank", "title", "detail", "coachAttribution", "goalLinked", "priority"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["summary", "items"],
+  additionalProperties: false,
+};
 
 export async function generateWeeklyDigest({
   workspaceId,
@@ -135,36 +160,29 @@ INSTRUCTIONS:
 3. For each item, attribute which coaching lens (${coachNames}) would most naturally surface this insight
 4. Indicate whether each item links to a stated goal (true) or represents emergent work (false)
 5. Assign priority: "critical" (blocking/urgent), "high" (important this week), "medium" (track it), "low" (informational)
+6. For summary, write a 2-3 sentence executive summary of the week`;
 
-Return ONLY valid JSON in this exact format:
-{
-  "summary": "2-3 sentence executive summary of the week",
-  "items": [
-    {
-      "rank": 1,
-      "title": "Short title (max 10 words)",
-      "detail": "1-2 sentence explanation with specific metrics/facts from the data",
-      "coachAttribution": "Name of coaching lens",
-      "goalLinked": true,
-      "priority": "critical"
-    }
-  ]
-}`;
-
-  const response = await ai.models.generateContent({
-    model: DEFAULT_MODEL,
-    contents: prompt,
-  });
-
-  const text = response.text ?? "";
-
-  // Parse JSON from response (handle markdown fences)
   let parsed: DigestResult;
   try {
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, text];
-    parsed = JSON.parse(jsonMatch[1]!.trim());
-  } catch {
-    logger.error("Failed to parse digest response", { responseText: text?.slice(0, 200) });
+    const response = await generateStructuredJSON<DigestResult>({
+      prompt,
+      schema: DIGEST_SCHEMA,
+      temperature: 0.3,
+    });
+
+    parsed = response.result;
+
+    // Log usage
+    await logUsage({
+      userId,
+      workspaceId,
+      operation: "digest",
+      inputTokens: response.inputTokens,
+      outputTokens: response.outputTokens,
+      estimatedCostCents: calculateCostCents(response.inputTokens, response.outputTokens),
+    });
+  } catch (error) {
+    logger.error("Failed to generate digest", { error });
     return null;
   }
 
@@ -174,18 +192,6 @@ Return ONLY valid JSON in this exact format:
     weekStart,
     summary: parsed.summary,
     items: parsed.items,
-  });
-
-  // Log usage
-  const inputTokens = Math.ceil(prompt.length / 4);
-  const outputTokens = Math.ceil(text.length / 4);
-  await logUsage({
-    userId,
-    workspaceId,
-    operation: "digest",
-    inputTokens,
-    outputTokens,
-    estimatedCostCents: calculateCostCents(inputTokens, outputTokens),
   });
 
   return parsed;
