@@ -62,7 +62,7 @@ interface ThoughtResult {
     alignmentScore: number;
     sentimentScore: number;
     content: string;
-    actionItems: ActionItem[];
+    actionItems: Array<{ task: string; status: string }>;
     feedback: string;
     coachingQuestions: CoachingQuestion[];
     alignmentExplanation: string;
