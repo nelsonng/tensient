@@ -19,7 +19,7 @@ Your team generates noise. Tensient extracts signal. Every thought is measured a
 Capture (voice/text)
     |
     v
-AI Processing (Gemini 3 Pro + embeddings)
+AI Processing (Claude Opus 4.6 + Gemini embeddings)
     |
     +--> Artifact (drift score, sentiment, coaching)
     +--> Actions (goal-linked, priority-ranked)
@@ -36,8 +36,8 @@ AI Processing (Gemini 3 Pro + embeddings)
 | Language | TypeScript (strict) |
 | Database | PostgreSQL (Neon) + pgvector |
 | ORM | Drizzle |
-| AI | Google Gemini 3 Pro |
-| Embeddings | gemini-embedding-001 (1536 dims) |
+| AI | Anthropic Claude Opus 4.6 |
+| Embeddings | Gemini gemini-embedding-001 (1536 dims) |
 | Auth | NextAuth v5 (JWT) |
 | Transcription | Groq Whisper |
 | Hosting | Vercel |
@@ -79,7 +79,7 @@ lib/
   db/               # Schema, migrations, seed scripts
   services/         # Core business logic (process-capture, genesis-setup, generate-digest)
   auth/             # Authorization helpers
-  ai.ts             # Gemini client
+  ai.ts             # AI clients (Anthropic LLM + Gemini embeddings)
   usage-guard.ts    # Cost controls (trial limits, daily caps, monthly budgets)
 components/         # Reusable UI components
 hooks/              # Custom React hooks (audio capture)

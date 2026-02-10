@@ -149,7 +149,7 @@ export default function TermsOfServicePage() {
               non-exclusive, worldwide license to process, analyze, store, and
               display Your Content solely for the purpose of providing the
               Service to you and your workspace. This includes sending Your
-              Content to third-party AI providers (Google Gemini, Groq) for
+              Content to third-party AI providers (Anthropic, Google, Groq) for
               processing as described in our{" "}
               <Link href="/privacy" className="text-primary hover:underline">
                 Privacy Policy

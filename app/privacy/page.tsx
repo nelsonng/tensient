@@ -116,11 +116,18 @@ export default function PrivacyPolicyPage() {
             <ul className="space-y-3">
               <li>
                 <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
+                  Anthropic Claude
+                </span>{" "}
+                &mdash; Your text content is sent to Anthropic&apos;s API
+                for AI analysis, including sentiment detection, action item
+                extraction, and coaching feedback.
+              </li>
+              <li>
+                <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
                   Google Gemini
                 </span>{" "}
                 &mdash; Your text content is sent to Google&apos;s Gemini API
-                for AI analysis, including sentiment detection, action item
-                extraction, and vector embedding generation.
+                for vector embedding generation used in alignment scoring.
               </li>
               <li>
                 <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
