@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { generateWeeklyDigest } from "@/lib/services/generate-digest";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { logger } from "@/lib/logger";
+import { trackEvent } from "@/lib/platform-events";
 
 export async function POST(
   request: Request,
@@ -42,9 +43,19 @@ export async function POST(
       );
     }
 
+    trackEvent("digest_generated", {
+      userId: session.user.id,
+      workspaceId,
+    });
+
     return NextResponse.json(result);
   } catch (error) {
     logger.error("Digest generation failed", { error });
+    trackEvent("api_error", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { route: "/api/workspaces/*/digest", error: error instanceof Error ? error.message : String(error) },
+    });
     return NextResponse.json(
       { error: "Digest generation failed" },
       { status: 500 }

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getGroq } from "@/lib/groq";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { logger } from "@/lib/logger";
+import { trackEvent } from "@/lib/platform-events";
 
 // Allow up to 60s for long audio transcriptions
 export const maxDuration = 60;
@@ -62,6 +63,12 @@ export async function POST(request: Request) {
     );
   }
 
+  trackEvent("transcription_started", {
+    userId: session.user.id,
+    workspaceId,
+    metadata: { audioUrl },
+  });
+
   // ── Fetch audio from Blob URL ─────────────────────────────────────
 
   let audioBuffer: ArrayBuffer;
@@ -120,6 +127,11 @@ export async function POST(request: Request) {
       error: String(transcribeError),
       audioUrl,
     });
+    trackEvent("transcription_failed", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { error: String(transcribeError), audioUrl },
+    });
     // Don't fail the request -- audio is already saved in Blob
   }
 
@@ -141,6 +153,11 @@ export async function POST(request: Request) {
   // ── Response ──────────────────────────────────────────────────────
 
   if (text) {
+    trackEvent("transcription_completed", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { audioUrl, textLength: text.length },
+    });
     return NextResponse.json({ text, audioUrl });
   } else {
     return NextResponse.json({

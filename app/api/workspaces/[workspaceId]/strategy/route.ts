@@ -4,6 +4,7 @@ import { runStrategy } from "@/lib/services/genesis-setup";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { logger } from "@/lib/logger";
+import { trackEvent } from "@/lib/platform-events";
 
 export async function POST(
   request: Request,
@@ -52,11 +53,25 @@ export async function POST(
       estimatedCostCents: usage.estimatedCostCents,
     });
 
+    trackEvent("strategy_created", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { inputLength: rawInput.length },
+    });
+
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Strategy setup failed";
     logger.error("Strategy setup failed", { error: message });
-    return NextResponse.json({ error: message }, { status: 500 });
+    trackEvent("api_error", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { route: "/api/workspaces/*/strategy", error: message },
+    });
+    return NextResponse.json(
+      { error: "Strategy setup failed" },
+      { status: 500 }
+    );
   }
 }

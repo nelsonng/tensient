@@ -43,5 +43,6 @@ next-env.d.ts
 # cursor AI rules
 .cursor/
 
-# promptfood - brain dumps, not deployable code
-promptfood/
+# promptfood reference material (not deployable, but context for AI sessions)
+# promptfood/reference/ is gitignored to keep repo small
+promptfood/reference/

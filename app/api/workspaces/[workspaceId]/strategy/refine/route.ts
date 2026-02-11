@@ -4,6 +4,7 @@ import { refineStrategy } from "@/lib/services/genesis-setup";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { logger } from "@/lib/logger";
+import { trackEvent } from "@/lib/platform-events";
 
 export async function POST(
   request: Request,
@@ -64,11 +65,25 @@ export async function POST(
       estimatedCostCents: usage.estimatedCostCents,
     });
 
+    trackEvent("strategy_created", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { type: "refinement", canonId },
+    });
+
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Strategy refinement failed";
     logger.error("Strategy refinement failed", { error: message });
-    return NextResponse.json({ error: message }, { status: 500 });
+    trackEvent("api_error", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { route: "/api/workspaces/*/strategy/refine", error: message },
+    });
+    return NextResponse.json(
+      { error: "Strategy refinement failed" },
+      { status: 500 }
+    );
   }
 }

@@ -6,6 +6,7 @@ import { generateWeeklyDigest } from "@/lib/services/generate-digest";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { logger } from "@/lib/logger";
+import { trackEvent } from "@/lib/platform-events";
 import { db } from "@/lib/db";
 import { workspaces } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -43,6 +44,12 @@ export async function POST(
       { status: 400 }
     );
   }
+
+  trackEvent("onboarding_started", {
+    userId: session.user.id,
+    workspaceId,
+    metadata: { source: source || "web", inputLength: rawInput.length },
+  });
 
   try {
     // ── Phase 1: Strategy extraction (creates canon — required before capture) ──
@@ -100,11 +107,24 @@ export async function POST(
       weekStart,
     });
 
+    trackEvent("onboarding_completed", {
+      userId: session.user.id,
+      workspaceId,
+    });
+
     return NextResponse.json({ status: "complete" });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Onboard processing failed";
     logger.error("Onboard processing failed", { error: message });
-    return NextResponse.json({ error: message }, { status: 500 });
+    trackEvent("api_error", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { route: "/api/workspaces/*/onboard", error: message },
+    });
+    return NextResponse.json(
+      { error: "Onboard processing failed" },
+      { status: 500 }
+    );
   }
 }

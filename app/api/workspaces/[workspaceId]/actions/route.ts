@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { actions } from "@/lib/db/schema";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
+import { trackEvent } from "@/lib/platform-events";
 
 export async function POST(
   request: Request,
@@ -44,8 +45,19 @@ export async function POST(
       })
       .returning();
 
+    trackEvent("action_created", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { title: title.trim(), priority: priority || "medium" },
+    });
+
     return NextResponse.json(action);
-  } catch {
+  } catch (error) {
+    trackEvent("api_error", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { route: "/api/workspaces/*/actions", error: error instanceof Error ? error.message : String(error) },
+    });
     return NextResponse.json(
       { error: "Failed to create action" },
       { status: 500 }

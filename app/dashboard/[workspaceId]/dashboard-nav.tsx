@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: "THOUGHTS", path: "thoughts" },
   { label: "COACHES", path: "coaches" },
   { label: "SYNTHESIS", path: "synthesis" },
+  { label: "SETTINGS", path: "settings" },
 ] as const;
 
 export function DashboardNav({ workspaceId }: { workspaceId: string }) {

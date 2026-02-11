@@ -8,12 +8,16 @@ import { createEmailVerificationToken } from "@/lib/auth-tokens";
 import { sendEmail } from "@/lib/email";
 import { verifyEmailHtml } from "@/lib/emails/verify-email";
 import { logger } from "@/lib/logger";
+import { trackEvent } from "@/lib/platform-events";
 
 export async function POST(request: Request) {
   try {
     // Platform capacity check
     const signupCheck = await checkSignupAllowed();
     if (!signupCheck.allowed) {
+      trackEvent("sign_up_failed", {
+        metadata: { reason: signupCheck.reason, stage: "capacity_check" },
+      });
       return NextResponse.json(
         { error: signupCheck.reason },
         { status: 403 }
@@ -21,6 +25,10 @@ export async function POST(request: Request) {
     }
 
     const { email, password, firstName, lastName } = await request.json();
+
+    trackEvent("sign_up_started", {
+      metadata: { email },
+    });
 
     if (!email || !password) {
       return NextResponse.json(
@@ -90,6 +98,13 @@ export async function POST(request: Request) {
       });
     }
 
+    trackEvent("sign_up_completed", {
+      userId: user.id,
+      workspaceId: workspace.id,
+      organizationId: org.id,
+      metadata: { email: user.email },
+    });
+
     return NextResponse.json({
       user: { id: user.id, email: user.email },
       workspace: { id: workspace.id, name: workspace.name },
@@ -98,11 +113,21 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
     if (message.includes("unique") || message.includes("duplicate")) {
+      trackEvent("sign_up_failed", {
+        metadata: { reason: "duplicate_email", email: "redacted" },
+      });
       return NextResponse.json(
         { error: "Email already registered" },
         { status: 409 }
       );
     }
-    return NextResponse.json({ error: message }, { status: 500 });
+    logger.error("Sign-up failed", { error: message });
+    trackEvent("api_error", {
+      metadata: { route: "/api/auth/sign-up", error: message },
+    });
+    return NextResponse.json(
+      { error: "Something went wrong. Please try again." },
+      { status: 500 }
+    );
   }
 }
