@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 type BannerState = "idle" | "sending" | "sent" | "error";
 
 export function EmailVerificationBanner() {
+  const pathname = usePathname();
   const [state, setState] = useState<BannerState>("idle");
+
+  // Hide during onboarding
+  if (pathname.includes("/welcome")) return null;
   const [errorMessage, setErrorMessage] = useState("");
 
   async function handleResend() {
