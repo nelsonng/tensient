@@ -9,7 +9,7 @@ import {
   actions,
 } from "@/lib/db/schema";
 import { sql, count, eq, and, gte, desc, inArray } from "drizzle-orm";
-import Link from "next/link";
+import { OrgsClient } from "./orgs-client";
 
 interface OrgSummary {
   id: string;
@@ -275,44 +275,15 @@ async function getOrgData() {
   return { orgs, workspacesByOrg: wsMap };
 }
 
-function AdoptionBar({ rate }: { rate: number }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-16 h-2 bg-border/30 rounded overflow-hidden">
-        <div
-          className={`h-full rounded ${
-            rate >= 70 ? "bg-success" : rate >= 30 ? "bg-warning" : "bg-destructive"
-          }`}
-          style={{ width: `${Math.max(rate, 2)}%` }}
-        />
-      </div>
-      <span className={`font-mono text-[10px] font-bold ${
-        rate >= 70 ? "text-success" : rate >= 30 ? "text-warning" : "text-destructive"
-      }`}>
-        {rate}%
-      </span>
-    </div>
-  );
-}
-
-function timeAgo(date: Date | null): string {
-  if (!date) return "never";
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 export default async function OrgsPage() {
   const { orgs, workspacesByOrg } = await getOrgData();
 
-  const totalOrgs = orgs.length;
-  const activeOrgs = orgs.filter((o) => o.activeUsers7d > 0).length;
-  const totalUsersAcrossOrgs = orgs.reduce((s, o) => s + o.userCount, 0);
+  // Serialize data for the client component (Dates -> strings)
+  const serializedOrgs = JSON.parse(JSON.stringify(orgs));
+  const serializedWsByOrg: Record<string, unknown[]> = {};
+  for (const [orgId, wsList] of workspacesByOrg.entries()) {
+    serializedWsByOrg[orgId] = JSON.parse(JSON.stringify(wsList));
+  }
 
   return (
     <div className="max-w-[1100px]">
@@ -326,137 +297,7 @@ export default async function OrgsPage() {
         </p>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-panel border border-border rounded-lg p-4">
-          <p className="font-mono text-[10px] tracking-widest text-muted uppercase">TOTAL ORGS</p>
-          <p className="font-display text-2xl font-bold text-foreground">{totalOrgs}</p>
-        </div>
-        <div className="bg-panel border border-border rounded-lg p-4">
-          <p className="font-mono text-[10px] tracking-widest text-muted uppercase">ACTIVE ORGS (7D)</p>
-          <p className={`font-display text-2xl font-bold ${activeOrgs > 0 ? "text-success" : "text-muted"}`}>
-            {activeOrgs}
-          </p>
-        </div>
-        <div className="bg-panel border border-border rounded-lg p-4">
-          <p className="font-mono text-[10px] tracking-widest text-muted uppercase">TOTAL USERS</p>
-          <p className="font-display text-2xl font-bold text-foreground">{totalUsersAcrossOrgs}</p>
-        </div>
-        <div className="bg-panel border border-border rounded-lg p-4">
-          <p className="font-mono text-[10px] tracking-widest text-muted uppercase">ORG ACTIVATION</p>
-          <p className={`font-display text-2xl font-bold ${
-            totalOrgs > 0 && activeOrgs / totalOrgs >= 0.5 ? "text-success" : "text-warning"
-          }`}>
-            {totalOrgs > 0 ? Math.round((activeOrgs / totalOrgs) * 100) : 0}%
-          </p>
-        </div>
-      </div>
-
-      {/* Organization List */}
-      {orgs.map((org) => {
-        const orgWorkspaces: WorkspaceDetail[] = workspacesByOrg.get(org.id) || [];
-        return (
-          <div key={org.id} className="bg-panel border border-border rounded-lg mb-4 overflow-hidden">
-            {/* Org Header */}
-            <div className="px-5 py-4 border-b border-border">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-mono text-sm font-bold text-foreground tracking-wider">
-                    {org.name}
-                  </h3>
-                  {org.domain && (
-                    <p className="font-mono text-[10px] text-primary">{org.domain}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="font-mono text-[10px] text-muted">
-                    Last activity: {timeAgo(org.lastActivityAt)}
-                  </p>
-                  <p className="font-mono text-[10px] text-muted/50">
-                    Created: {org.createdAt.toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-
-              {/* Org Metrics */}
-              <div className="grid grid-cols-3 md:grid-cols-7 gap-3 mt-3">
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">USERS</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.userCount}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">ACTIVE (7D)</p>
-                  <p className={`font-mono text-sm font-bold ${org.activeUsers7d > 0 ? "text-success" : "text-muted/50"}`}>
-                    {org.activeUsers7d}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">WORKSPACES</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.workspaceCount}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">CAPTURES</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.totalCaptures}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">ARTIFACTS</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.totalArtifacts}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">ACTIONS</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.totalActions}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">ADOPTION</p>
-                  <AdoptionBar rate={org.adoptionRate} />
-                </div>
-              </div>
-            </div>
-
-            {/* Workspace Breakdown */}
-            {orgWorkspaces.length > 0 && (
-              <div>
-                <div className="grid grid-cols-[1fr_80px_80px_80px_80px_100px] gap-2 px-5 py-2 border-b border-border/50 text-muted">
-                  <span className="font-mono text-[10px] tracking-widest uppercase">WORKSPACE</span>
-                  <span className="font-mono text-[10px] tracking-widest uppercase text-center">MEMBERS</span>
-                  <span className="font-mono text-[10px] tracking-widest uppercase text-center">ACTIVE</span>
-                  <span className="font-mono text-[10px] tracking-widest uppercase text-center">CAPTURES</span>
-                  <span className="font-mono text-[10px] tracking-widest uppercase text-center">COVERAGE</span>
-                  <span className="font-mono text-[10px] tracking-widest uppercase text-right">LAST ACTIVE</span>
-                </div>
-                {orgWorkspaces.map((ws) => (
-                  <div
-                    key={ws.id}
-                    className="grid grid-cols-[1fr_80px_80px_80px_80px_100px] gap-2 px-5 py-2 border-b border-border/30 hover:bg-white/2 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-mono text-xs text-foreground truncate">{ws.name}</p>
-                      <p className="font-mono text-[10px] text-muted/50">{ws.joinCode}</p>
-                    </div>
-                    <p className="font-mono text-xs text-muted text-center self-center">{ws.memberCount}</p>
-                    <p className={`font-mono text-xs text-center self-center ${ws.activeMemberCount7d > 0 ? "text-success" : "text-muted/50"}`}>
-                      {ws.activeMemberCount7d}
-                    </p>
-                    <p className="font-mono text-xs text-muted text-center self-center">{ws.captureCount}</p>
-                    <div className="flex justify-center self-center">
-                      <AdoptionBar rate={ws.coverageRate} />
-                    </div>
-                    <p className="font-mono text-[10px] text-muted text-right self-center">
-                      {timeAgo(ws.lastCaptureAt)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {orgs.length === 0 && (
-        <div className="bg-panel border border-border rounded-lg p-8 text-center">
-          <p className="font-mono text-sm text-muted">No organizations yet</p>
-        </div>
-      )}
+      <OrgsClient orgs={serializedOrgs} workspacesByOrg={serializedWsByOrg} />
     </div>
   );
 }
