@@ -27,6 +27,8 @@ export async function POST(request: Request) {
         allowedContentTypes: [
           "audio/webm",
           "audio/webm;codecs=opus",
+          "video/webm",
+          "video/webm;codecs=opus",
           "audio/mp4",
           "audio/mpeg",
           "audio/ogg",

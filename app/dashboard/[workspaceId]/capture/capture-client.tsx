@@ -88,7 +88,8 @@ export function CaptureClient({ workspaceId, placeholder }: CaptureClientProps) 
 
   function handleVoiceError(errMsg: string, url?: string) {
     if (url) setAudioUrl(url);
-    setError(`Audio saved. ${errMsg} -- you can type manually or try again.`);
+    const prefix = url ? "Audio saved." : "";
+    setError(`${prefix} ${errMsg} -- you can type manually or try again.`.trim());
     setInputMode("text");
   }
 
