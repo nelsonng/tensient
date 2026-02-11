@@ -68,6 +68,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   organizationId: uuid("organization_id").references(() => organizations.id),
   tier: userTierEnum("tier").notNull().default("trial"),
+  isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -124,6 +125,7 @@ export const workspaces = pgTable(
     activeProtocolId: uuid("active_protocol_id").references(
       () => protocols.id
     ),
+    ghostTeam: jsonb("ghost_team"), // [{ name: string, role: string }] from onboarding ramble
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -344,6 +346,51 @@ export const emailVerificationTokens = pgTable(
   (table) => [
     index("idx_email_verification_tokens_user").on(table.userId),
     index("idx_email_verification_tokens_token").on(table.token),
+  ]
+);
+
+// ── Platform Events (Admin Observability) ─────────────────────────────
+
+export const platformEventTypeEnum = pgEnum("platform_event_type", [
+  // Lifecycle
+  "sign_up_started",
+  "sign_up_completed",
+  "sign_up_failed",
+  "sign_in_success",
+  "sign_in_failed",
+  "onboarding_started",
+  "onboarding_completed",
+  // Product usage
+  "strategy_created",
+  "capture_submitted",
+  "synthesis_generated",
+  "digest_generated",
+  "action_created",
+  "transcription_started",
+  "transcription_completed",
+  "transcription_failed",
+  // Errors
+  "api_error",
+  "client_error",
+]);
+
+export const platformEvents = pgTable(
+  "platform_events",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    type: platformEventTypeEnum("type").notNull(),
+    userId: uuid("user_id").references(() => users.id),
+    workspaceId: uuid("workspace_id").references(() => workspaces.id),
+    organizationId: uuid("organization_id").references(() => organizations.id),
+    metadata: jsonb("metadata"), // flexible payload: error message, stack, route, context
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_platform_events_type").on(table.type),
+    index("idx_platform_events_created").on(table.createdAt),
+    index("idx_platform_events_user").on(table.userId),
   ]
 );
 

@@ -1,6 +1,9 @@
 "use client";
 
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { SlantedButton } from "@/components/slanted-button";
@@ -68,6 +71,8 @@ interface DashboardProps {
     actions: Array<{ title: string; status: string; priority: string }>;
     blockers: string[];
   }>;
+  isFresh?: boolean;
+  ghostTeam?: Array<{ name: string; role: string }>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -270,6 +275,87 @@ function AlignmentDotPlot({
 
 // ── Main Component ───────────────────────────────────────────────────────
 
+// ── Skeleton Pulse Component ─────────────────────────────────────────────
+
+function SkeletonPulse({ className = "", children }: { className?: string; children?: React.ReactNode }) {
+  return (
+    <div className={`animate-pulse ${className}`}>
+      {children || <div className="h-4 bg-border/50 rounded w-3/4" />}
+    </div>
+  );
+}
+
+// ── Onboarding Status Tracker ───────────────────────────────────────────
+
+interface OnboardStatus {
+  hasCanon: boolean;
+  hasArtifact: boolean;
+  hasDigest: boolean;
+  ghostTeam: Array<{ name: string; role: string }>;
+}
+
+const POLL_INTERVAL = 3000;
+const POLL_TIMEOUT = 90000; // 90s max polling
+
+function useOnboardPolling(workspaceId: string, enabled: boolean) {
+  const router = useRouter();
+  const [status, setStatus] = useState<OnboardStatus>({
+    hasCanon: false,
+    hasArtifact: false,
+    hasDigest: false,
+    ghostTeam: [],
+  });
+  const [timedOut, setTimedOut] = useState(false);
+  const startTimeRef = useRef(Date.now());
+  const lastRefreshRef = useRef<string>("");
+
+  const poll = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/onboard/status`);
+      if (!res.ok) return;
+      const data: OnboardStatus = await res.json();
+      setStatus(data);
+
+      // Build a fingerprint of what's available
+      const fingerprint = `${data.hasCanon}-${data.hasArtifact}-${data.hasDigest}`;
+
+      // If something new arrived since last check, refresh the server component
+      if (fingerprint !== lastRefreshRef.current && (data.hasCanon || data.hasArtifact || data.hasDigest)) {
+        lastRefreshRef.current = fingerprint;
+        router.refresh();
+      }
+    } catch {
+      // Polling errors are non-critical
+    }
+  }, [workspaceId, router]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    startTimeRef.current = Date.now();
+    const interval = setInterval(() => {
+      if (Date.now() - startTimeRef.current > POLL_TIMEOUT) {
+        setTimedOut(true);
+        clearInterval(interval);
+        return;
+      }
+      poll();
+    }, POLL_INTERVAL);
+
+    // Initial poll immediately
+    poll();
+
+    return () => clearInterval(interval);
+  }, [enabled, poll]);
+
+  // Stop polling once everything is ready
+  const isComplete = status.hasCanon && status.hasArtifact && status.hasDigest;
+
+  return { status, isComplete, timedOut };
+}
+
+// ── Main Component ───────────────────────────────────────────────────────
+
 export function DashboardClient({
   workspace,
   weekLabel,
@@ -280,8 +366,14 @@ export function DashboardClient({
   currentUserId,
   hasStrategy,
   goalPillars,
+  isFresh = false,
+  ghostTeam = [],
 }: DashboardProps) {
   const basePath = `/dashboard/${workspace.id}`;
+  const { status: onboardStatus, timedOut } = useOnboardPolling(
+    workspace.id,
+    isFresh && !hasStrategy
+  );
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 pb-24">
@@ -297,7 +389,112 @@ export function DashboardClient({
         </MonoLabel>
       </div>
 
-      {!hasStrategy ? (
+      {/* ── Fresh onboarding: skeleton states while processing ─────── */}
+      {isFresh && !hasStrategy ? (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="fresh-skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Timeout error */}
+            {timedOut && (
+              <PanelCard className="text-center py-8 mb-6 border-destructive/30">
+                <MonoLabel className="block mb-3 text-destructive">SOMETHING WENT WRONG</MonoLabel>
+                <p className="font-body text-sm text-muted mb-4">
+                  Setup is taking longer than expected. You can try again.
+                </p>
+                <SlantedButton href={`${basePath}/welcome`}>TRY AGAIN</SlantedButton>
+              </PanelCard>
+            )}
+
+            {/* Top 5 skeleton */}
+            {!timedOut && (
+              <PanelCard className="mb-8 border-primary/20">
+                <MonoLabel className="text-primary text-base mb-5 block">
+                  TOP 5 THIS WEEK
+                </MonoLabel>
+                <div className="py-8 text-center">
+                  <div className="flex justify-center mb-4">
+                    <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                  </div>
+                  <p className="font-mono text-sm text-primary font-bold tracking-wider mb-2">
+                    {onboardStatus.hasDigest
+                      ? "TOP 5 READY"
+                      : onboardStatus.hasArtifact
+                        ? "SYNTHESIZING YOUR TOP 5..."
+                        : onboardStatus.hasCanon
+                          ? "ANALYZING YOUR THOUGHTS..."
+                          : "EXTRACTING YOUR GOALS..."}
+                  </p>
+                  <p className="font-body text-xs text-muted">
+                    Your coaches are reading your input through 8 lenses.
+                  </p>
+                </div>
+              </PanelCard>
+            )}
+
+            {/* Goals skeleton */}
+            {!timedOut && (
+              <PanelCard className="mb-8">
+                <MonoLabel className="text-primary mb-4 block">GOALS</MonoLabel>
+                <div className="space-y-3">
+                  <SkeletonPulse><div className="h-4 bg-border/50 rounded w-4/5" /></SkeletonPulse>
+                  <SkeletonPulse><div className="h-4 bg-border/50 rounded w-3/5" /></SkeletonPulse>
+                  <SkeletonPulse><div className="h-4 bg-border/50 rounded w-2/3" /></SkeletonPulse>
+                </div>
+              </PanelCard>
+            )}
+
+            {/* Ghost team + real team pulse */}
+            {!timedOut && (
+              <PanelCard>
+                <MonoLabel className="mb-3 block text-primary">TEAM PULSE</MonoLabel>
+                {/* Show real team members if they exist */}
+                {teamMembers.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {teamMembers.map((member) => (
+                      <div key={member.userId} className="flex items-center justify-between py-1 border-l-2 border-primary pl-2">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full bg-primary" />
+                          <span className="font-body text-sm text-foreground">{member.name}</span>
+                        </div>
+                        <span className="font-mono text-xs text-muted">CALCULATING...</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Ghost team from AI extraction */}
+                {(ghostTeam.length > 0 || onboardStatus.ghostTeam.length > 0) && (
+                  <>
+                    {(onboardStatus.ghostTeam.length > 0 ? onboardStatus.ghostTeam : ghostTeam).map((member, i) => (
+                      <div key={i} className="flex items-center justify-between py-1.5 opacity-60">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 rounded-full bg-border" />
+                          <span className="font-body text-sm text-foreground">{member.name}</span>
+                          <span className="font-mono text-[10px] text-muted">{member.role}</span>
+                        </div>
+                        <span className="font-mono text-xs text-muted">--%</span>
+                      </div>
+                    ))}
+                    <p className="font-body text-xs text-muted mt-3 leading-relaxed">
+                      When they share their first thought, you&apos;ll see their alignment here.
+                    </p>
+                  </>
+                )}
+                {ghostTeam.length === 0 && onboardStatus.ghostTeam.length === 0 && teamMembers.length <= 1 && (
+                  <div className="text-center py-4">
+                    <p className="font-body text-sm text-muted">
+                      Invite your team to see alignment patterns emerge.
+                    </p>
+                  </div>
+                )}
+              </PanelCard>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      ) : !hasStrategy ? (
         <PanelCard className="text-center py-12 mb-6">
           <MonoLabel className="block mb-3 text-muted">NO GOALS SET</MonoLabel>
           <p className="font-body text-sm text-muted mb-4">
@@ -429,7 +626,7 @@ export function DashboardClient({
             <div>
               <PanelCard>
                 <MonoLabel className="mb-3 block text-primary">TEAM PULSE</MonoLabel>
-                {teamMembers.length <= 1 ? (
+                {teamMembers.length <= 1 && ghostTeam.length === 0 ? (
                   <div className="text-center py-6 space-y-3">
                     <p className="font-body text-sm text-muted">
                       Just you so far.
@@ -444,6 +641,7 @@ export function DashboardClient({
                   </div>
                 ) : (
                   <div className="space-y-2">
+                    {/* Real team members */}
                     {teamMembers.map((member) => (
                       <div
                         key={member.userId}
@@ -478,6 +676,24 @@ export function DashboardClient({
                         </div>
                       </div>
                     ))}
+                    {/* Ghost team members from onboarding extraction */}
+                    {ghostTeam.length > 0 && (
+                      <>
+                        {ghostTeam.map((ghost, i) => (
+                          <div key={`ghost-${i}`} className="flex items-center justify-between py-1 opacity-50">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block w-2 h-2 rounded-full bg-border" />
+                              <span className="font-body text-sm text-foreground">{ghost.name}</span>
+                              <span className="font-mono text-[10px] text-muted">{ghost.role}</span>
+                            </div>
+                            <span className="font-mono text-xs text-muted">--%</span>
+                          </div>
+                        ))}
+                        <p className="font-body text-xs text-muted mt-2 leading-relaxed">
+                          When they share their first thought, you&apos;ll see their alignment here.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </PanelCard>

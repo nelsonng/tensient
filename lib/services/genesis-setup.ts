@@ -45,6 +45,7 @@ interface StrategyResult {
   coachingQuestions: CoachingQuestion[];
   improvementRationale: string;
   healthAnalysis: HealthAnalysis | null;
+  teamMembers: Array<{ name: string; role: string }>;
 }
 
 export interface StrategyUsage {
@@ -61,6 +62,7 @@ interface ExtractionResponse {
   synthesis: string;
   improvement_rationale: string;
   coaching_questions: Array<{ coach: string; question: string }>;
+  team_members: Array<{ name: string; role: string }>;
 }
 
 interface SmartResponse {
@@ -106,8 +108,20 @@ const EXTRACTION_SCHEMA = {
         additionalProperties: false,
       },
     },
+    team_members: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          role: { type: "string" },
+        },
+        required: ["name", "role"],
+        additionalProperties: false,
+      },
+    },
   },
-  required: ["pillars", "tone", "synthesis", "improvement_rationale", "coaching_questions"],
+  required: ["pillars", "tone", "synthesis", "improvement_rationale", "coaching_questions", "team_members"],
   additionalProperties: false,
 };
 
@@ -181,6 +195,7 @@ export async function runStrategy(
 3. Synthesize a strategy document (2-3 paragraphs) -- this is the IMPROVED version
 4. Provide an improvement_rationale: 2-3 sentences explaining what you improved from the raw input and why. Be specific about what changed.
 5. From the coaching lenses below, pick the 3-4 MOST RELEVANT coaches for this input. For each, generate ONE specific question that would help improve these goals further. Questions should target the weakest areas. Questions should be conversational and direct -- as if the coach is sitting across from the user.
+6. Extract any team member names and roles/titles mentioned in the input. If the user mentions specific people ("Marcus is behind on the API", "Rachel is handling product"), extract their name and their role/title if mentioned. If role is not explicitly stated, infer it from context (e.g., "working on the API" → "Engineer"). Return as team_members array. If no names are mentioned, return an empty array.
 
 COACHING LENSES:
 ${coachingContext}
@@ -191,7 +206,7 @@ ${rawInput}`,
     temperature: 0.3,
   });
 
-  const { pillars, tone, synthesis, coaching_questions, improvement_rationale } = extraction.result;
+  const { pillars, tone, synthesis, coaching_questions, improvement_rationale, team_members } = extraction.result;
   totalInputTokens += extraction.inputTokens;
   totalOutputTokens += extraction.outputTokens;
 
@@ -291,6 +306,7 @@ ${synthesis}`,
       coachingQuestions,
       improvementRationale: improvement_rationale || "",
       healthAnalysis,
+      teamMembers: team_members ?? [],
     },
     usage: {
       inputTokens: totalInputTokens,

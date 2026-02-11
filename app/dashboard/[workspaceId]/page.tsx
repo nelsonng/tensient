@@ -35,19 +35,23 @@ function formatWeekRange(weekStart: Date): string {
 
 export default async function WorkspaceDashboard({
   params,
+  searchParams,
 }: {
   params: Promise<{ workspaceId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
 
   const { workspaceId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const isFresh = resolvedSearchParams.fresh === "1";
 
   // Verify workspace membership
   const membership = await getWorkspaceMembership(session.user.id, workspaceId);
   if (!membership) redirect("/dashboard");
 
-  // Fetch workspace
+  // Fetch workspace (include ghostTeam for fresh onboarding)
   const [workspace] = await db
     .select()
     .from(workspaces)
@@ -70,7 +74,8 @@ export default async function WorkspaceDashboard({
     .limit(1);
 
   // Check if this is a brand-new workspace
-  if (!canon) {
+  // If ?fresh=1, skip redirect — the user just submitted onboarding and data is processing
+  if (!canon && !isFresh) {
     const [anyArtifact] = await db
       .select({ id: artifacts.id })
       .from(artifacts)
@@ -375,6 +380,10 @@ export default async function WorkspaceDashboard({
       }}
       hasStrategy={!!canon}
       goalPillars={goalPillars}
+      isFresh={isFresh}
+      ghostTeam={
+        (workspace.ghostTeam as Array<{ name: string; role: string }>) ?? []
+      }
     />
   );
 }
