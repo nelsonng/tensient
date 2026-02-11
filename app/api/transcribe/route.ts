@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { put } from "@vercel/blob";
 import { getGroq } from "@/lib/groq";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { logger } from "@/lib/logger";
 
+// Allow up to 60s for long audio transcriptions
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   // ── Env validation (fail fast with clear logs) ────────────────────
-
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    logger.error("BLOB_READ_WRITE_TOKEN is not configured -- voice recording will fail");
-    return NextResponse.json(
-      { error: "Voice recording is temporarily unavailable.", text: null, audioUrl: null },
-      { status: 503 }
-    );
-  }
 
   if (!process.env.GROQ_API_KEY) {
     logger.error("GROQ_API_KEY is not configured -- transcription will fail");
@@ -38,60 +32,73 @@ export async function POST(request: Request) {
     );
   }
 
-  const formData = await request.formData();
-  const audioFile = formData.get("audio") as File | null;
-  const workspaceId = formData.get("workspaceId") as string | null;
+  // ── Parse JSON body (audioUrl already uploaded via client-side Blob) ──
 
-  if (!audioFile) {
+  let audioUrl: string;
+  let workspaceId: string;
+
+  try {
+    const body = await request.json();
+    audioUrl = body.audioUrl;
+    workspaceId = body.workspaceId;
+  } catch {
     return NextResponse.json(
-      { error: "No audio file provided" },
+      { error: "Invalid request body" },
       { status: 400 }
     );
   }
 
-  if (!workspaceId) {
+  if (!audioUrl || typeof audioUrl !== "string") {
+    return NextResponse.json(
+      { error: "No audioUrl provided" },
+      { status: 400 }
+    );
+  }
+
+  if (!workspaceId || typeof workspaceId !== "string") {
     return NextResponse.json(
       { error: "No workspaceId provided" },
       { status: 400 }
     );
   }
 
-  // ── Read audio into buffer once (prevents stream-consumption issues) ──
+  // ── Fetch audio from Blob URL ─────────────────────────────────────
 
-  const contentType = audioFile.type || "audio/webm;codecs=opus";
-  const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
-
-  // ── Step 1: Upload to Vercel Blob (safety net -- always persists) ──
-
-  let audioUrl: string | null = null;
+  let audioBuffer: ArrayBuffer;
+  let contentType: string;
 
   try {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const pathname = `audio/${workspaceId}/${timestamp}.webm`;
-
-    const blob = await put(pathname, audioBuffer, {
-      access: "public", // TODO: migrate to token-protected access when Vercel Blob supports it
-      contentType,
-    });
-
-    audioUrl = blob.url;
-  } catch (uploadError) {
-    logger.error("Audio upload failed", { error: String(uploadError) });
+    const audioResponse = await fetch(audioUrl);
+    if (!audioResponse.ok) {
+      logger.error("Failed to fetch audio from Blob URL", {
+        url: audioUrl,
+        status: audioResponse.status,
+      });
+      return NextResponse.json(
+        { error: "Failed to retrieve audio file.", text: null, audioUrl },
+        { status: 500 }
+      );
+    }
+    audioBuffer = await audioResponse.arrayBuffer();
+    contentType = audioResponse.headers.get("content-type") || "audio/webm;codecs=opus";
+  } catch (fetchError) {
+    logger.error("Audio fetch failed", { error: String(fetchError), url: audioUrl });
     return NextResponse.json(
-      { error: "Audio upload failed. Please try again.", text: null, audioUrl: null },
+      { error: "Failed to retrieve audio file.", text: null, audioUrl },
       { status: 500 }
     );
   }
 
-  // ── Step 2: Transcribe with Groq Whisper ───────────────────────────
+  // ── Transcribe with Groq Whisper ──────────────────────────────────
 
   let text: string | null = null;
 
   try {
-    // Create a fresh File from the buffer for Groq (safe re-read)
-    const groqFile = new File([audioBuffer], audioFile.name || "audio.webm", {
-      type: contentType,
-    });
+    const groqFile = new File(
+      [audioBuffer],
+      "audio.webm",
+      { type: contentType }
+    );
 
     const transcription = await getGroq().audio.transcriptions.create({
       file: groqFile,
@@ -109,11 +116,14 @@ export async function POST(request: Request) {
       text = text.trim();
     }
   } catch (transcribeError) {
-    logger.error("Transcription failed (audio is safe)", { error: String(transcribeError) });
-    // Don't fail the request -- audio is already saved
+    logger.error("Transcription failed (audio is safe in Blob)", {
+      error: String(transcribeError),
+      audioUrl,
+    });
+    // Don't fail the request -- audio is already saved in Blob
   }
 
-  // ── Log usage ──────────────────────────────────────────────────────
+  // ── Log usage ─────────────────────────────────────────────────────
 
   try {
     await logUsage({
@@ -122,18 +132,17 @@ export async function POST(request: Request) {
       operation: "transcribe",
       inputTokens: 0,
       outputTokens: 0,
-      estimatedCostCents: 1, // ~$0.04/hr, estimate 1 cent per transcription
+      estimatedCostCents: 1,
     });
   } catch {
     // Non-critical, don't fail the request
   }
 
-  // ── Response ───────────────────────────────────────────────────────
+  // ── Response ──────────────────────────────────────────────────────
 
   if (text) {
     return NextResponse.json({ text, audioUrl });
   } else {
-    // Audio saved but transcription failed -- return 200 with null text
     return NextResponse.json({
       text: null,
       audioUrl,

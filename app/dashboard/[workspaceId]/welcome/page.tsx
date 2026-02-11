@@ -249,7 +249,7 @@ function VoiceTextInput({
             placeholder={placeholder}
           />
 
-          {!value && !voiceError && (
+          {!value && (
             <button
               onClick={() => {
                 setVoiceError(null);

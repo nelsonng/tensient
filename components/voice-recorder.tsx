@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { upload } from "@vercel/blob/client";
 import { useAudioCapture, RecordingResult } from "@/hooks/use-audio-capture";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -182,17 +183,38 @@ export function VoiceRecorder({
       return;
     }
 
+    // ── Step 1: Upload directly to Vercel Blob (no size limit) ──────
+
     setState("uploading");
 
-    try {
-      const formData = new FormData();
-      const filename = `capture-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
-      formData.append("audio", result.blob, filename);
-      formData.append("workspaceId", workspaceId);
+    let audioUrl: string;
 
+    try {
+      const filename = `audio/${workspaceId}/capture-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
+
+      const blobResult = await upload(filename, result.blob, {
+        access: "public",
+        handleUploadUrl: "/api/transcribe/upload",
+      });
+
+      audioUrl = blobResult.url;
+    } catch (uploadErr) {
+      const errMsg = uploadErr instanceof Error ? uploadErr.message : "Upload failed";
+      setProcessingError(`Upload failed. ${errMsg}`);
+      onError?.("Upload failed");
+      setState("idle");
+      return;
+    }
+
+    // ── Step 2: Transcribe via API (sends only the URL, not the file) ──
+
+    setState("transcribing");
+
+    try {
       const res = await fetch("/api/transcribe", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioUrl, workspaceId }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -200,29 +222,26 @@ export function VoiceRecorder({
       if (!res.ok) {
         const errMsg = data.error || `Server error (${res.status}). Please try again.`;
         setProcessingError(errMsg);
-        onError?.(errMsg, data.audioUrl);
+        onError?.(errMsg, audioUrl);
         setState("idle");
         return;
       }
 
-      if (data.audioUrl && data.text) {
-        onTranscription(data.text, data.audioUrl);
+      if (data.text) {
+        onTranscription(data.text, audioUrl);
         setState("idle");
-      } else if (data.audioUrl && !data.text) {
+      } else {
         const errMsg = data.error || "Transcription failed";
         setProcessingError(
           `Audio saved. ${errMsg} -- try again or type manually.`
         );
-        onError?.(errMsg, data.audioUrl);
-        setState("idle");
-      } else {
-        setProcessingError("Upload failed. Please try again.");
-        onError?.("Upload failed");
+        onError?.(errMsg, audioUrl);
         setState("idle");
       }
     } catch {
-      setProcessingError("Network error. Please try again.");
-      onError?.("Network error");
+      // Audio is already saved in Blob -- transcription just failed
+      setProcessingError("Transcription failed. Your audio has been saved.");
+      onError?.("Transcription failed", audioUrl);
       setState("idle");
     }
   }, [stopCapture, workspaceId, onTranscription, onError]);
