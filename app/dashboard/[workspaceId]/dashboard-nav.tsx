@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { label: "SETTINGS", path: "settings" },
 ] as const;
 
-export function DashboardNav({ workspaceId }: { workspaceId: string }) {
+export function DashboardNav({ workspaceId, isSuperAdmin = false }: { workspaceId: string; isSuperAdmin?: boolean }) {
   const pathname = usePathname();
   const basePath = `/dashboard/${workspaceId}`;
 
@@ -29,12 +29,22 @@ export function DashboardNav({ workspaceId }: { workspaceId: string }) {
         >
           TENSIENT
         </Link>
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="font-mono text-xs text-muted hover:text-destructive transition-colors cursor-pointer"
-        >
-          SIGN OUT
-        </button>
+        <div className="flex items-center gap-4">
+          {isSuperAdmin && (
+            <Link
+              href="/admin"
+              className="px-3 py-1 rounded font-mono text-[10px] tracking-widest text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors"
+            >
+              COMMAND CENTER
+            </Link>
+          )}
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="font-mono text-xs text-muted hover:text-destructive transition-colors cursor-pointer"
+          >
+            SIGN OUT
+          </button>
+        </div>
       </div>
 
       {/* Navigation */}

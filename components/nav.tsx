@@ -4,8 +4,8 @@ import Link from "next/link";
 import { SlantedButton } from "./slanted-button";
 
 const navItems = [
-  { label: "HOW IT WORKS", href: "#how-it-works" },
-  { label: "SIGN IN", href: "/sign-in" },
+  { label: "HOW IT WORKS", href: "#how-it-works", mobileVisible: false },
+  { label: "SIGN IN", href: "/sign-in", mobileVisible: true },
 ];
 
 export function Nav() {
@@ -24,7 +24,7 @@ export function Nav() {
             <Link
               key={item.href}
               href={item.href}
-              className="hidden font-mono text-sm uppercase tracking-widest text-muted transition-colors duration-150 hover:text-primary sm:inline-block"
+              className={`${item.mobileVisible ? "inline-block" : "hidden sm:inline-block"} font-mono text-sm uppercase tracking-widest text-muted transition-colors duration-150 hover:text-primary`}
             >
               {item.label}
             </Link>
