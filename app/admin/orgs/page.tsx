@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/schema";
 import { sql, count, eq, and, gte, desc, inArray } from "drizzle-orm";
 import { OrgsClient, type OrgSummary as ClientOrg, type WorkspaceDetail as ClientWs } from "./orgs-client";
+import { getUsersData, type UserRow } from "@/lib/admin/get-users-data";
 
 interface OrgSummary {
   id: string;
@@ -276,7 +277,10 @@ async function getOrgData() {
 }
 
 export default async function OrgsPage() {
-  const { orgs, workspacesByOrg } = await getOrgData();
+  const [{ orgs, workspacesByOrg }, allUsers] = await Promise.all([
+    getOrgData(),
+    getUsersData(),
+  ]);
 
   // Serialize data for the client component (Dates -> strings)
   const serializedOrgs: ClientOrg[] = JSON.parse(JSON.stringify(orgs));
@@ -284,6 +288,18 @@ export default async function OrgsPage() {
   for (const [orgId, wsList] of workspacesByOrg.entries()) {
     serializedWsByOrg[orgId] = JSON.parse(JSON.stringify(wsList));
   }
+
+  // Group users by org
+  const usersByOrg: Record<string, UserRow[]> = {};
+  for (const user of allUsers) {
+    if (user.orgId) {
+      if (!usersByOrg[user.orgId]) usersByOrg[user.orgId] = [];
+      usersByOrg[user.orgId].push(user);
+    }
+  }
+  const serializedUsersByOrg: Record<string, UserRow[]> = JSON.parse(
+    JSON.stringify(usersByOrg)
+  );
 
   return (
     <div className="max-w-[1100px]">
@@ -297,7 +313,11 @@ export default async function OrgsPage() {
         </p>
       </div>
 
-      <OrgsClient orgs={serializedOrgs} workspacesByOrg={serializedWsByOrg} />
+      <OrgsClient
+        orgs={serializedOrgs}
+        workspacesByOrg={serializedWsByOrg}
+        usersByOrg={serializedUsersByOrg}
+      />
     </div>
   );
 }

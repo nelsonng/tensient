@@ -9,8 +9,10 @@ import {
   usageLogs,
   platformEvents,
   protocols,
+  passwordResetTokens,
+  emailVerificationTokens,
 } from "@/lib/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireSuperAdminAPI } from "@/lib/auth/require-super-admin";
 
 // PATCH /api/admin/users/[userId] -- update user fields
@@ -140,13 +142,20 @@ export async function DELETE(
     await db.delete(platformEvents).where(eq(platformEvents.userId, userId));
     await db.delete(memberships).where(eq(memberships.userId, userId));
 
-    // 5. Nullify protocol ownership
+    // 5. Delete token tables (cascade would handle, but explicit is safer)
+    await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, userId));
+    await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.userId, userId));
+
+    // 6. Handle protocols: nullify created_by + delete user-owned protocols
     await db
       .update(protocols)
       .set({ createdBy: null })
       .where(eq(protocols.createdBy, userId));
+    await db
+      .delete(protocols)
+      .where(and(eq(protocols.ownerType, "user"), eq(protocols.ownerId, userId)));
 
-    // 6. Delete the user
+    // 7. Delete the user
     await db.delete(users).where(eq(users.id, userId));
 
     return NextResponse.json({
