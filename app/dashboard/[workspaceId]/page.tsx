@@ -195,17 +195,20 @@ export default async function WorkspaceDashboard({
     .where(eq(memberships.workspaceId, workspaceId))
     .orderBy(desc(memberships.tractionScore));
 
-  // Alignment trend (last 20 artifacts)
+  // Alignment trend (last 40 artifacts, with member names for dot plot)
   const driftTrend = await db
     .select({
       driftScore: artifacts.driftScore,
       createdAt: artifacts.createdAt,
+      firstName: users.firstName,
+      lastName: users.lastName,
     })
     .from(artifacts)
     .innerJoin(captures, eq(artifacts.captureId, captures.id))
+    .innerJoin(users, eq(captures.userId, users.id))
     .where(eq(captures.workspaceId, workspaceId))
     .orderBy(desc(artifacts.createdAt))
-    .limit(20);
+    .limit(40);
 
   // All public coaches
   const allCoaches = await db
@@ -351,6 +354,7 @@ export default async function WorkspaceDashboard({
         .map((d) => ({
           alignmentScore: 1 - (d.driftScore ?? 0),
           createdAt: d.createdAt.toISOString(),
+          memberName: [d.firstName, d.lastName].filter(Boolean).join(" ") || "Unknown",
         }))
         .reverse()}
       allCoaches={allCoaches}

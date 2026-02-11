@@ -6,6 +6,24 @@ import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
+  // ── Env validation (fail fast with clear logs) ────────────────────
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    logger.error("BLOB_READ_WRITE_TOKEN is not configured -- voice recording will fail");
+    return NextResponse.json(
+      { error: "Voice recording is temporarily unavailable.", text: null, audioUrl: null },
+      { status: 503 }
+    );
+  }
+
+  if (!process.env.GROQ_API_KEY) {
+    logger.error("GROQ_API_KEY is not configured -- transcription will fail");
+    return NextResponse.json(
+      { error: "Transcription is temporarily unavailable.", text: null, audioUrl: null },
+      { status: 503 }
+    );
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,6 +56,11 @@ export async function POST(request: Request) {
     );
   }
 
+  // ── Read audio into buffer once (prevents stream-consumption issues) ──
+
+  const contentType = audioFile.type || "audio/webm;codecs=opus";
+  const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
+
   // ── Step 1: Upload to Vercel Blob (safety net -- always persists) ──
 
   let audioUrl: string | null = null;
@@ -46,9 +69,9 @@ export async function POST(request: Request) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const pathname = `audio/${workspaceId}/${timestamp}.webm`;
 
-    const blob = await put(pathname, audioFile, {
+    const blob = await put(pathname, audioBuffer, {
       access: "public", // TODO: migrate to token-protected access when Vercel Blob supports it
-      contentType: audioFile.type || "audio/webm;codecs=opus",
+      contentType,
     });
 
     audioUrl = blob.url;
@@ -65,8 +88,13 @@ export async function POST(request: Request) {
   let text: string | null = null;
 
   try {
+    // Create a fresh File from the buffer for Groq (safe re-read)
+    const groqFile = new File([audioBuffer], audioFile.name || "audio.webm", {
+      type: contentType,
+    });
+
     const transcription = await getGroq().audio.transcriptions.create({
-      file: audioFile,
+      file: groqFile,
       model: "whisper-large-v3-turbo",
       language: "en",
       response_format: "text",

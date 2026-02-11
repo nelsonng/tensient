@@ -6,7 +6,6 @@ import { artifacts, captures, users, workspaces } from "@/lib/db/schema";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
-import { StatusPill } from "@/components/status-pill";
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -50,7 +49,6 @@ export default async function SynthesisPage({
       content: artifacts.content,
       driftScore: artifacts.driftScore,
       sentimentScore: artifacts.sentimentScore,
-      actionItems: artifacts.actionItems,
       feedback: artifacts.feedback,
       createdAt: artifacts.createdAt,
       userId: captures.userId,
@@ -73,7 +71,7 @@ export default async function SynthesisPage({
           All Synthesis
         </h1>
         <p className="font-body text-base text-muted mt-2">
-          AI-processed outputs from every thought. Alignment scored, action items extracted, coaching delivered.
+          AI-processed outputs from every thought. Alignment scored, coaching delivered.
         </p>
       </div>
 
@@ -94,9 +92,6 @@ export default async function SynthesisPage({
               .filter(Boolean)
               .join(" ") || artifact.email;
             const alignmentScore = 1 - (artifact.driftScore ?? 0);
-            const actionItems = Array.isArray(artifact.actionItems)
-              ? (artifact.actionItems as Array<{ task: string; status: string }>)
-              : [];
 
             return (
               <PanelCard key={artifact.id}>
@@ -123,35 +118,6 @@ export default async function SynthesisPage({
                 <p className="font-body text-base leading-relaxed text-foreground mb-3">
                   {artifact.content}
                 </p>
-
-                {/* Action items */}
-                {actionItems.length > 0 && (
-                  <div className="mb-3">
-                    <MonoLabel className="mb-2 block text-xs text-muted">
-                      {actionItems.length} ACTION ITEM{actionItems.length !== 1 ? "S" : ""}
-                    </MonoLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {actionItems.slice(0, 5).map((item, i) => (
-                        <StatusPill
-                          key={i}
-                          status={
-                            item.status === "done"
-                              ? "success"
-                              : item.status === "blocked"
-                              ? "error"
-                              : "active"
-                          }
-                          label={item.task.length > 40 ? item.task.slice(0, 40) + "..." : item.task}
-                        />
-                      ))}
-                      {actionItems.length > 5 && (
-                        <span className="font-mono text-xs text-muted">
-                          +{actionItems.length - 5} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* Coaching feedback */}
                 {artifact.feedback && (

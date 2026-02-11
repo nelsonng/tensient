@@ -157,10 +157,19 @@ async function seedProcessCapture(
   const captureEmbedding = await generateEmbedding(content);
 
   // 3. Drift score
+  // Calibrate: raw cosine sim for business text clusters in [0.35, 0.85]
+  // Stretch to [0, 1] for meaningful alignment display
+  const SIMILARITY_FLOOR = 0.35;
+  const SIMILARITY_CEILING = 0.85;
+
   let driftScore = 0.5;
   if (canonEmbedding) {
-    const similarity = cosineSimilarity(captureEmbedding, canonEmbedding);
-    driftScore = Math.max(0, Math.min(1, 1 - similarity));
+    const rawSimilarity = cosineSimilarity(captureEmbedding, canonEmbedding);
+    const calibrated = Math.max(
+      0,
+      Math.min(1, (rawSimilarity - SIMILARITY_FLOOR) / (SIMILARITY_CEILING - SIMILARITY_FLOOR))
+    );
+    driftScore = Math.max(0, Math.min(1, 1 - calibrated));
   }
 
   // 4. LLM analysis

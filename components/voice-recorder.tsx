@@ -195,7 +195,15 @@ export function VoiceRecorder({
         body: formData,
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errMsg = data.error || `Server error (${res.status}). Please try again.`;
+        setProcessingError(errMsg);
+        onError?.(errMsg, data.audioUrl);
+        setState("idle");
+        return;
+      }
 
       if (data.audioUrl && data.text) {
         onTranscription(data.text, data.audioUrl);

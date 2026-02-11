@@ -44,6 +44,7 @@ interface DashboardProps {
   alignmentTrend: Array<{
     alignmentScore: number;
     createdAt: string;
+    memberName: string;
   }>;
   allCoaches: Array<{ id: string; name: string }>;
   currentUserId: string;
@@ -71,10 +72,196 @@ interface DashboardProps {
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-function getPriorityColor(priority: string): string {
-  if (priority === "critical") return "text-destructive";
-  if (priority === "high") return "text-warning";
-  return "text-muted";
+function getPriorityDot(priority: string): string {
+  if (priority === "critical") return "bg-destructive";
+  if (priority === "high") return "bg-warning";
+  return "bg-muted";
+}
+
+function getAlignmentColor(score: number): string {
+  if (score >= 0.8) return "text-primary";
+  if (score >= 0.5) return "text-warning";
+  return "text-destructive";
+}
+
+function getAlignmentFill(score: number): string {
+  if (score >= 0.8) return "#CCFF00";
+  if (score >= 0.5) return "#FFB800";
+  return "#FF3333";
+}
+
+// ── Alignment Dot Plot ──────────────────────────────────────────────────
+
+function getWeekKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + mondayOffset);
+  return monday.toISOString().slice(0, 10);
+}
+
+function formatWeekLabel(weekKey: string): string {
+  const d = new Date(weekKey + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function AlignmentDotPlot({
+  data,
+}: {
+  data: Array<{ alignmentScore: number; createdAt: string; memberName: string }>;
+}) {
+  if (data.length === 0) return null;
+
+  // Group data points by week
+  const weekMap = new Map<string, typeof data>();
+  for (const point of data) {
+    const key = getWeekKey(point.createdAt);
+    if (!weekMap.has(key)) weekMap.set(key, []);
+    weekMap.get(key)!.push(point);
+  }
+
+  const weeks = Array.from(weekMap.keys()).sort();
+  if (weeks.length === 0) return null;
+
+  // Auto-scale Y-axis to data range with padding
+  const allScores = data.map((d) => d.alignmentScore);
+  const rawMin = Math.min(...allScores);
+  const rawMax = Math.max(...allScores);
+  const range = rawMax - rawMin || 0.1; // avoid zero-range
+  const pad = range * 0.15; // 15% breathing room above and below
+  // Round to nice increments (nearest 5%)
+  const yMin = Math.max(0, Math.floor((rawMin - pad) * 20) / 20);
+  const yMax = Math.min(1, Math.ceil((rawMax + pad) * 20) / 20);
+  const yRange = yMax - yMin || 0.1;
+
+  // Generate grid lines at nice 10% increments within the visible range
+  const gridLines: number[] = [];
+  const step = yRange > 0.3 ? 0.1 : 0.05;
+  for (let v = Math.ceil(yMin / step) * step; v <= yMax + 0.001; v += step) {
+    gridLines.push(Math.round(v * 100) / 100);
+  }
+
+  // SVG dimensions -- compact
+  const height = 120;
+  const paddingLeft = 36;
+  const paddingRight = 8;
+  const paddingTop = 8;
+  const paddingBottom = 22;
+  const plotHeight = height - paddingTop - paddingBottom;
+  const chartWidth = Math.max(weeks.length * 64 + paddingLeft + paddingRight, 240);
+  const plotRight = chartWidth - paddingRight;
+
+  const yScale = (score: number) =>
+    paddingTop + plotHeight * (1 - (score - yMin) / yRange);
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${chartWidth} ${height}`}
+        className="w-full"
+        style={{ minWidth: `${chartWidth}px`, maxHeight: `${height}px` }}
+        preserveAspectRatio="xMidYMid meet"
+      >
+        {/* Grid lines */}
+        {gridLines.map((pct) => (
+          <g key={pct}>
+            <line
+              x1={paddingLeft}
+              y1={yScale(pct)}
+              x2={plotRight}
+              y2={yScale(pct)}
+              stroke="#2A2A2A"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+            <text
+              x={paddingLeft - 6}
+              y={yScale(pct) + 3}
+              textAnchor="end"
+              fill="#666666"
+              fontSize={9}
+              fontFamily="monospace"
+            >
+              {Math.round(pct * 100)}%
+            </text>
+          </g>
+        ))}
+
+        {/* 80% threshold line if within range */}
+        {yMin <= 0.8 && yMax >= 0.8 && (
+          <line
+            x1={paddingLeft}
+            y1={yScale(0.8)}
+            x2={plotRight}
+            y2={yScale(0.8)}
+            stroke="#CCFF00"
+            strokeWidth={1}
+            strokeOpacity={0.15}
+          />
+        )}
+
+        {/* Bottom axis line */}
+        <line
+          x1={paddingLeft}
+          y1={paddingTop + plotHeight}
+          x2={plotRight}
+          y2={paddingTop + plotHeight}
+          stroke="#2A2A2A"
+          strokeWidth={1}
+        />
+
+        {/* Per-week columns */}
+        {weeks.map((weekKey, weekIdx) => {
+          const points = weekMap.get(weekKey)!;
+          const colCenter = paddingLeft + weekIdx * 64 + 32;
+
+          return (
+            <g key={weekKey}>
+              {/* Week label */}
+              <text
+                x={colCenter}
+                y={height - 3}
+                textAnchor="middle"
+                fill="#666666"
+                fontSize={9}
+                fontFamily="monospace"
+              >
+                {formatWeekLabel(weekKey)}
+              </text>
+
+              {/* Dots */}
+              {points.map((point, i) => {
+                const jitter = points.length === 1
+                  ? 0
+                  : (i / (points.length - 1) - 0.5) * Math.min(points.length * 7, 32);
+                const cx = colCenter + jitter;
+                const cy = yScale(point.alignmentScore);
+
+                return (
+                  <circle
+                    key={`${weekKey}-${i}`}
+                    cx={cx}
+                    cy={cy}
+                    r={4}
+                    fill={getAlignmentFill(point.alignmentScore)}
+                    fillOpacity={0.85}
+                    stroke={getAlignmentFill(point.alignmentScore)}
+                    strokeWidth={1}
+                    strokeOpacity={0.3}
+                  >
+                    <title>
+                      {point.memberName}: {Math.round(point.alignmentScore * 100)}%
+                    </title>
+                  </circle>
+                );
+              })}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
 }
 
 // ── Main Component ───────────────────────────────────────────────────────
@@ -85,6 +272,7 @@ export function DashboardClient({
   isCurrentWeek,
   digest,
   teamMembers,
+  alignmentTrend,
   currentUserId,
   hasStrategy,
   goalPillars,
@@ -122,45 +310,26 @@ export function DashboardClient({
             </MonoLabel>
 
             {digest ? (
-              <>
-                <p className="font-body text-sm text-muted mb-6 leading-relaxed max-w-[700px]">
-                  {digest.summary}
-                </p>
-                <div className="space-y-0">
-                  {digest.items.map((item) => (
-                    <div
-                      key={item.rank}
-                      className="flex gap-3 py-3 border-b border-border/30 last:border-b-0"
-                    >
-                      <span className="font-mono text-xl font-bold text-primary/40 shrink-0 w-6 text-right pt-0.5">
-                        {item.rank}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-body text-sm font-semibold text-foreground leading-snug mb-0.5">
-                          {item.title}
-                        </p>
-                        <p className="font-body text-sm text-muted leading-relaxed mb-1">
-                          {item.detail}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`font-mono text-xs ${getPriorityColor(
-                              item.priority
-                            )}`}
-                          >
-                            {item.priority.toUpperCase()}
-                          </span>
-                          {item.goalPillar && (
-                            <span className="font-mono text-xs text-muted">
-                              {item.goalPillar}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
+              <div className="space-y-0">
+                {digest.items.map((item) => (
+                  <div
+                    key={item.rank}
+                    className="flex items-center gap-2 py-1.5"
+                  >
+                    <span className="font-mono text-sm text-primary/40 w-4 text-right shrink-0">
+                      {item.rank}
+                    </span>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${getPriorityDot(
+                        item.priority
+                      )}`}
+                    />
+                    <span className="font-body text-sm text-foreground">
+                      {item.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="py-10 text-center">
                 <p className="font-body text-sm text-muted mb-2">
@@ -172,6 +341,16 @@ export function DashboardClient({
               </div>
             )}
           </PanelCard>
+
+          {/* ── ALIGNMENT OVER TIME — Dot Plot ──────────────────────── */}
+          {alignmentTrend.length > 0 && (
+            <PanelCard className="mb-8">
+              <MonoLabel className="text-primary mb-4 block">
+                ALIGNMENT OVER TIME
+              </MonoLabel>
+              <AlignmentDotPlot data={alignmentTrend} />
+            </PanelCard>
+          )}
 
           {/* ── Two-column: Goals + Team Pulse ──────────────────────── */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -289,7 +468,7 @@ export function DashboardClient({
                           <span className="font-mono text-xs text-muted">
                             ALIGNMENT
                           </span>
-                          <span className="font-mono text-sm font-bold text-primary">
+                          <span className={`font-mono text-sm font-bold ${getAlignmentColor(member.alignmentScore)}`}>
                             {Math.round(member.alignmentScore * 100)}%
                           </span>
                         </div>

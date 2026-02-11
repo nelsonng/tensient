@@ -134,14 +134,23 @@ export async function processCapture(
     ? (((canon.healthAnalysis as Record<string, unknown>).pillars as Array<{ title: string }>) || []).map((p) => p.title)
     : [];
 
-  // 4. Calculate drift score
+  // 4. Calculate drift score (calibrated)
+  // Raw cosine similarity for business text embeddings clusters in [0.35, 0.85].
+  // We stretch that band to [0, 1] so alignment scores show meaningful spread.
+  const SIMILARITY_FLOOR = 0.35;
+  const SIMILARITY_CEILING = 0.85;
+
   let driftScore = 0.5; // default if no canon
   if (canon?.embedding) {
-    const similarity = cosineSimilarity(
+    const rawSimilarity = cosineSimilarity(
       captureEmbedding,
       canon.embedding as number[]
     );
-    driftScore = Math.max(0, Math.min(1, 1 - similarity));
+    const calibrated = Math.max(
+      0,
+      Math.min(1, (rawSimilarity - SIMILARITY_FLOOR) / (SIMILARITY_CEILING - SIMILARITY_FLOOR))
+    );
+    driftScore = Math.max(0, Math.min(1, 1 - calibrated));
   }
 
   // 5. Fetch all public coaches for composite prompt
