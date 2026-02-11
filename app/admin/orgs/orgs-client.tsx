@@ -135,8 +135,8 @@ function NukeModal({
           </p>
 
           <div>
-            <label className="block font-mono text-[10px] tracking-widest text-muted uppercase mb-1">
-              TYPE &quot;{org.name}&quot; TO CONFIRM
+            <label className="block font-mono text-[10px] tracking-widest text-muted mb-1">
+              TYPE &quot;<span className="text-foreground">{org.name}</span>&quot; TO CONFIRM
             </label>
             <input
               type="text"
