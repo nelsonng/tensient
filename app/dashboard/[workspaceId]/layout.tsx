@@ -17,8 +17,8 @@ export default async function WorkspaceLayout({
 
   return (
     <div className="min-h-screen">
-      <DashboardNav workspaceId={workspaceId} />
       {!session.user.emailVerified && <EmailVerificationBanner />}
+      <DashboardNav workspaceId={workspaceId} />
       {children}
     </div>
   );

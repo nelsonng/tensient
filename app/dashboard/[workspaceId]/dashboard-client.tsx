@@ -94,16 +94,20 @@ function getAlignmentFill(score: number): string {
 
 function getWeekKey(dateStr: string): string {
   const d = new Date(dateStr);
-  const day = d.getDay();
+  const day = d.getUTCDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   const monday = new Date(d);
-  monday.setDate(d.getDate() + mondayOffset);
+  monday.setUTCDate(d.getUTCDate() + mondayOffset);
   return monday.toISOString().slice(0, 10);
 }
 
 function formatWeekLabel(weekKey: string): string {
-  const d = new Date(weekKey + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const d = new Date(weekKey + "T00:00:00Z");
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function AlignmentDotPlot({
