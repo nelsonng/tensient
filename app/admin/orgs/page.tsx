@@ -9,7 +9,7 @@ import {
   actions,
 } from "@/lib/db/schema";
 import { sql, count, eq, and, gte, desc, inArray } from "drizzle-orm";
-import { OrgsClient } from "./orgs-client";
+import { OrgsClient, type OrgSummary as ClientOrg, type WorkspaceDetail as ClientWs } from "./orgs-client";
 
 interface OrgSummary {
   id: string;
@@ -279,8 +279,8 @@ export default async function OrgsPage() {
   const { orgs, workspacesByOrg } = await getOrgData();
 
   // Serialize data for the client component (Dates -> strings)
-  const serializedOrgs = JSON.parse(JSON.stringify(orgs));
-  const serializedWsByOrg: Record<string, unknown[]> = {};
+  const serializedOrgs: ClientOrg[] = JSON.parse(JSON.stringify(orgs));
+  const serializedWsByOrg: Record<string, ClientWs[]> = {};
   for (const [orgId, wsList] of workspacesByOrg.entries()) {
     serializedWsByOrg[orgId] = JSON.parse(JSON.stringify(wsList));
   }
