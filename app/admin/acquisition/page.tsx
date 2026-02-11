@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { users, platformEvents } from "@/lib/db/schema";
-import { sql, count, eq, and, gte, isNotNull } from "drizzle-orm";
+import { sql, count, eq, and, gte, isNotNull, inArray } from "drizzle-orm";
 import Link from "next/link";
 
 async function getAcquisitionData(days: number) {
@@ -64,8 +64,8 @@ async function getAcquisitionData(days: number) {
       .from(platformEvents)
       .where(
         and(
-          sql`${platformEvents.userId} = ANY(${userIds})`,
-          sql`${platformEvents.type} IN ('onboarding_started', 'onboarding_completed')`
+          inArray(platformEvents.userId, userIds),
+          inArray(platformEvents.type, ["onboarding_started", "onboarding_completed"])
         )
       );
   }

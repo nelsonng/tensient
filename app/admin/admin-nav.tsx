@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
   { label: "OVERVIEW", path: "/admin", icon: "◉" },
+  { label: "USERS", path: "/admin/users", icon: "▸" },
   { label: "ACQUISITION", path: "/admin/acquisition", icon: "▸" },
   { label: "ACTIVATION", path: "/admin/activation", icon: "▸" },
   { label: "RETENTION", path: "/admin/retention", icon: "▸" },

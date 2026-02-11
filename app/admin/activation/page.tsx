@@ -7,7 +7,7 @@ import {
   memberships,
   workspaces,
 } from "@/lib/db/schema";
-import { sql, count, eq, and, gte } from "drizzle-orm";
+import { sql, count, eq, and, gte, inArray } from "drizzle-orm";
 import Link from "next/link";
 
 interface UserActivation {
@@ -58,7 +58,7 @@ async function getActivationData(days: number) {
     .select({ userId: memberships.userId })
     .from(memberships)
     .innerJoin(canons, eq(canons.workspaceId, memberships.workspaceId))
-    .where(sql`${memberships.userId} = ANY(${userIds})`)
+    .where(inArray(memberships.userId, userIds))
     .groupBy(memberships.userId);
   const goalUserIds = new Set(usersWithGoals.map((r) => r.userId));
 
@@ -70,7 +70,7 @@ async function getActivationData(days: number) {
       distinctDays: sql<number>`COUNT(DISTINCT DATE(${captures.createdAt}))`,
     })
     .from(captures)
-    .where(sql`${captures.userId} = ANY(${userIds})`)
+    .where(inArray(captures.userId, userIds))
     .groupBy(captures.userId);
   const captureMap = new Map(
     usersWithCaptures.map((r) => [r.userId, { count: Number(r.captureCount), days: Number(r.distinctDays) }])
@@ -81,7 +81,7 @@ async function getActivationData(days: number) {
     .select({ userId: captures.userId })
     .from(artifacts)
     .innerJoin(captures, eq(artifacts.captureId, captures.id))
-    .where(sql`${captures.userId} = ANY(${userIds})`)
+    .where(inArray(captures.userId, userIds))
     .groupBy(captures.userId);
   const artifactUserIds = new Set(usersWithArtifacts.map((r) => r.userId));
 

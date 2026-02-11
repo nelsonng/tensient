@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users, platformEvents } from "@/lib/db/schema";
-import { sql, count, eq, and, gte, isNotNull } from "drizzle-orm";
+import { sql, count, eq, and, gte, isNotNull, inArray } from "drizzle-orm";
 import { requireSuperAdminAPI } from "@/lib/auth/require-super-admin";
 
 export async function GET(request: Request) {
@@ -95,8 +95,8 @@ export async function GET(request: Request) {
       .from(platformEvents)
       .where(
         and(
-          sql`${platformEvents.userId} = ANY(${userIds})`,
-          sql`${platformEvents.type} IN ('onboarding_started', 'onboarding_completed')`
+          inArray(platformEvents.userId, userIds),
+          inArray(platformEvents.type, ["onboarding_started", "onboarding_completed"])
         )
       );
   }

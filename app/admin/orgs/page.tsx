@@ -8,7 +8,7 @@ import {
   artifacts,
   actions,
 } from "@/lib/db/schema";
-import { sql, count, eq, and, gte, desc } from "drizzle-orm";
+import { sql, count, eq, and, gte, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
 
 interface OrgSummary {
@@ -63,7 +63,7 @@ async function getOrgData() {
       userCount: count(),
     })
     .from(users)
-    .where(sql`${users.organizationId} = ANY(${orgIds})`)
+    .where(inArray(users.organizationId, orgIds))
     .groupBy(users.organizationId);
   const userCountMap = new Map(
     usersByOrg.map((r) => [r.orgId, Number(r.userCount)])
@@ -76,7 +76,7 @@ async function getOrgData() {
       wsCount: count(),
     })
     .from(workspaces)
-    .where(sql`${workspaces.organizationId} = ANY(${orgIds})`)
+    .where(inArray(workspaces.organizationId, orgIds))
     .groupBy(workspaces.organizationId);
   const wsCountMap = new Map(
     workspacesByOrg.map((r) => [r.orgId, Number(r.wsCount)])
@@ -91,7 +91,7 @@ async function getOrgData() {
       joinCode: workspaces.joinCode,
     })
     .from(workspaces)
-    .where(sql`${workspaces.organizationId} = ANY(${orgIds})`);
+    .where(inArray(workspaces.organizationId, orgIds));
 
   const allWsIds = allWorkspaces.map((w) => w.id);
 
