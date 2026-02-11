@@ -75,6 +75,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.emailVerified = (user as Record<string, unknown>).emailVerified as string | null;
         token.isSuperAdmin = (user as Record<string, unknown>).isSuperAdmin as boolean;
+      } else if (token.id && !token.emailVerified) {
+        // Re-check DB for users who haven't verified yet --
+        // once verified, the token caches the value and this stops querying
+        const [row] = await db
+          .select({ emailVerified: users.emailVerified })
+          .from(users)
+          .where(eq(users.id, token.id as string))
+          .limit(1);
+        if (row?.emailVerified) {
+          token.emailVerified = row.emailVerified.toISOString();
+        }
       }
       return token;
     },
