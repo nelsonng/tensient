@@ -106,7 +106,7 @@ async function getOrgData() {
         lastCapture: sql<Date>`MAX(${captures.createdAt})`,
       })
       .from(captures)
-      .where(sql`${captures.workspaceId} = ANY(${allWsIds})`)
+      .where(inArray(captures.workspaceId, allWsIds))
       .groupBy(captures.workspaceId);
     capturesByWs = new Map(captureCounts.map((r) => [r.wsId, Number(r.captureCount)]));
     lastCaptureByWs = new Map(
@@ -123,7 +123,7 @@ async function getOrgData() {
         memberCount: count(),
       })
       .from(memberships)
-      .where(sql`${memberships.workspaceId} = ANY(${allWsIds})`)
+      .where(inArray(memberships.workspaceId, allWsIds))
       .groupBy(memberships.workspaceId);
     membersByWs = new Map(memberCounts.map((r) => [r.wsId, Number(r.memberCount)]));
   }
@@ -139,7 +139,7 @@ async function getOrgData() {
       .from(captures)
       .where(
         and(
-          sql`${captures.workspaceId} = ANY(${allWsIds})`,
+          inArray(captures.workspaceId, allWsIds),
           gte(captures.createdAt, sql`NOW() - INTERVAL '7 days'`)
         )
       )
@@ -159,7 +159,7 @@ async function getOrgData() {
       .innerJoin(users, eq(captures.userId, users.id))
       .where(
         and(
-          sql`${users.organizationId} = ANY(${orgIds})`,
+          inArray(users.organizationId, orgIds),
           gte(captures.createdAt, sql`NOW() - INTERVAL '7 days'`)
         )
       )
@@ -179,7 +179,7 @@ async function getOrgData() {
       })
       .from(captures)
       .innerJoin(users, eq(captures.userId, users.id))
-      .where(sql`${users.organizationId} = ANY(${orgIds})`)
+      .where(inArray(users.organizationId, orgIds))
       .groupBy(users.organizationId);
     adoptedByOrg = new Map(
       adopted.filter((r) => r.orgId != null).map((r) => [r.orgId as string, Number(r.adoptedCount)])
@@ -197,7 +197,7 @@ async function getOrgData() {
       .from(artifacts)
       .innerJoin(captures, eq(artifacts.captureId, captures.id))
       .innerJoin(workspaces, eq(captures.workspaceId, workspaces.id))
-      .where(sql`${workspaces.organizationId} = ANY(${orgIds})`)
+      .where(inArray(workspaces.organizationId, orgIds))
       .groupBy(workspaces.organizationId);
     artifactsByOrg = new Map(artifactCounts.map((r) => [r.orgId, Number(r.count)]));
   }
@@ -212,7 +212,7 @@ async function getOrgData() {
       })
       .from(actions)
       .innerJoin(workspaces, eq(actions.workspaceId, workspaces.id))
-      .where(sql`${workspaces.organizationId} = ANY(${orgIds})`)
+      .where(inArray(workspaces.organizationId, orgIds))
       .groupBy(workspaces.organizationId);
     actionsByOrg = new Map(actionCounts.map((r) => [r.orgId, Number(r.count)]));
   }

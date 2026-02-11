@@ -250,6 +250,8 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<UserRow | null>(null);
+  const [confirmHardDelete, setConfirmHardDelete] = useState<UserRow | null>(null);
+  const [hardDeleting, setHardDeleting] = useState(false);
 
   // Filter
   const filtered = useMemo(() => {
@@ -375,6 +377,24 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
       )
     );
     setConfirmDelete(null);
+  }
+
+  async function handleHardDelete(user: UserRow) {
+    setHardDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}?action=delete`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body.error || "Failed to delete user");
+        return;
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setConfirmHardDelete(null);
+    } finally {
+      setHardDeleting(false);
+    }
   }
 
   // Summary stats
@@ -575,7 +595,7 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
               >
                 ✎
               </button>
-              {user.tier !== "suspended" && (
+              {user.tier !== "suspended" ? (
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(user)}
@@ -583,6 +603,15 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
                   title="Suspend user"
                 >
                   ✕
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmHardDelete(user)}
+                  className="font-mono text-[10px] text-destructive hover:text-destructive/80 cursor-pointer"
+                  title="Permanently delete user"
+                >
+                  ⌫
                 </button>
               )}
             </div>
@@ -627,6 +656,48 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
                 className="px-4 py-1.5 rounded bg-destructive/10 text-destructive border border-destructive/20 font-mono text-xs tracking-wider hover:bg-destructive/20 transition-colors cursor-pointer"
               >
                 SUSPEND
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hard Delete Confirmation */}
+      {confirmHardDelete && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-panel border border-destructive/30 rounded-lg w-full max-w-sm p-5">
+            <h3 className="font-mono text-sm font-bold text-destructive tracking-wider mb-2">
+              PERMANENTLY DELETE USER?
+            </h3>
+            <p className="font-mono text-xs text-foreground mb-1">
+              {confirmHardDelete.email}
+            </p>
+            <p className="font-mono text-[10px] text-muted/70 mb-2">
+              This will permanently delete this user and ALL their data:
+            </p>
+            <ul className="font-mono text-[10px] text-muted/70 mb-4 space-y-0.5 pl-3">
+              <li>- {confirmHardDelete.captureCount} captures + artifacts</li>
+              <li>- {confirmHardDelete.workspaceCount} workspace memberships</li>
+              <li>- All actions, usage logs, platform events</li>
+            </ul>
+            <p className="font-mono text-[10px] text-destructive font-bold mb-4">
+              THIS CANNOT BE UNDONE.
+            </p>
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setConfirmHardDelete(null)}
+                className="font-mono text-xs tracking-wider text-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={() => handleHardDelete(confirmHardDelete)}
+                disabled={hardDeleting}
+                className="px-4 py-1.5 rounded bg-destructive/10 text-destructive border border-destructive/20 font-mono text-xs tracking-wider hover:bg-destructive/20 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {hardDeleting ? "DELETING..." : "DELETE FOREVER"}
               </button>
             </div>
           </div>
