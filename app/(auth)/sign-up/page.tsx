@@ -9,8 +9,6 @@ import { SlantedButton } from "@/components/slanted-button";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +23,7 @@ export default function SignUpPage() {
       const res = await fetch("/api/auth/sign-up", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
@@ -71,31 +69,6 @@ export default function SignUpPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
-                FIRST NAME
-              </label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full rounded-md border border-border bg-panel px-4 py-3 font-body text-base text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
-                LAST NAME
-              </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full rounded-md border border-border bg-panel px-4 py-3 font-body text-base text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-              />
-            </div>
-          </div>
-
           <div>
             <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
               EMAIL

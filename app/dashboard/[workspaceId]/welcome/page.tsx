@@ -14,6 +14,7 @@ export default function WelcomePage() {
   const router = useRouter();
   const workspaceId = params.workspaceId as string;
 
+  const [displayName, setDisplayName] = useState("");
   const [input, setInput] = useState("");
   const [inputMode, setInputMode] = useState<"voice" | "text">("voice");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -27,6 +28,17 @@ export default function WelcomePage() {
   function handleSubmit() {
     if (input.trim().length < 10) return;
     setSubmitting(true);
+
+    // Save display name if provided (fire-and-forget)
+    if (displayName.trim()) {
+      fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName: displayName.trim() }),
+      }).catch(() => {
+        // Fire-and-forget: errors are logged server-side
+      });
+    }
 
     // Fire onboard API — don't await the response.
     // The serverless function will continue running on Vercel (maxDuration=60)
@@ -65,6 +77,22 @@ export default function WelcomePage() {
         out. We&apos;ll extract your goals, synthesize your thoughts, and
         identify your team. One ramble does it all.
       </p>
+
+      {/* Progressive profiling: collect name after signup, before first input */}
+      {!submitting && (
+        <div className="mb-8">
+          <label className="block font-mono text-xs uppercase tracking-widest text-muted mb-2">
+            WHAT SHOULD WE CALL YOU?
+          </label>
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full max-w-[280px] rounded-md border border-border bg-panel px-4 py-2.5 font-body text-base text-foreground placeholder:text-muted/40 focus:border-primary focus:outline-none"
+            placeholder="First name (optional)"
+          />
+        </div>
+      )}
 
       {/* Voice input (default) */}
       {inputMode === "voice" && !submitting && (

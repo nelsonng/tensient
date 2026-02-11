@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, password, firstName, lastName } = await request.json();
+    const { email, password } = await request.json();
 
     trackEvent("sign_up_started", {
       metadata: { email },
@@ -43,17 +43,15 @@ export async function POST(request: Request) {
     const [org] = await db
       .insert(organizations)
       .values({
-        name: `${firstName || email.split("@")[0]}'s Organization`,
+        name: `${email.split("@")[0]}'s Organization`,
       })
       .returning();
 
-    // Create user (tier defaults to 'trial' via schema)
+    // Create user (tier defaults to 'trial' via schema, name collected later)
     const [user] = await db
       .insert(users)
       .values({
         email,
-        firstName: firstName || null,
-        lastName: lastName || null,
         passwordHash,
         organizationId: org.id,
       })
@@ -85,7 +83,7 @@ export async function POST(request: Request) {
       const emailId = await sendEmail({
         to: user.email,
         subject: "Verify your Tensient email",
-        html: verifyEmailHtml({ verifyUrl, firstName: firstName || null }),
+        html: verifyEmailHtml({ verifyUrl, firstName: null }),
       });
 
       if (!emailId) {
