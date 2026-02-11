@@ -69,6 +69,10 @@ export const users = pgTable("users", {
   organizationId: uuid("organization_id").references(() => organizations.id),
   tier: userTierEnum("tier").notNull().default("trial"),
   isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+  signupIp: text("signup_ip"),
+  signupCity: text("signup_city"),
+  signupRegion: text("signup_region"),
+  signupCountry: text("signup_country"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -490,9 +490,12 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
         </div>
 
         {/* Table Header */}
-        <div className="grid grid-cols-[1fr_100px_70px_70px_90px_80px_70px_60px_60px_50px] gap-1 px-4 py-2 border-b border-border">
+        <div className="grid grid-cols-[1fr_100px_120px_70px_70px_90px_80px_70px_60px_60px_50px] gap-1 px-4 py-2 border-b border-border">
           <SortHeader label="USER" sortField="email" />
           <SortHeader label="DOMAIN" sortField="domain" className="text-center" />
+          <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">
+            LOCATION
+          </span>
           <SortHeader label="TIER" sortField="tier" className="text-center" />
           <SortHeader label="LAST SEEN" sortField="lastSignIn" className="text-center" />
           <SortHeader label="ACTIVATED" sortField="captureCount" className="text-center" />
@@ -513,10 +516,14 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
             </p>
           </div>
         )}
-        {sorted.map((user) => (
+        {sorted.map((user) => {
+          const locationParts = [user.signupCity, user.signupRegion, user.signupCountry].filter(Boolean);
+          const locationLabel = locationParts.length > 0 ? locationParts.join(", ") : null;
+
+          return (
           <div
             key={user.id}
-            className="grid grid-cols-[1fr_100px_70px_70px_90px_80px_70px_60px_60px_50px] gap-1 px-4 py-2 border-b border-border/50 hover:bg-white/2 transition-colors"
+            className="grid grid-cols-[1fr_100px_120px_70px_70px_90px_80px_70px_60px_60px_50px] gap-1 px-4 py-2 border-b border-border/50 hover:bg-white/2 transition-colors"
           >
             {/* User cell */}
             <div className="min-w-0">
@@ -547,6 +554,20 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
             <p className="font-mono text-[10px] text-muted text-center self-center truncate">
               {user.domain}
             </p>
+
+            {/* Location */}
+            <div className="text-center self-center min-w-0" title={user.signupIp || undefined}>
+              {locationLabel ? (
+                <>
+                  <p className="font-mono text-[10px] text-muted truncate">{locationLabel}</p>
+                  {user.signupIp && (
+                    <p className="font-mono text-[8px] text-muted/50 truncate">{user.signupIp}</p>
+                  )}
+                </>
+              ) : (
+                <p className="font-mono text-[10px] text-muted/30">--</p>
+              )}
+            </div>
 
             {/* Tier */}
             <div className="flex justify-center self-center">
@@ -616,7 +637,8 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Edit Modal */}

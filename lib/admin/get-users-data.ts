@@ -21,6 +21,10 @@ export interface UserRow {
   tier: "trial" | "active" | "suspended";
   emailVerified: Date | null;
   isSuperAdmin: boolean;
+  signupIp: string | null;
+  signupCity: string | null;
+  signupRegion: string | null;
+  signupCountry: string | null;
   createdAt: Date;
   lastSignIn: Date | null;
   workspaceCount: number;
@@ -46,6 +50,10 @@ export async function getUsersData(orgId?: string): Promise<UserRow[]> {
       tier: users.tier,
       emailVerified: users.emailVerified,
       isSuperAdmin: users.isSuperAdmin,
+      signupIp: users.signupIp,
+      signupCity: users.signupCity,
+      signupRegion: users.signupRegion,
+      signupCountry: users.signupCountry,
       createdAt: users.createdAt,
     })
     .from(users);
@@ -153,6 +161,10 @@ export async function getUsersData(orgId?: string): Promise<UserRow[]> {
       tier: user.tier,
       emailVerified: user.emailVerified,
       isSuperAdmin: user.isSuperAdmin,
+      signupIp: user.signupIp,
+      signupCity: user.signupCity,
+      signupRegion: user.signupRegion,
+      signupCountry: user.signupCountry,
       createdAt: user.createdAt,
       lastSignIn: signInMap.get(user.id) || null,
       workspaceCount: wsMap.get(user.id) || 0,

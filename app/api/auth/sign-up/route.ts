@@ -9,9 +9,12 @@ import { sendEmail } from "@/lib/email";
 import { verifyEmailHtml } from "@/lib/emails/verify-email";
 import { logger } from "@/lib/logger";
 import { trackEvent } from "@/lib/platform-events";
+import { getRequestGeo } from "@/lib/request-geo";
 
 export async function POST(request: Request) {
   try {
+    const geo = getRequestGeo(request);
+
     // Platform capacity check
     const signupCheck = await checkSignupAllowed();
     if (!signupCheck.allowed) {
@@ -54,6 +57,10 @@ export async function POST(request: Request) {
         email,
         passwordHash,
         organizationId: org.id,
+        signupIp: geo.ip,
+        signupCity: geo.city,
+        signupRegion: geo.region,
+        signupCountry: geo.country,
       })
       .returning();
 
@@ -100,7 +107,7 @@ export async function POST(request: Request) {
       userId: user.id,
       workspaceId: workspace.id,
       organizationId: org.id,
-      metadata: { email: user.email },
+      metadata: { email: user.email, ...geo },
     });
 
     return NextResponse.json({

@@ -152,8 +152,9 @@ function OrgUsersTable({ users }: { users: UserRow[] }) {
   return (
     <div>
       {/* Header */}
-      <div className="grid grid-cols-[1fr_70px_70px_90px_80px_70px_60px] gap-1 px-5 py-2 border-b border-border/50">
+      <div className="grid grid-cols-[1fr_110px_70px_70px_90px_80px_70px_60px] gap-1 px-5 py-2 border-b border-border/50">
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase">USER</span>
+        <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">LOCATION</span>
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">TIER</span>
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">LAST SEEN</span>
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">ACTIVATED</span>
@@ -162,10 +163,14 @@ function OrgUsersTable({ users }: { users: UserRow[] }) {
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">SPEND</span>
       </div>
       {/* Rows */}
-      {users.map((user) => (
+      {users.map((user) => {
+        const locationParts = [user.signupCity, user.signupRegion, user.signupCountry].filter(Boolean);
+        const locationLabel = locationParts.length > 0 ? locationParts.join(", ") : null;
+
+        return (
         <div
           key={user.id}
-          className="grid grid-cols-[1fr_70px_70px_90px_80px_70px_60px] gap-1 px-5 py-2 border-b border-border/30 hover:bg-white/2 transition-colors"
+          className="grid grid-cols-[1fr_110px_70px_70px_90px_80px_70px_60px] gap-1 px-5 py-2 border-b border-border/30 hover:bg-white/2 transition-colors"
         >
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -182,6 +187,19 @@ function OrgUsersTable({ users }: { users: UserRow[] }) {
               <p className="font-mono text-[10px] text-muted truncate">
                 {[user.firstName, user.lastName].filter(Boolean).join(" ")}
               </p>
+            )}
+          </div>
+          {/* Location */}
+          <div className="text-center self-center min-w-0" title={user.signupIp || undefined}>
+            {locationLabel ? (
+              <>
+                <p className="font-mono text-[10px] text-muted truncate">{locationLabel}</p>
+                {user.signupIp && (
+                  <p className="font-mono text-[8px] text-muted/50 truncate">{user.signupIp}</p>
+                )}
+              </>
+            ) : (
+              <p className="font-mono text-[10px] text-muted/30">--</p>
             )}
           </div>
           <div className="flex justify-center self-center">
@@ -205,7 +223,8 @@ function OrgUsersTable({ users }: { users: UserRow[] }) {
               : "--"}
           </p>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

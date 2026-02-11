@@ -4,6 +4,7 @@ import { compare } from "bcryptjs";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { users, platformEvents } from "@/lib/db/schema";
 
 const sql = neon(process.env.DATABASE_URL!);
@@ -23,6 +24,22 @@ function trackAuthEvent(type: string, metadata: Record<string, unknown>) {
     });
 }
 
+/** Extract IP/geo from Vercel request headers (same logic as lib/request-geo.ts
+ *  but inlined here to avoid importing from lib/ in Edge-compatible auth.ts) */
+async function getAuthGeo() {
+  try {
+    const h = await headers();
+    return {
+      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
+      city: h.get("x-vercel-ip-city") || null,
+      region: h.get("x-vercel-ip-country-region") || null,
+      country: h.get("x-vercel-ip-country") || null,
+    };
+  } catch {
+    return { ip: null, city: null, region: null, country: null };
+  }
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -36,6 +53,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const email = credentials.email as string;
         const password = credentials.password as string;
+        const geo = await getAuthGeo();
 
         const [user] = await db
           .select()
@@ -44,17 +62,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           .limit(1);
 
         if (!user || !user.passwordHash) {
-          trackAuthEvent("sign_in_failed", { email, reason: "user_not_found" });
+          trackAuthEvent("sign_in_failed", { email, reason: "user_not_found", ...geo });
           return null;
         }
 
         const valid = await compare(password, user.passwordHash);
         if (!valid) {
-          trackAuthEvent("sign_in_failed", { email, reason: "invalid_password", userId: user.id });
+          trackAuthEvent("sign_in_failed", { email, reason: "invalid_password", userId: user.id, ...geo });
           return null;
         }
 
-        trackAuthEvent("sign_in_success", { userId: user.id, email });
+        trackAuthEvent("sign_in_success", { userId: user.id, email, ...geo });
 
         return {
           id: user.id,
