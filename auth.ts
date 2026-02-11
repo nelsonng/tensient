@@ -38,6 +38,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: user.id,
           email: user.email,
           name: [user.firstName, user.lastName].filter(Boolean).join(" ") || null,
+          emailVerified: user.emailVerified ? user.emailVerified.toISOString() : null,
         };
       },
     }),
@@ -49,12 +50,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.emailVerified = (user as Record<string, unknown>).emailVerified as string | null;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        session.user.emailVerified = token.emailVerified ? new Date(token.emailVerified as string) : null;
       }
       return session;
     },

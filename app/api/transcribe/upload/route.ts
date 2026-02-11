@@ -36,7 +36,6 @@ export async function POST(request: Request) {
       onUploadCompleted: async ({ blob }) => {
         logger.info("Audio upload completed", {
           url: blob.url,
-          size: blob.size,
           userId: session.user?.id,
         });
       },

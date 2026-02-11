@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { DashboardNav } from "./dashboard-nav";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
 
 export default async function WorkspaceLayout({
   children,
@@ -17,6 +18,7 @@ export default async function WorkspaceLayout({
   return (
     <div className="min-h-screen">
       <DashboardNav workspaceId={workspaceId} />
+      {!session.user.emailVerified && <EmailVerificationBanner />}
       {children}
     </div>
   );
