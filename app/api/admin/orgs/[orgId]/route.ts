@@ -16,7 +16,7 @@ import {
   passwordResetTokens,
   emailVerificationTokens,
 } from "@/lib/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireSuperAdminAPI } from "@/lib/auth/require-super-admin";
 
 // DELETE /api/admin/orgs/[orgId] -- nuke an entire org and all its data
@@ -145,22 +145,33 @@ export async function DELETE(
     }
 
     // 12. Handle protocols: null parent refs, then delete org/workspace-owned protocols
-    // Null parent references that point to protocols we're about to delete
-    await tx.execute(sql`
-      UPDATE protocols SET parent_id = NULL
-      WHERE parent_id IN (
-        SELECT id FROM protocols
-        WHERE (owner_type = 'organization' AND owner_id = ${orgId})
-           OR (owner_type = 'workspace' AND owner_id = ANY(${wsIds}))
-      )
-    `);
+    // Collect protocol IDs owned by this org or its workspaces
+    const ownedProtocolIds: string[] = [];
 
-    // Delete protocols owned by this org or its workspaces
-    await tx.execute(sql`
-      DELETE FROM protocols
-      WHERE (owner_type = 'organization' AND owner_id = ${orgId})
-         OR (owner_type = 'workspace' AND owner_id = ANY(${wsIds}))
-    `);
+    const orgProtocols = await tx
+      .select({ id: protocols.id })
+      .from(protocols)
+      .where(and(eq(protocols.ownerType, "organization"), eq(protocols.ownerId, orgId)));
+    ownedProtocolIds.push(...orgProtocols.map((p) => p.id));
+
+    if (wsIds.length > 0) {
+      const wsProtocols = await tx
+        .select({ id: protocols.id })
+        .from(protocols)
+        .where(and(eq(protocols.ownerType, "workspace"), inArray(protocols.ownerId, wsIds)));
+      ownedProtocolIds.push(...wsProtocols.map((p) => p.id));
+    }
+
+    // Null parent references that point to protocols we're about to delete
+    if (ownedProtocolIds.length > 0) {
+      await tx
+        .update(protocols)
+        .set({ parentId: null })
+        .where(inArray(protocols.parentId, ownedProtocolIds));
+
+      // Delete the owned protocols
+      await tx.delete(protocols).where(inArray(protocols.id, ownedProtocolIds));
+    }
 
     // 13. Null created_by on protocols created by org users
     if (userIds.length > 0) {
