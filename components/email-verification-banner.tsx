@@ -8,10 +8,9 @@ type BannerState = "idle" | "sending" | "sent" | "error";
 export function EmailVerificationBanner() {
   const pathname = usePathname();
   const [state, setState] = useState<BannerState>("idle");
-
+  const [errorMessage, setErrorMessage] = useState("");
   // Hide during onboarding
   if (pathname.includes("/welcome")) return null;
-  const [errorMessage, setErrorMessage] = useState("");
 
   async function handleResend() {
     setState("sending");

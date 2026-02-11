@@ -19,17 +19,22 @@ export function Nav() {
           TENSIENT
         </Link>
 
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 sm:gap-8">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`${item.mobileVisible ? "inline-block" : "hidden sm:inline-block"} font-mono text-sm uppercase tracking-widest text-muted transition-colors duration-150 hover:text-primary`}
+              className={`${item.mobileVisible ? "inline-block" : "hidden sm:inline-block"} font-mono text-xs sm:text-sm uppercase tracking-widest text-muted transition-colors duration-150 hover:text-primary`}
             >
               {item.label}
             </Link>
           ))}
-          <SlantedButton size="default" href="/sign-up">TRY IT FREE</SlantedButton>
+          <span className="sm:hidden">
+            <SlantedButton size="sm" href="/sign-up">TRY IT FREE</SlantedButton>
+          </span>
+          <span className="hidden sm:inline-flex">
+            <SlantedButton size="default" href="/sign-up">TRY IT FREE</SlantedButton>
+          </span>
         </div>
       </nav>
     </header>

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 interface SlantedButtonProps {
   children: React.ReactNode;
   variant?: "primary" | "outline" | "ghost";
-  size?: "default" | "lg";
+  size?: "sm" | "default" | "lg";
   onClick?: () => void;
   className?: string;
   disabled?: boolean;
@@ -24,7 +24,8 @@ export function SlantedButton({
   const baseClasses =
     "font-display font-bold text-sm uppercase tracking-wider cursor-pointer select-none inline-flex items-center justify-center";
 
-  const sizeClasses = size === "lg" ? "h-20 px-10" : "h-16 px-8";
+  const sizeClasses =
+    size === "lg" ? "h-20 px-10" : size === "sm" ? "h-10 px-5 text-xs" : "h-16 px-8";
 
   const variantClasses = {
     primary: "bg-primary text-primary-foreground",

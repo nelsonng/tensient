@@ -1,11 +1,31 @@
 "use client";
 
+import { useEffect } from "react";
+
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    // Report to platform_events via the client-error API
+    fetch("/api/client-error", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: error.message,
+        stack: error.stack,
+        digest: error.digest,
+        route: window.location.pathname,
+        source: "error-boundary",
+      }),
+    }).catch(() => {
+      // Non-critical -- don't cascade
+    });
+  }, [error]);
+
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">

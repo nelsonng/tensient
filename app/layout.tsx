@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Syncopate, Space_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { NoiseBackground } from "@/components/noise-background";
+import { GlobalErrorListener } from "@/components/global-error-listener";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
@@ -71,6 +72,7 @@ export default function RootLayout({
       <body className="bg-background text-foreground font-body antialiased">
         <NoiseBackground />
         <div className="relative z-10">{children}</div>
+        <GlobalErrorListener />
         <Analytics />
       </body>
     </html>
