@@ -20,6 +20,7 @@ type RecorderState =
   | "recording"
   | "paused"
   | "uploading"
+  | "audio_saved"
   | "transcribing"
   | "denied"
   | "unsupported";
@@ -64,6 +65,7 @@ export function VoiceRecorder({
 
   const [state, setState] = useState<RecorderState>("idle");
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [savedAudioUrl, setSavedAudioUrl] = useState<string | null>(null);
 
   // Idle breathing animation phase
   const phaseRef = useRef(0);
@@ -106,6 +108,7 @@ export function VoiceRecorder({
     if (
       isRecording ||
       state === "uploading" ||
+      state === "audio_saved" ||
       state === "transcribing" ||
       state === "unsupported" ||
       state === "denied"
@@ -206,9 +209,20 @@ export function VoiceRecorder({
       return;
     }
 
+    // ── Step 1.5: Show "Audio saved" confirmation briefly ──────────
+
+    setSavedAudioUrl(audioUrl);
+    setState("audio_saved");
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+
     // ── Step 2: Transcribe via API (sends only the URL, not the file) ──
 
+    await transcribeAudio(audioUrl);
+  }, [stopCapture, workspaceId, onTranscription, onError]);
+
+  const transcribeAudio = useCallback(async (audioUrl: string) => {
     setState("transcribing");
+    setProcessingError(null);
 
     try {
       const res = await fetch("/api/transcribe", {
@@ -229,22 +243,23 @@ export function VoiceRecorder({
 
       if (data.text) {
         onTranscription(data.text, audioUrl);
+        setSavedAudioUrl(null);
         setState("idle");
       } else {
         const errMsg = data.error || "Transcription failed";
         setProcessingError(
-          `Audio saved. ${errMsg} -- try again or type manually.`
+          `Audio is safe. ${errMsg}`
         );
         onError?.(errMsg, audioUrl);
         setState("idle");
       }
     } catch {
       // Audio is already saved in Blob -- transcription just failed
-      setProcessingError("Transcription failed. Your audio has been saved.");
+      setProcessingError("Audio is safe. Transcription failed.");
       onError?.("Transcription failed", audioUrl);
       setState("idle");
     }
-  }, [stopCapture, workspaceId, onTranscription, onError]);
+  }, [workspaceId, onTranscription, onError]);
 
   // ── Render: unsupported state ──────────────────────────────────────
 
@@ -284,7 +299,7 @@ export function VoiceRecorder({
 
   // ── Render: main component ─────────────────────────────────────────
 
-  const isProcessing = state === "uploading" || state === "transcribing";
+  const isProcessing = state === "uploading" || state === "audio_saved" || state === "transcribing";
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -353,12 +368,32 @@ export function VoiceRecorder({
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-panel/90 backdrop-blur-sm rounded-xl"
             >
-              <div className="h-3 w-3 rounded-full bg-primary animate-pulse" />
-              <span className="font-mono text-xs text-muted uppercase tracking-wider">
-                {state === "uploading"
-                  ? "Saving audio..."
-                  : "Transcribing..."}
-              </span>
+              {state === "uploading" && (
+                <>
+                  <div className="h-3 w-3 rounded-full bg-primary animate-pulse" />
+                  <span className="font-mono text-xs text-muted uppercase tracking-wider">
+                    Saving audio...
+                  </span>
+                </>
+              )}
+              {state === "audio_saved" && (
+                <>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  <span className="font-mono text-xs text-success uppercase tracking-wider">
+                    Audio saved
+                  </span>
+                </>
+              )}
+              {state === "transcribing" && (
+                <>
+                  <div className="h-3 w-3 rounded-full bg-primary animate-pulse" />
+                  <span className="font-mono text-xs text-muted uppercase tracking-wider">
+                    Transcribing...
+                  </span>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -424,9 +459,19 @@ export function VoiceRecorder({
 
       {/* Error display */}
       {(captureError || processingError) && (
-        <p className="font-mono text-xs text-destructive text-center">
-          {captureError || processingError}
-        </p>
+        <div className="text-center space-y-2">
+          <p className="font-mono text-xs text-destructive">
+            {captureError || processingError}
+          </p>
+          {savedAudioUrl && processingError && (
+            <button
+              onClick={() => transcribeAudio(savedAudioUrl)}
+              className="font-mono text-xs text-primary underline underline-offset-4 cursor-pointer hover:text-primary/80"
+            >
+              Retry transcription
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -11,9 +11,7 @@ export interface OrgSummary {
   userCount: number;
   workspaceCount: number;
   activeUsers7d: number;
-  totalCaptures: number;
-  totalArtifacts: number;
-  totalActions: number;
+  totalConversations: number;
   adoptionRate: number;
   lastActivityAt: string | null; // serialized Date
 }
@@ -24,10 +22,10 @@ export interface WorkspaceDetail {
   orgId: string;
   joinCode: string;
   memberCount: number;
-  captureCount: number;
+  conversationCount: number;
   activeMemberCount7d: number;
   coverageRate: number;
-  lastCaptureAt: string | null; // serialized Date
+  lastConversationAt: string | null; // serialized Date
 }
 
 function AdoptionBar({ rate }: { rate: number }) {
@@ -91,8 +89,8 @@ function TierPill({ tier }: { tier: string }) {
 function ActivationScore({ user }: { user: UserRow }) {
   const milestones = [
     { done: !!user.emailVerified, label: "V" },
-    { done: user.captureCount > 0, label: "C" },
-    { done: user.hasSynthesis, label: "S" },
+    { done: user.conversationCount > 0, label: "C" },
+    { done: user.hasMessages, label: "S" },
     { done: user.daysActive >= 2, label: "2" },
     { done: user.workspaceCount > 0, label: "W" },
   ];
@@ -158,7 +156,7 @@ function OrgUsersTable({ users }: { users: UserRow[] }) {
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">TIER</span>
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">LAST SEEN</span>
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">ACTIVATED</span>
-        <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">CAPTURES</span>
+        <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">CONVOS</span>
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">DAYS</span>
         <span className="font-mono text-[10px] tracking-widest text-muted uppercase text-center">SPEND</span>
       </div>
@@ -212,7 +210,7 @@ function OrgUsersTable({ users }: { users: UserRow[] }) {
             <ActivationScore user={user} />
           </div>
           <p className="font-mono text-[10px] text-muted text-center self-center">
-            {user.captureCount}
+            {user.conversationCount}
           </p>
           <p className="font-mono text-[10px] text-muted text-center self-center">
             {user.daysActive}
@@ -287,14 +285,14 @@ function NukeModal({
                 <p className="font-mono text-xs text-foreground">{org.workspaceCount}</p>
               </div>
               <div>
-                <p className="font-mono text-[10px] text-muted">CAPTURES</p>
-                <p className="font-mono text-xs text-foreground">{org.totalCaptures}</p>
+                <p className="font-mono text-[10px] text-muted">CONVERSATIONS</p>
+                <p className="font-mono text-xs text-foreground">{org.totalConversations}</p>
               </div>
             </div>
           </div>
 
           <p className="font-mono text-[10px] text-muted/70">
-            All users, workspaces, captures, artifacts, actions, and related data
+            All users, workspaces, conversations, messages, documents, and related data
             will be permanently destroyed. THIS CANNOT BE UNDONE.
           </p>
 
@@ -440,7 +438,7 @@ export function OrgsClient({
               </div>
 
               {/* Org Metrics */}
-              <div className="grid grid-cols-3 md:grid-cols-7 gap-3 mt-3">
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mt-3">
                 <div>
                   <p className="font-mono text-[10px] text-muted uppercase">USERS</p>
                   <p className="font-mono text-sm text-foreground font-bold">{org.userCount}</p>
@@ -460,16 +458,8 @@ export function OrgsClient({
                   <p className="font-mono text-sm text-foreground font-bold">{org.workspaceCount}</p>
                 </div>
                 <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">CAPTURES</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.totalCaptures}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">ARTIFACTS</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.totalArtifacts}</p>
-                </div>
-                <div>
-                  <p className="font-mono text-[10px] text-muted uppercase">ACTIONS</p>
-                  <p className="font-mono text-sm text-foreground font-bold">{org.totalActions}</p>
+                  <p className="font-mono text-[10px] text-muted uppercase">CONVERSATIONS</p>
+                  <p className="font-mono text-sm text-foreground font-bold">{org.totalConversations}</p>
                 </div>
                 <div>
                   <p className="font-mono text-[10px] text-muted uppercase">ADOPTION</p>
@@ -485,7 +475,7 @@ export function OrgsClient({
                   <span className="font-mono text-[10px] tracking-widest uppercase">WORKSPACE</span>
                   <span className="font-mono text-[10px] tracking-widest uppercase text-center">MEMBERS</span>
                   <span className="font-mono text-[10px] tracking-widest uppercase text-center">ACTIVE</span>
-                  <span className="font-mono text-[10px] tracking-widest uppercase text-center">CAPTURES</span>
+                  <span className="font-mono text-[10px] tracking-widest uppercase text-center">CONVOS</span>
                   <span className="font-mono text-[10px] tracking-widest uppercase text-center">COVERAGE</span>
                   <span className="font-mono text-[10px] tracking-widest uppercase text-right">LAST ACTIVE</span>
                 </div>
@@ -509,13 +499,13 @@ export function OrgsClient({
                       {ws.activeMemberCount7d}
                     </p>
                     <p className="font-mono text-xs text-muted text-center self-center">
-                      {ws.captureCount}
+                      {ws.conversationCount}
                     </p>
                     <div className="flex justify-center self-center">
                       <AdoptionBar rate={ws.coverageRate} />
                     </div>
                     <p className="font-mono text-[10px] text-muted text-right self-center">
-                      {timeAgo(ws.lastCaptureAt)}
+                      {timeAgo(ws.lastConversationAt)}
                     </p>
                   </div>
                 ))}

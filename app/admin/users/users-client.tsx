@@ -10,7 +10,7 @@ type SortKey = keyof Pick<
   | "tier"
   | "createdAt"
   | "lastSignIn"
-  | "captureCount"
+  | "conversationCount"
   | "daysActive"
   | "aiSpendCents"
   | "workspaceCount"
@@ -59,8 +59,8 @@ function TierPill({ tier }: { tier: string }) {
 function ActivationScore({ user }: { user: UserRow }) {
   const milestones = [
     { done: !!user.emailVerified, label: "V" },
-    { done: user.captureCount > 0, label: "C" },
-    { done: user.hasSynthesis, label: "S" },
+    { done: user.conversationCount > 0, label: "C" },
+    { done: user.hasMessages, label: "S" },
     { done: user.daysActive >= 2, label: "2" },
     { done: user.workspaceCount > 0, label: "W" },
   ];
@@ -498,8 +498,8 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
           </span>
           <SortHeader label="TIER" sortField="tier" className="text-center" />
           <SortHeader label="LAST SEEN" sortField="lastSignIn" className="text-center" />
-          <SortHeader label="ACTIVATED" sortField="captureCount" className="text-center" />
-          <SortHeader label="CAPTURES" sortField="captureCount" className="text-center" />
+          <SortHeader label="ACTIVATED" sortField="conversationCount" className="text-center" />
+          <SortHeader label="CONVOS" sortField="conversationCount" className="text-center" />
           <SortHeader label="DAYS" sortField="daysActive" className="text-center" />
           <SortHeader label="WS" sortField="workspaceCount" className="text-center" />
           <SortHeader label="SPEND" sortField="aiSpendCents" className="text-center" />
@@ -584,9 +584,9 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
               <ActivationScore user={user} />
             </div>
 
-            {/* Captures */}
+            {/* Conversations */}
             <p className="font-mono text-[10px] text-muted text-center self-center">
-              {user.captureCount}
+              {user.conversationCount}
             </p>
 
             {/* Days Active */}
@@ -698,9 +698,9 @@ export function UsersClient({ users: initialUsers }: { users: UserRow[] }) {
               This will permanently delete this user and ALL their data:
             </p>
             <ul className="font-mono text-[10px] text-muted/70 mb-4 space-y-0.5 pl-3">
-              <li>- {confirmHardDelete.captureCount} captures + artifacts</li>
+              <li>- {confirmHardDelete.conversationCount} conversations + messages</li>
               <li>- {confirmHardDelete.workspaceCount} workspace memberships</li>
-              <li>- All actions, usage logs, platform events</li>
+              <li>- All brain documents, usage logs, platform events</li>
             </ul>
             <p className="font-mono text-[10px] text-destructive font-bold mb-4">
               THIS CANNOT BE UNDONE.

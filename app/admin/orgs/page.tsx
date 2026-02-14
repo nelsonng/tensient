@@ -4,9 +4,7 @@ import {
   users,
   workspaces,
   memberships,
-  captures,
-  artifacts,
-  actions,
+  conversations,
 } from "@/lib/db/schema";
 import { sql, count, eq, and, gte, desc, inArray } from "drizzle-orm";
 import { OrgsClient, type OrgSummary as ClientOrg, type WorkspaceDetail as ClientWs } from "./orgs-client";
@@ -20,10 +18,8 @@ interface OrgSummary {
   userCount: number;
   workspaceCount: number;
   activeUsers7d: number;
-  totalCaptures: number;
-  totalArtifacts: number;
-  totalActions: number;
-  adoptionRate: number; // % of users who have submitted 1+ capture
+  totalConversations: number;
+  adoptionRate: number; // % of users who have started 1+ conversation
   lastActivityAt: Date | null;
 }
 
@@ -33,10 +29,10 @@ interface WorkspaceDetail {
   orgId: string;
   joinCode: string;
   memberCount: number;
-  captureCount: number;
+  conversationCount: number;
   activeMemberCount7d: number;
   coverageRate: number; // % of members actively contributing
-  lastCaptureAt: Date | null;
+  lastConversationAt: Date | null;
 }
 
 async function getOrgData() {
@@ -96,22 +92,22 @@ async function getOrgData() {
 
   const allWsIds = allWorkspaces.map((w) => w.id);
 
-  // Capture counts per workspace
-  let capturesByWs = new Map<string, number>();
-  let lastCaptureByWs = new Map<string, Date>();
+  // Conversation counts per workspace
+  let conversationsByWs = new Map<string, number>();
+  let lastConversationByWs = new Map<string, Date>();
   if (allWsIds.length > 0) {
-    const captureCounts = await db
+    const conversationCounts = await db
       .select({
-        wsId: captures.workspaceId,
-        captureCount: count(),
-        lastCapture: sql<Date>`MAX(${captures.createdAt})`,
+        wsId: conversations.workspaceId,
+        conversationCount: count(),
+        lastConversation: sql<Date>`MAX(${conversations.createdAt})`,
       })
-      .from(captures)
-      .where(inArray(captures.workspaceId, allWsIds))
-      .groupBy(captures.workspaceId);
-    capturesByWs = new Map(captureCounts.map((r) => [r.wsId, Number(r.captureCount)]));
-    lastCaptureByWs = new Map(
-      captureCounts.map((r) => [r.wsId, r.lastCapture ? new Date(r.lastCapture) : new Date(0)])
+      .from(conversations)
+      .where(inArray(conversations.workspaceId, allWsIds))
+      .groupBy(conversations.workspaceId);
+    conversationsByWs = new Map(conversationCounts.map((r) => [r.wsId, Number(r.conversationCount)]));
+    lastConversationByWs = new Map(
+      conversationCounts.map((r) => [r.wsId, r.lastConversation ? new Date(r.lastConversation) : new Date(0)])
     );
   }
 
@@ -134,17 +130,17 @@ async function getOrgData() {
   if (allWsIds.length > 0) {
     const activeUsers = await db
       .select({
-        wsId: captures.workspaceId,
-        activeCount: sql<number>`COUNT(DISTINCT ${captures.userId})`,
+        wsId: conversations.workspaceId,
+        activeCount: sql<number>`COUNT(DISTINCT ${conversations.userId})`,
       })
-      .from(captures)
+      .from(conversations)
       .where(
         and(
-          inArray(captures.workspaceId, allWsIds),
-          gte(captures.createdAt, sql`NOW() - INTERVAL '7 days'`)
+          inArray(conversations.workspaceId, allWsIds),
+          gte(conversations.createdAt, sql`NOW() - INTERVAL '7 days'`)
         )
       )
-      .groupBy(captures.workspaceId);
+      .groupBy(conversations.workspaceId);
     activeByWs = new Map(activeUsers.map((r) => [r.wsId, Number(r.activeCount)]));
   }
 
@@ -154,14 +150,14 @@ async function getOrgData() {
     const orgActiveUsers = await db
       .select({
         orgId: users.organizationId,
-        activeCount: sql<number>`COUNT(DISTINCT ${captures.userId})`,
+        activeCount: sql<number>`COUNT(DISTINCT ${conversations.userId})`,
       })
-      .from(captures)
-      .innerJoin(users, eq(captures.userId, users.id))
+      .from(conversations)
+      .innerJoin(users, eq(conversations.userId, users.id))
       .where(
         and(
           inArray(users.organizationId, orgIds),
-          gte(captures.createdAt, sql`NOW() - INTERVAL '7 days'`)
+          gte(conversations.createdAt, sql`NOW() - INTERVAL '7 days'`)
         )
       )
       .groupBy(users.organizationId);
@@ -170,16 +166,16 @@ async function getOrgData() {
     );
   }
 
-  // Users with 1+ capture per org (adoption rate)
+  // Users with 1+ conversation per org (adoption rate)
   let adoptedByOrg = new Map<string, number>();
   if (orgIds.length > 0) {
     const adopted = await db
       .select({
         orgId: users.organizationId,
-        adoptedCount: sql<number>`COUNT(DISTINCT ${captures.userId})`,
+        adoptedCount: sql<number>`COUNT(DISTINCT ${conversations.userId})`,
       })
-      .from(captures)
-      .innerJoin(users, eq(captures.userId, users.id))
+      .from(conversations)
+      .innerJoin(users, eq(conversations.userId, users.id))
       .where(inArray(users.organizationId, orgIds))
       .groupBy(users.organizationId);
     adoptedByOrg = new Map(
@@ -187,47 +183,16 @@ async function getOrgData() {
     );
   }
 
-  // Artifact counts per org
-  let artifactsByOrg = new Map<string, number>();
-  if (allWsIds.length > 0) {
-    const artifactCounts = await db
-      .select({
-        orgId: workspaces.organizationId,
-        count: count(),
-      })
-      .from(artifacts)
-      .innerJoin(captures, eq(artifacts.captureId, captures.id))
-      .innerJoin(workspaces, eq(captures.workspaceId, workspaces.id))
-      .where(inArray(workspaces.organizationId, orgIds))
-      .groupBy(workspaces.organizationId);
-    artifactsByOrg = new Map(artifactCounts.map((r) => [r.orgId, Number(r.count)]));
-  }
-
-  // Action counts per org
-  let actionsByOrg = new Map<string, number>();
-  if (allWsIds.length > 0) {
-    const actionCounts = await db
-      .select({
-        orgId: workspaces.organizationId,
-        count: count(),
-      })
-      .from(actions)
-      .innerJoin(workspaces, eq(actions.workspaceId, workspaces.id))
-      .where(inArray(workspaces.organizationId, orgIds))
-      .groupBy(workspaces.organizationId);
-    actionsByOrg = new Map(actionCounts.map((r) => [r.orgId, Number(r.count)]));
-  }
-
   // Build org summaries
   const orgs: OrgSummary[] = orgList.map((org) => {
     const userCount = userCountMap.get(org.id) || 0;
     const adopted = adoptedByOrg.get(org.id) || 0;
     const orgWorkspaces = allWorkspaces.filter((w) => w.orgId === org.id);
-    const lastCaptures = orgWorkspaces
-      .map((w) => lastCaptureByWs.get(w.id))
+    const lastConvos = orgWorkspaces
+      .map((w) => lastConversationByWs.get(w.id))
       .filter(Boolean) as Date[];
-    const lastActivity = lastCaptures.length > 0
-      ? new Date(Math.max(...lastCaptures.map((d) => d.getTime())))
+    const lastActivity = lastConvos.length > 0
+      ? new Date(Math.max(...lastConvos.map((d) => d.getTime())))
       : null;
 
     return {
@@ -238,9 +203,7 @@ async function getOrgData() {
       userCount,
       workspaceCount: wsCountMap.get(org.id) || 0,
       activeUsers7d: activeByOrg.get(org.id) || 0,
-      totalCaptures: orgWorkspaces.reduce((sum, w) => sum + (capturesByWs.get(w.id) || 0), 0),
-      totalArtifacts: artifactsByOrg.get(org.id) || 0,
-      totalActions: actionsByOrg.get(org.id) || 0,
+      totalConversations: orgWorkspaces.reduce((sum, w) => sum + (conversationsByWs.get(w.id) || 0), 0),
       adoptionRate: userCount > 0 ? Math.round((adopted / userCount) * 100) : 0,
       lastActivityAt: lastActivity,
     };
@@ -256,10 +219,10 @@ async function getOrgData() {
       orgId: ws.orgId,
       joinCode: ws.joinCode,
       memberCount: members,
-      captureCount: capturesByWs.get(ws.id) || 0,
+      conversationCount: conversationsByWs.get(ws.id) || 0,
       activeMemberCount7d: active,
       coverageRate: members > 0 ? Math.round((active / members) * 100) : 0,
-      lastCaptureAt: lastCaptureByWs.get(ws.id) || null,
+      lastConversationAt: lastConversationByWs.get(ws.id) || null,
     };
   });
 
@@ -271,7 +234,7 @@ async function getOrgData() {
   }
 
   // Sort orgs by activity (most active first)
-  orgs.sort((a, b) => b.totalCaptures - a.totalCaptures);
+  orgs.sort((a, b) => b.totalConversations - a.totalConversations);
 
   return { orgs, workspacesByOrg: wsMap };
 }

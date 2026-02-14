@@ -3,8 +3,8 @@ import {
   users,
   organizations,
   memberships,
-  captures,
-  artifacts,
+  conversations,
+  messages,
   usageLogs,
   platformEvents,
 } from "@/lib/db/schema";
@@ -28,9 +28,9 @@ export interface UserRow {
   createdAt: Date;
   lastSignIn: Date | null;
   workspaceCount: number;
-  captureCount: number;
+  conversationCount: number;
   daysActive: number;
-  hasSynthesis: boolean;
+  hasMessages: boolean;
   aiSpendCents: number;
 }
 
@@ -90,31 +90,36 @@ export async function getUsersData(orgId?: string): Promise<UserRow[]> {
     .groupBy(memberships.userId);
   const wsMap = new Map(wsCounts.map((r) => [r.userId, Number(r.wsCount)]));
 
-  // Capture counts + distinct days per user
-  const captureCounts = await db
+  // Conversation counts + distinct days per user
+  const conversationCounts = await db
     .select({
-      userId: captures.userId,
-      captureCount: count(),
-      distinctDays: sql<number>`COUNT(DISTINCT DATE(${captures.createdAt}))`,
+      userId: conversations.userId,
+      conversationCount: count(),
+      distinctDays: sql<number>`COUNT(DISTINCT DATE(${conversations.createdAt}))`,
     })
-    .from(captures)
-    .where(inArray(captures.userId, userIds))
-    .groupBy(captures.userId);
-  const captureMap = new Map(
-    captureCounts.map((r) => [
+    .from(conversations)
+    .where(inArray(conversations.userId, userIds))
+    .groupBy(conversations.userId);
+  const conversationMap = new Map(
+    conversationCounts.map((r) => [
       r.userId,
-      { count: Number(r.captureCount), days: Number(r.distinctDays) },
+      { count: Number(r.conversationCount), days: Number(r.distinctDays) },
     ])
   );
 
-  // Users with synthesis (artifacts via captures)
-  const usersWithArtifacts = await db
-    .select({ userId: captures.userId })
-    .from(artifacts)
-    .innerJoin(captures, eq(artifacts.captureId, captures.id))
-    .where(inArray(captures.userId, userIds))
-    .groupBy(captures.userId);
-  const artifactUserIds = new Set(usersWithArtifacts.map((r) => r.userId));
+  // Users with messages (assistant replies)
+  const usersWithMessages = await db
+    .select({ userId: conversations.userId })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(
+      and(
+        inArray(conversations.userId, userIds),
+        eq(messages.role, "assistant")
+      )
+    )
+    .groupBy(conversations.userId);
+  const messageUserIds = new Set(usersWithMessages.map((r) => r.userId));
 
   // AI spend per user (sum of estimated_cost_cents)
   const spendByUser = await db
@@ -149,7 +154,7 @@ export async function getUsersData(orgId?: string): Promise<UserRow[]> {
 
   // Assemble rows
   return allUsers.map((user) => {
-    const captureInfo = captureMap.get(user.id);
+    const convoInfo = conversationMap.get(user.id);
     return {
       id: user.id,
       email: user.email,
@@ -168,9 +173,9 @@ export async function getUsersData(orgId?: string): Promise<UserRow[]> {
       createdAt: user.createdAt,
       lastSignIn: signInMap.get(user.id) || null,
       workspaceCount: wsMap.get(user.id) || 0,
-      captureCount: captureInfo?.count || 0,
-      daysActive: captureInfo?.days || 0,
-      hasSynthesis: artifactUserIds.has(user.id),
+      conversationCount: convoInfo?.count || 0,
+      daysActive: convoInfo?.days || 0,
+      hasMessages: messageUserIds.has(user.id),
       aiSpendCents: spendMap.get(user.id) || 0,
     };
   });

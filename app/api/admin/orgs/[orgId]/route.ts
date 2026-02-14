@@ -5,11 +5,9 @@ import {
   users,
   workspaces,
   memberships,
-  canons,
-  captures,
-  artifacts,
-  actions,
-  digests,
+  conversations,
+  messages,
+  brainDocuments,
   usageLogs,
   platformEvents,
   protocols,
@@ -70,16 +68,17 @@ export async function DELETE(
     .where(eq(users.organizationId, orgId));
   const userIds = orgUsers.map((u) => u.id);
 
-  let captureIds: string[] = [];
+  // Count conversations for the response
+  let conversationCount = 0;
   if (wsIds.length > 0) {
-    const orgCaptures = await db
-      .select({ id: captures.id })
-      .from(captures)
-      .where(inArray(captures.workspaceId, wsIds));
-    captureIds = orgCaptures.map((c) => c.id);
+    const orgConvos = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(inArray(conversations.workspaceId, wsIds));
+    conversationCount = orgConvos.length;
   }
 
-  const deleted = { users: userIds.length, workspaces: wsIds.length, captures: captureIds.length };
+  const deleted = { users: userIds.length, workspaces: wsIds.length, conversations: conversationCount };
 
   try {
     // 1. Null out workspace active_protocol_id to avoid FK issues
@@ -90,37 +89,34 @@ export async function DELETE(
         .where(inArray(workspaces.id, wsIds));
     }
 
-    // 2. Delete actions (references artifacts, captures, users, workspaces, canons)
+    // 2. Delete messages (references conversations via cascade, but be explicit)
     if (wsIds.length > 0) {
-      await db.delete(actions).where(inArray(actions.workspaceId, wsIds));
+      const wsConvoIds = await db
+        .select({ id: conversations.id })
+        .from(conversations)
+        .where(inArray(conversations.workspaceId, wsIds));
+      const convoIds = wsConvoIds.map((c) => c.id);
+      if (convoIds.length > 0) {
+        await db.delete(messages).where(inArray(messages.conversationId, convoIds));
+      }
     }
 
-    // 3. Delete artifacts (references captures, canons)
-    if (captureIds.length > 0) {
-      await db.delete(artifacts).where(inArray(artifacts.captureId, captureIds));
-    }
-
-    // 4. Delete captures
+    // 3. Delete conversations
     if (wsIds.length > 0) {
-      await db.delete(captures).where(inArray(captures.workspaceId, wsIds));
+      await db.delete(conversations).where(inArray(conversations.workspaceId, wsIds));
     }
 
-    // 5. Delete canons
+    // 4. Delete brain documents
     if (wsIds.length > 0) {
-      await db.delete(canons).where(inArray(canons.workspaceId, wsIds));
+      await db.delete(brainDocuments).where(inArray(brainDocuments.workspaceId, wsIds));
     }
 
-    // 6. Delete digests
-    if (wsIds.length > 0) {
-      await db.delete(digests).where(inArray(digests.workspaceId, wsIds));
-    }
-
-    // 7. Delete usage logs
+    // 6. Delete usage logs
     if (userIds.length > 0) {
       await db.delete(usageLogs).where(inArray(usageLogs.userId, userIds));
     }
 
-    // 8. Delete platform events (can reference org, user, or workspace)
+    // 7. Delete platform events (can reference org, user, or workspace)
     await db.delete(platformEvents).where(eq(platformEvents.organizationId, orgId));
     if (userIds.length > 0) {
       await db.delete(platformEvents).where(inArray(platformEvents.userId, userIds));
@@ -129,23 +125,23 @@ export async function DELETE(
       await db.delete(platformEvents).where(inArray(platformEvents.workspaceId, wsIds));
     }
 
-    // 9. Delete memberships
+    // 8. Delete memberships
     if (wsIds.length > 0) {
       await db.delete(memberships).where(inArray(memberships.workspaceId, wsIds));
     }
 
-    // 10. Delete token tables for org users
+    // 9. Delete token tables for org users
     if (userIds.length > 0) {
       await db.delete(passwordResetTokens).where(inArray(passwordResetTokens.userId, userIds));
       await db.delete(emailVerificationTokens).where(inArray(emailVerificationTokens.userId, userIds));
     }
 
-    // 11. Delete workspaces
+    // 10. Delete workspaces
     if (wsIds.length > 0) {
       await db.delete(workspaces).where(inArray(workspaces.id, wsIds));
     }
 
-    // 12. Handle protocols: null parent refs, then delete org/workspace-owned
+    // 11. Handle protocols: null parent refs, then delete org/workspace-owned
     const ownedProtocolIds: string[] = [];
 
     const orgProtocols = await db
@@ -171,7 +167,7 @@ export async function DELETE(
       await db.delete(protocols).where(inArray(protocols.id, ownedProtocolIds));
     }
 
-    // 13. Null created_by on protocols created by org users
+    // 12. Null created_by on protocols created by org users
     if (userIds.length > 0) {
       await db
         .update(protocols)
@@ -179,12 +175,12 @@ export async function DELETE(
         .where(inArray(protocols.createdBy, userIds));
     }
 
-    // 14. Delete users
+    // 13. Delete users
     if (userIds.length > 0) {
       await db.delete(users).where(inArray(users.id, userIds));
     }
 
-    // 15. Delete the organization
+    // 14. Delete the organization
     await db.delete(organizations).where(eq(organizations.id, orgId));
   } catch (e) {
     console.error("Org nuke failed:", e);

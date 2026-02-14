@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { users, captures, platformEvents } from "@/lib/db/schema";
+import { users, conversations, platformEvents } from "@/lib/db/schema";
 import { sql, count, gte } from "drizzle-orm";
 
 interface CohortRow {
@@ -22,22 +22,22 @@ async function getRetentionData() {
     .groupBy(sql`DATE_TRUNC('week', ${users.createdAt})`)
     .orderBy(sql`DATE_TRUNC('week', ${users.createdAt})`);
 
-  // Get weekly activity per user (captures as activity signal)
+  // Get weekly activity per user (conversations as activity signal)
   const weeklyActivity = await db
     .select({
-      userId: captures.userId,
+      userId: conversations.userId,
       signupWeek: sql<string>`TO_CHAR(DATE_TRUNC('week', u.created_at), 'YYYY-MM-DD')`,
-      activityWeek: sql<string>`TO_CHAR(DATE_TRUNC('week', ${captures.createdAt}), 'YYYY-MM-DD')`,
+      activityWeek: sql<string>`TO_CHAR(DATE_TRUNC('week', ${conversations.createdAt}), 'YYYY-MM-DD')`,
     })
-    .from(captures)
-    .innerJoin(sql`users u`, sql`u.id = ${captures.userId}`)
+    .from(conversations)
+    .innerJoin(sql`users u`, sql`u.id = ${conversations.userId}`)
     .where(
       sql`u.created_at > NOW() - INTERVAL '12 weeks'`
     )
     .groupBy(
-      captures.userId,
+      conversations.userId,
       sql`DATE_TRUNC('week', u.created_at)`,
-      sql`DATE_TRUNC('week', ${captures.createdAt})`
+      sql`DATE_TRUNC('week', ${conversations.createdAt})`
     );
 
   // Build cohort retention matrix
@@ -49,7 +49,7 @@ async function getRetentionData() {
         .map((a) => a.userId)
     );
 
-    // For users with NO captures, count them as unretained beyond week 0
+    // For users with NO conversations, count them as unretained beyond week 0
     const allCohortSignups = cohort.signups;
 
     // Calculate retention for each week offset
@@ -85,19 +85,19 @@ async function getRetentionData() {
 
   // DAU/WAU/MAU
   const [dau] = await db
-    .select({ count: sql<number>`COUNT(DISTINCT ${captures.userId})` })
-    .from(captures)
-    .where(sql`${captures.createdAt} > NOW() - INTERVAL '1 day'`);
+    .select({ count: sql<number>`COUNT(DISTINCT ${conversations.userId})` })
+    .from(conversations)
+    .where(sql`${conversations.createdAt} > NOW() - INTERVAL '1 day'`);
 
   const [wau] = await db
-    .select({ count: sql<number>`COUNT(DISTINCT ${captures.userId})` })
-    .from(captures)
-    .where(sql`${captures.createdAt} > NOW() - INTERVAL '7 days'`);
+    .select({ count: sql<number>`COUNT(DISTINCT ${conversations.userId})` })
+    .from(conversations)
+    .where(sql`${conversations.createdAt} > NOW() - INTERVAL '7 days'`);
 
   const [mau] = await db
-    .select({ count: sql<number>`COUNT(DISTINCT ${captures.userId})` })
-    .from(captures)
-    .where(sql`${captures.createdAt} > NOW() - INTERVAL '30 days'`);
+    .select({ count: sql<number>`COUNT(DISTINCT ${conversations.userId})` })
+    .from(conversations)
+    .where(sql`${conversations.createdAt} > NOW() - INTERVAL '30 days'`);
 
   const [totalUsers] = await db.select({ count: count() }).from(users);
 

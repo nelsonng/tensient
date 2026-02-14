@@ -1,9 +1,9 @@
 import { db } from "@/lib/db";
 import {
   users,
-  canons,
-  captures,
-  artifacts,
+  brainDocuments,
+  conversations,
+  messages,
   memberships,
   workspaces,
 } from "@/lib/db/schema";
@@ -16,12 +16,12 @@ interface UserActivation {
   firstName: string | null;
   lastName: string | null;
   createdAt: Date;
-  hasGoals: boolean;
-  hasCapture: boolean;
-  hasSynthesis: boolean;
+  hasBrainDocs: boolean;
+  hasConversation: boolean;
+  hasAssistantReply: boolean;
   multiDayUser: boolean;
   invitedTeammate: boolean;
-  captureCount: number;
+  conversationCount: number;
   distinctDays: number;
 }
 
@@ -45,7 +45,7 @@ async function getActivationData(days: number) {
   if (allUsers.length === 0) {
     return {
       totalUsers: 0,
-      funnel: { accountCreated: 0, firstGoal: 0, firstCapture: 0, firstSynthesis: 0, secondSession: 0, invitedTeammate: 0 },
+      funnel: { accountCreated: 0, firstBrainDoc: 0, firstConversation: 0, firstReply: 0, secondSession: 0, invitedTeammate: 0 },
       users: [] as UserActivation[],
       stuckUsers: [] as UserActivation[],
     };
@@ -53,37 +53,48 @@ async function getActivationData(days: number) {
 
   const userIds = allUsers.map((u) => u.id);
 
-  // Users who have set goals (have a canon in any workspace they own)
-  const usersWithGoals = await db
+  // Users who have brain documents (workspace-scoped = goals equivalent)
+  const usersWithBrainDocs = await db
     .select({ userId: memberships.userId })
     .from(memberships)
-    .innerJoin(canons, eq(canons.workspaceId, memberships.workspaceId))
+    .innerJoin(
+      brainDocuments,
+      and(
+        eq(brainDocuments.workspaceId, memberships.workspaceId),
+        eq(brainDocuments.scope, "workspace")
+      )
+    )
     .where(inArray(memberships.userId, userIds))
     .groupBy(memberships.userId);
-  const goalUserIds = new Set(usersWithGoals.map((r) => r.userId));
+  const brainDocUserIds = new Set(usersWithBrainDocs.map((r) => r.userId));
 
-  // Users who have submitted captures
-  const usersWithCaptures = await db
+  // Users who have started conversations
+  const usersWithConversations = await db
     .select({
-      userId: captures.userId,
-      captureCount: count(),
-      distinctDays: sql<number>`COUNT(DISTINCT DATE(${captures.createdAt}))`,
+      userId: conversations.userId,
+      conversationCount: count(),
+      distinctDays: sql<number>`COUNT(DISTINCT DATE(${conversations.createdAt}))`,
     })
-    .from(captures)
-    .where(inArray(captures.userId, userIds))
-    .groupBy(captures.userId);
-  const captureMap = new Map(
-    usersWithCaptures.map((r) => [r.userId, { count: Number(r.captureCount), days: Number(r.distinctDays) }])
+    .from(conversations)
+    .where(inArray(conversations.userId, userIds))
+    .groupBy(conversations.userId);
+  const conversationMap = new Map(
+    usersWithConversations.map((r) => [r.userId, { count: Number(r.conversationCount), days: Number(r.distinctDays) }])
   );
 
-  // Users who have synthesis (artifacts)
-  const usersWithArtifacts = await db
-    .select({ userId: captures.userId })
-    .from(artifacts)
-    .innerJoin(captures, eq(artifacts.captureId, captures.id))
-    .where(inArray(captures.userId, userIds))
-    .groupBy(captures.userId);
-  const artifactUserIds = new Set(usersWithArtifacts.map((r) => r.userId));
+  // Users who have received assistant replies (messages)
+  const usersWithReplies = await db
+    .select({ userId: conversations.userId })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(
+      and(
+        inArray(conversations.userId, userIds),
+        eq(messages.role, "assistant")
+      )
+    )
+    .groupBy(conversations.userId);
+  const replyUserIds = new Set(usersWithReplies.map((r) => r.userId));
 
   // Users who have invited teammates (workspaces with 2+ memberships where they are owner)
   const workspacesWithTeam = await db
@@ -103,25 +114,25 @@ async function getActivationData(days: number) {
 
   // Build user activation list
   const userActivations: UserActivation[] = allUsers.map((user) => {
-    const captureInfo = captureMap.get(user.id);
+    const convoInfo = conversationMap.get(user.id);
     return {
       ...user,
-      hasGoals: goalUserIds.has(user.id),
-      hasCapture: (captureInfo?.count || 0) > 0,
-      hasSynthesis: artifactUserIds.has(user.id),
-      multiDayUser: (captureInfo?.days || 0) >= 2,
+      hasBrainDocs: brainDocUserIds.has(user.id),
+      hasConversation: (convoInfo?.count || 0) > 0,
+      hasAssistantReply: replyUserIds.has(user.id),
+      multiDayUser: (convoInfo?.days || 0) >= 2,
       invitedTeammate: teamOwnerIds.has(user.id),
-      captureCount: captureInfo?.count || 0,
-      distinctDays: captureInfo?.days || 0,
+      conversationCount: convoInfo?.count || 0,
+      distinctDays: convoInfo?.days || 0,
     };
   });
 
   // Funnel counts
   const funnel = {
     accountCreated: allUsers.length,
-    firstGoal: userActivations.filter((u) => u.hasGoals).length,
-    firstCapture: userActivations.filter((u) => u.hasCapture).length,
-    firstSynthesis: userActivations.filter((u) => u.hasSynthesis).length,
+    firstBrainDoc: userActivations.filter((u) => u.hasBrainDocs).length,
+    firstConversation: userActivations.filter((u) => u.hasConversation).length,
+    firstReply: userActivations.filter((u) => u.hasAssistantReply).length,
     secondSession: userActivations.filter((u) => u.multiDayUser).length,
     invitedTeammate: userActivations.filter((u) => u.invitedTeammate).length,
   };
@@ -130,7 +141,7 @@ async function getActivationData(days: number) {
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
   const stuckUsers = userActivations.filter(
-    (u) => u.createdAt < threeDaysAgo && (!u.hasGoals || !u.hasCapture || !u.hasSynthesis)
+    (u) => u.createdAt < threeDaysAgo && (!u.hasBrainDocs || !u.hasConversation || !u.hasAssistantReply)
   );
 
   return {
@@ -234,10 +245,10 @@ export default async function ActivationPage({
           ACTIVATION MILESTONES
         </p>
         <FunnelBar label="ACCOUNT CREATED" value={data.funnel.accountCreated} max={data.funnel.accountCreated} />
-        <FunnelBar label="FIRST GOAL SET" value={data.funnel.firstGoal} max={data.funnel.accountCreated} prevValue={data.funnel.accountCreated} />
-        <FunnelBar label="FIRST THOUGHT SUBMITTED" value={data.funnel.firstCapture} max={data.funnel.accountCreated} prevValue={data.funnel.firstGoal} />
-        <FunnelBar label="FIRST SYNTHESIS RECEIVED" value={data.funnel.firstSynthesis} max={data.funnel.accountCreated} prevValue={data.funnel.firstCapture} />
-        <FunnelBar label="SECOND SESSION (2+ DAYS)" value={data.funnel.secondSession} max={data.funnel.accountCreated} prevValue={data.funnel.firstSynthesis} />
+        <FunnelBar label="FIRST BRAIN DOC" value={data.funnel.firstBrainDoc} max={data.funnel.accountCreated} prevValue={data.funnel.accountCreated} />
+        <FunnelBar label="FIRST CONVERSATION" value={data.funnel.firstConversation} max={data.funnel.accountCreated} prevValue={data.funnel.firstBrainDoc} />
+        <FunnelBar label="FIRST COACH REPLY" value={data.funnel.firstReply} max={data.funnel.accountCreated} prevValue={data.funnel.firstConversation} />
+        <FunnelBar label="SECOND SESSION (2+ DAYS)" value={data.funnel.secondSession} max={data.funnel.accountCreated} prevValue={data.funnel.firstReply} />
         <FunnelBar label="INVITED A TEAMMATE" value={data.funnel.invitedTeammate} max={data.funnel.accountCreated} prevValue={data.funnel.secondSession} />
       </div>
 
@@ -252,7 +263,7 @@ export default async function ActivationPage({
               <div key={user.id} className="flex items-center gap-3">
                 <span className="font-mono text-xs text-foreground">{user.email}</span>
                 <span className="font-mono text-[10px] text-muted">
-                  {!user.hasGoals ? "no goals" : !user.hasCapture ? "no captures" : "no synthesis"}
+                  {!user.hasBrainDocs ? "no docs" : !user.hasConversation ? "no conversations" : "no replies"}
                 </span>
                 <span className="font-mono text-[10px] text-muted/50">{timeAgo(user.createdAt)}</span>
               </div>
@@ -277,12 +288,12 @@ export default async function ActivationPage({
         {/* Header */}
         <div className="grid grid-cols-[1fr_60px_60px_60px_60px_60px_70px_80px] gap-1 px-4 py-2 border-b border-border text-muted">
           <span className="font-mono text-[10px] tracking-widest uppercase">USER</span>
-          <span className="font-mono text-[10px] tracking-widest uppercase text-center">GOALS</span>
-          <span className="font-mono text-[10px] tracking-widest uppercase text-center">CAPT</span>
-          <span className="font-mono text-[10px] tracking-widest uppercase text-center">SYNTH</span>
+          <span className="font-mono text-[10px] tracking-widest uppercase text-center">DOCS</span>
+          <span className="font-mono text-[10px] tracking-widest uppercase text-center">CONVO</span>
+          <span className="font-mono text-[10px] tracking-widest uppercase text-center">REPLY</span>
           <span className="font-mono text-[10px] tracking-widest uppercase text-center">2+D</span>
           <span className="font-mono text-[10px] tracking-widest uppercase text-center">TEAM</span>
-          <span className="font-mono text-[10px] tracking-widest uppercase text-center">CAPTURES</span>
+          <span className="font-mono text-[10px] tracking-widest uppercase text-center">CONVOS</span>
           <span className="font-mono text-[10px] tracking-widest uppercase text-right">JOINED</span>
         </div>
 
@@ -300,13 +311,13 @@ export default async function ActivationPage({
             <div className="min-w-0">
               <p className="font-mono text-xs text-foreground truncate">{user.email}</p>
             </div>
-            <div className="flex justify-center"><MilestoneCheck done={user.hasGoals} /></div>
-            <div className="flex justify-center"><MilestoneCheck done={user.hasCapture} /></div>
-            <div className="flex justify-center"><MilestoneCheck done={user.hasSynthesis} /></div>
+            <div className="flex justify-center"><MilestoneCheck done={user.hasBrainDocs} /></div>
+            <div className="flex justify-center"><MilestoneCheck done={user.hasConversation} /></div>
+            <div className="flex justify-center"><MilestoneCheck done={user.hasAssistantReply} /></div>
             <div className="flex justify-center"><MilestoneCheck done={user.multiDayUser} /></div>
             <div className="flex justify-center"><MilestoneCheck done={user.invitedTeammate} /></div>
             <p className="font-mono text-[10px] text-muted text-center self-center">
-              {user.captureCount} ({user.distinctDays}d)
+              {user.conversationCount} ({user.distinctDays}d)
             </p>
             <p className="font-mono text-[10px] text-muted text-right self-center">
               {timeAgo(user.createdAt)}

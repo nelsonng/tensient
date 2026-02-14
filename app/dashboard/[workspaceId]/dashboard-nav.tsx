@@ -5,26 +5,29 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
-  { label: "GOALS", path: "goals" },
-  { label: "THOUGHTS", path: "thoughts" },
+  { label: "CONVERSATIONS", path: "" },
+  { label: "BRAIN", path: "brain" },
+  { label: "CANON", path: "canon" },
   { label: "COACHES", path: "coaches" },
-  { label: "SYNTHESIS", path: "synthesis" },
   { label: "SETTINGS", path: "settings" },
 ] as const;
 
-export function DashboardNav({ workspaceId, isSuperAdmin = false }: { workspaceId: string; isSuperAdmin?: boolean }) {
+export function DashboardNav({
+  workspaceId,
+  isSuperAdmin = false,
+}: {
+  workspaceId: string;
+  isSuperAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const basePath = `/dashboard/${workspaceId}`;
-
-  // Hide nav on welcome/onboarding and strategy setup flows
-  if (pathname?.includes("/welcome") || pathname?.includes("/strategy")) return null;
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 pt-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <Link
-          href="/"
+          href={basePath}
           className="font-display text-base font-bold uppercase tracking-wider text-foreground"
         >
           TENSIENT
@@ -49,22 +52,14 @@ export function DashboardNav({ workspaceId, isSuperAdmin = false }: { workspaceI
 
       {/* Navigation */}
       <nav className="flex items-center gap-1 mb-6 border-b border-border pb-3">
-        <Link
-          href={basePath}
-          className={`px-3 py-1.5 font-mono text-xs tracking-wider transition-colors ${
-            pathname === basePath
-              ? "text-primary border-b-2 border-primary"
-              : "text-muted hover:text-foreground"
-          }`}
-        >
-          HOME
-        </Link>
         {NAV_ITEMS.map((item) => {
-          const href = `${basePath}/${item.path}`;
-          const isActive = pathname === href;
+          const href = item.path ? `${basePath}/${item.path}` : basePath;
+          const isActive = item.path
+            ? pathname?.startsWith(href)
+            : pathname === basePath || pathname === `${basePath}/`;
           return (
             <Link
-              key={item.path}
+              key={item.label}
               href={href}
               className={`px-3 py-1.5 font-mono text-xs tracking-wider transition-colors ${
                 isActive

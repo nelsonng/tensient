@@ -22,13 +22,6 @@ export const membershipRoleEnum = pgEnum("membership_role", [
   "observer",
 ]);
 
-export const captureSourceEnum = pgEnum("capture_source", [
-  "web",
-  "slack",
-  "voice",
-  "api",
-]);
-
 export const protocolOwnerTypeEnum = pgEnum("protocol_owner_type", [
   "system",
   "organization",
@@ -40,6 +33,14 @@ export const userTierEnum = pgEnum("user_tier", [
   "trial",
   "active",
   "suspended",
+]);
+
+export const messageRoleEnum = pgEnum("message_role", ["user", "assistant"]);
+
+export const brainDocumentScopeEnum = pgEnum("brain_document_scope", [
+  "personal",
+  "workspace",
+  "org",
 ]);
 
 // ── Organizations ──────────────────────────────────────────────────────
@@ -77,7 +78,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// ── Protocols (Marketplace-Ready) ──────────────────────────────────────
+// ── Protocols (Coaches in UI) ──────────────────────────────────────────
 
 export const protocols = pgTable(
   "protocols",
@@ -170,96 +171,10 @@ export const memberships = pgTable(
   ]
 );
 
-// ── Canons (Strategic Truth) ───────────────────────────────────────────
+// ── Conversations ──────────────────────────────────────────────────────
 
-export const canons = pgTable("canons", {
-  id: uuid("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  workspaceId: uuid("workspace_id")
-    .references(() => workspaces.id)
-    .notNull(),
-  content: text("content").notNull(),
-  embedding: vector("embedding", { dimensions: 1536 }),
-  rawInput: text("raw_input"),
-  healthScore: real("health_score"), // 0-1 SMART quality score
-  healthAnalysis: jsonb("health_analysis"), // { overallScore, pillars: [...] }
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// ── Captures (Raw Input) ───────────────────────────────────────────────
-
-export const captures = pgTable(
-  "captures",
-  {
-    id: uuid("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    userId: uuid("user_id")
-      .references(() => users.id)
-      .notNull(),
-    workspaceId: uuid("workspace_id")
-      .references(() => workspaces.id)
-      .notNull(),
-    content: text("content").notNull(),
-    source: captureSourceEnum("source").notNull().default("web"),
-    audioUrl: text("audio_url"), // Vercel Blob URL, set when source = 'voice'
-    processedAt: timestamp("processed_at"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => [
-    index("idx_captures_workspace").on(table.workspaceId),
-    index("idx_captures_user").on(table.userId),
-  ]
-);
-
-// ── Artifacts (Processed Truth) ────────────────────────────────────────
-
-export const artifacts = pgTable(
-  "artifacts",
-  {
-    id: uuid("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    captureId: uuid("capture_id")
-      .references(() => captures.id)
-      .notNull(),
-    canonId: uuid("canon_id").references(() => canons.id),
-    driftScore: real("drift_score"), // 0.0 to 1.0
-    sentimentScore: real("sentiment_score"), // -1.0 to 1.0
-    content: text("content"),
-    actionItems: jsonb("action_items"), // [{ task: string, status: string }]
-    feedback: text("feedback"),
-    goalPillar: text("goal_pillar"), // which strategic pillar this relates to
-    embedding: vector("embedding", { dimensions: 1536 }),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => [
-    index("idx_artifacts_capture").on(table.captureId),
-    index("idx_artifacts_canon").on(table.canonId),
-  ]
-);
-
-// ── Actions (First-Class Work Items) ───────────────────────────────────
-
-export const actionStatusEnum = pgEnum("action_status", [
-  "open",
-  "in_progress",
-  "blocked",
-  "done",
-  "wont_do",
-]);
-
-export const actionPriorityEnum = pgEnum("action_priority", [
-  "critical",
-  "high",
-  "medium",
-  "low",
-]);
-
-export const actions = pgTable(
-  "actions",
+export const conversations = pgTable(
+  "conversations",
   {
     id: uuid("id")
       .primaryKey()
@@ -270,30 +185,46 @@ export const actions = pgTable(
     userId: uuid("user_id")
       .references(() => users.id)
       .notNull(),
-    artifactId: uuid("artifact_id").references(() => artifacts.id), // nullable for manual actions
-    goalId: uuid("goal_id").references(() => canons.id), // which goal this relates to
-    title: text("title").notNull(),
-    description: text("description"),
-    status: actionStatusEnum("status").notNull().default("open"),
-    priority: actionPriorityEnum("priority").notNull().default("medium"),
-    goalAlignmentScore: real("goal_alignment_score"), // 0-1, AI-calculated
-    coachAttribution: text("coach_attribution"), // which coach surfaced this
-    goalPillar: text("goal_pillar"), // which strategic pillar this relates to
+    title: text("title"), // AI-generated, user-renamable
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("idx_actions_workspace").on(table.workspaceId),
-    index("idx_actions_user").on(table.userId),
-    index("idx_actions_status").on(table.status),
-    index("idx_actions_goal").on(table.goalId),
+    index("idx_conversations_workspace").on(table.workspaceId),
+    index("idx_conversations_user").on(table.userId),
+    index("idx_conversations_updated").on(table.updatedAt),
   ]
 );
 
-// ── Digests (Weekly Top 5 Summaries) ──────────────────────────────────
+// ── Messages ───────────────────────────────────────────────────────────
 
-export const digests = pgTable(
-  "digests",
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    role: messageRoleEnum("role").notNull(),
+    content: text("content").notNull(),
+    audioUrl: text("audio_url"), // Vercel Blob URL for voice input
+    attachments: jsonb("attachments"), // [{url, filename, contentType, sizeBytes}]
+    metadata: jsonb("metadata"), // scores, actions, coaching questions, alignment explanation
+    coachIds: jsonb("coach_ids"), // array of coach UUIDs active for this turn
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_messages_conversation").on(table.conversationId),
+    index("idx_messages_created").on(table.createdAt),
+  ]
+);
+
+// ── Brain Documents (Personal Brain + Workspace Canon) ─────────────────
+
+export const brainDocuments = pgTable(
+  "brain_documents",
   {
     id: uuid("id")
       .primaryKey()
@@ -301,13 +232,22 @@ export const digests = pgTable(
     workspaceId: uuid("workspace_id")
       .references(() => workspaces.id)
       .notNull(),
-    weekStart: timestamp("week_start").notNull(),
-    items: jsonb("items").notNull(), // [{ rank, title, detail, coachAttribution, goalLinked, priority }]
-    summary: text("summary"), // 2-3 sentence narrative
-    generatedAt: timestamp("generated_at").defaultNow().notNull(),
+    orgId: uuid("org_id").references(() => organizations.id), // for future org-level Canon
+    userId: uuid("user_id").references(() => users.id), // null = shared Canon, non-null = personal Brain
+    scope: brainDocumentScopeEnum("scope").notNull().default("personal"),
+    title: text("title").notNull(),
+    content: text("content"), // markdown or extracted text from uploaded file
+    fileUrl: text("file_url"), // Vercel Blob URL for uploaded files
+    fileType: text("file_type"), // pdf, image, etc.
+    fileName: text("file_name"), // original filename
+    embedding: vector("embedding", { dimensions: 1536 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("idx_digests_workspace_week").on(table.workspaceId, table.weekStart),
+    index("idx_brain_documents_workspace").on(table.workspaceId),
+    index("idx_brain_documents_user").on(table.userId),
+    index("idx_brain_documents_scope").on(table.scope),
   ]
 );
 
@@ -373,6 +313,11 @@ export const platformEventTypeEnum = pgEnum("platform_event_type", [
   "transcription_started",
   "transcription_completed",
   "transcription_failed",
+  // V2 events
+  "conversation_created",
+  "message_sent",
+  "brain_document_created",
+  "canon_document_created",
   // Errors
   "api_error",
   "client_error",
@@ -412,7 +357,7 @@ export const usageLogs = pgTable(
     workspaceId: uuid("workspace_id")
       .references(() => workspaces.id)
       .notNull(),
-    operation: text("operation").notNull(), // 'strategy' | 'capture'
+    operation: text("operation").notNull(), // 'conversation' | 'brain' | 'canon'
     inputTokens: integer("input_tokens").default(0).notNull(),
     outputTokens: integer("output_tokens").default(0).notNull(),
     estimatedCostCents: integer("estimated_cost_cents").default(0).notNull(),

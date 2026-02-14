@@ -3,9 +3,9 @@ import { db } from "@/lib/db";
 import {
   users,
   memberships,
-  captures,
-  artifacts,
-  actions,
+  conversations,
+  messages,
+  brainDocuments,
   usageLogs,
   platformEvents,
   protocols,
@@ -116,37 +116,30 @@ export async function DELETE(
 
   if (action === "delete") {
     // Hard delete: cascade through all referencing tables
-    // 1. Get all capture IDs for this user (needed for artifacts + actions)
-    const userCaptures = await db
-      .select({ id: captures.id })
-      .from(captures)
-      .where(eq(captures.userId, userId));
-    const captureIds = userCaptures.map((c) => c.id);
+    // 1. Get all conversation IDs for this user (needed for messages)
+    const userConvos = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(eq(conversations.userId, userId));
+    const convoIds = userConvos.map((c) => c.id);
 
-    // 2. Delete artifacts and actions that reference user's captures
-    if (captureIds.length > 0) {
-      await db
-        .delete(actions)
-        .where(inArray(actions.artifactId, 
-          db.select({ id: artifacts.id }).from(artifacts).where(inArray(artifacts.captureId, captureIds))
-        ));
-      await db.delete(artifacts).where(inArray(artifacts.captureId, captureIds));
+    // 2. Delete messages that belong to user's conversations
+    if (convoIds.length > 0) {
+      await db.delete(messages).where(inArray(messages.conversationId, convoIds));
     }
 
-    // 3. Delete actions created by this user (not linked to artifacts)
-    await db.delete(actions).where(eq(actions.userId, userId));
-
-    // 4. Delete captures, usage logs, platform events, memberships
-    await db.delete(captures).where(eq(captures.userId, userId));
+    // 3. Delete conversations, brain documents, usage logs, platform events, memberships
+    await db.delete(conversations).where(eq(conversations.userId, userId));
+    await db.delete(brainDocuments).where(eq(brainDocuments.userId, userId));
     await db.delete(usageLogs).where(eq(usageLogs.userId, userId));
     await db.delete(platformEvents).where(eq(platformEvents.userId, userId));
     await db.delete(memberships).where(eq(memberships.userId, userId));
 
-    // 5. Delete token tables (cascade would handle, but explicit is safer)
+    // 4. Delete token tables (cascade would handle, but explicit is safer)
     await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, userId));
     await db.delete(emailVerificationTokens).where(eq(emailVerificationTokens.userId, userId));
 
-    // 6. Handle protocols: nullify created_by + delete user-owned protocols
+    // 5. Handle protocols: nullify created_by + delete user-owned protocols
     await db
       .update(protocols)
       .set({ createdBy: null })
@@ -155,7 +148,7 @@ export async function DELETE(
       .delete(protocols)
       .where(and(eq(protocols.ownerType, "user"), eq(protocols.ownerId, userId)));
 
-    // 7. Delete the user
+    // 6. Delete the user
     await db.delete(users).where(eq(users.id, userId));
 
     return NextResponse.json({

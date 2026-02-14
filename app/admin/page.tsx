@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { users, organizations, workspaces, memberships, captures, artifacts, usageLogs } from "@/lib/db/schema";
+import { users, organizations, workspaces, memberships, conversations, messages, usageLogs } from "@/lib/db/schema";
 import { count, sql } from "drizzle-orm";
 
 async function getOverviewStats() {
@@ -7,8 +7,8 @@ async function getOverviewStats() {
   const [orgCount] = await db.select({ count: count() }).from(organizations);
   const [workspaceCount] = await db.select({ count: count() }).from(workspaces);
   const [membershipCount] = await db.select({ count: count() }).from(memberships);
-  const [captureCount] = await db.select({ count: count() }).from(captures);
-  const [artifactCount] = await db.select({ count: count() }).from(artifacts);
+  const [conversationCount] = await db.select({ count: count() }).from(conversations);
+  const [messageCount] = await db.select({ count: count() }).from(messages);
 
   // Total AI spend
   const [costResult] = await db
@@ -21,22 +21,22 @@ async function getOverviewStats() {
     .from(users)
     .where(sql`${users.createdAt} > NOW() - INTERVAL '7 days'`);
 
-  // Captures in last 7 days
-  const [recentCaptures] = await db
+  // Conversations in last 7 days
+  const [recentConversations] = await db
     .select({ count: count() })
-    .from(captures)
-    .where(sql`${captures.createdAt} > NOW() - INTERVAL '7 days'`);
+    .from(conversations)
+    .where(sql`${conversations.createdAt} > NOW() - INTERVAL '7 days'`);
 
   return {
     users: userCount.count,
     orgs: orgCount.count,
     workspaces: workspaceCount.count,
     memberships: membershipCount.count,
-    captures: captureCount.count,
-    artifacts: artifactCount.count,
+    conversations: conversationCount.count,
+    messages: messageCount.count,
     totalCostCents: Number(costResult.total),
     recentUsers: recentUsers.count,
-    recentCaptures: recentCaptures.count,
+    recentConversations: recentConversations.count,
   };
 }
 
@@ -78,8 +78,8 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <StatCard label="Total Captures" value={stats.captures} sub={`+${stats.recentCaptures} last 7d`} />
-        <StatCard label="Total Artifacts" value={stats.artifacts} />
+        <StatCard label="Conversations" value={stats.conversations} sub={`+${stats.recentConversations} last 7d`} />
+        <StatCard label="Messages" value={stats.messages} />
         <StatCard
           label="AI Spend"
           value={`$${(stats.totalCostCents / 100).toFixed(2)}`}

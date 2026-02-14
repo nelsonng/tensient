@@ -18,6 +18,11 @@ type PlatformEventType =
   | "transcription_started"
   | "transcription_completed"
   | "transcription_failed"
+  // V2 events
+  | "conversation_created"
+  | "message_sent"
+  | "brain_document_created"
+  | "canon_document_created"
   | "api_error"
   | "client_error";
 
