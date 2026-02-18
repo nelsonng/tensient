@@ -4,7 +4,6 @@ import Link from "next/link";
 import { SlantedButton } from "./slanted-button";
 
 const navItems = [
-  { label: "HOW IT WORKS", href: "#how-it-works", mobileVisible: false },
   { label: "SIGN IN", href: "/sign-in", mobileVisible: true },
 ];
 

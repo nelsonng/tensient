@@ -61,7 +61,7 @@ export default function SignUpPage() {
             <GlitchText text="TENSIENT" as="h1" className="text-3xl mb-2" />
           </Link>
           <p className="font-mono text-sm uppercase tracking-widest text-muted mb-1">
-            AMBIENT ENTERPRISE TENSION
+            FOR PEOPLE WHO THINK FOR A LIVING
           </p>
           <p className="font-mono text-sm uppercase tracking-widest text-muted/60">
             CREATE ACCOUNT

@@ -43,7 +43,7 @@ export function resetPasswordEmailHtml({ resetUrl, firstName }: ResetPasswordEma
     <hr style="border: none; border-top: 1px solid #222; margin: 32px 0;" />
     
     <p style="font-size: 12px; color: #555;">
-      Tensient &mdash; Ambient Enterprise Tension
+      Tensient
     </p>
   </div>
 </body>

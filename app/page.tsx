@@ -2,30 +2,9 @@ import { GlitchText } from "@/components/glitch-text";
 import { SlantedButton } from "@/components/slanted-button";
 import { MonoLabel } from "@/components/mono-label";
 import { PanelCard } from "@/components/panel-card";
-import { ArchetypeTabs } from "@/components/archetype-tabs";
+import { ConversationDemo } from "@/components/conversation-demo";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
-
-const steps = [
-  {
-    number: "01",
-    title: "SET YOUR GOALS",
-    description:
-      "A manager types or speaks what matters most right now. AI distills it into clear objectives -- your team's single source of truth.",
-  },
-  {
-    number: "02",
-    title: "SHARE YOUR THOUGHTS",
-    description:
-      "Instead of writing polished status reports, people dump what's on their mind. Blockers, progress, frustrations -- raw and unfiltered.",
-  },
-  {
-    number: "03",
-    title: "AI DOES THE SYNTHESIS",
-    description:
-      "Every thought is compared against the goals. Alignment scored, action items extracted, coaching delivered. The manager sees who's aligned and who needs attention.",
-  },
-];
 
 export default function Home() {
   return (
@@ -35,163 +14,161 @@ export default function Home() {
         {/* Hero */}
         <section className="mb-24">
           <MonoLabel className="mb-4 block text-primary">
-            FOR TEAMS THAT SHIP
+            FOR PEOPLE WHO THINK FOR A LIVING
           </MonoLabel>
 
-          <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold uppercase tracking-tight mb-6 max-w-[900px]">
-            Your team can&apos;t summarize their week.{" "}
-            <span className="text-primary">We fix that.</span>
+          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold uppercase tracking-tight mb-6 max-w-[900px]">
+            Your context is scattered across ChatGPT, Claude, Gemini, and{" "}
+            <span className="text-primary">
+              47 tabs that forgot everything.
+            </span>
           </h1>
 
           <p className="max-w-[640px] font-body text-lg leading-relaxed text-muted mb-10">
-            Team members dump what&apos;s on their mind. AI turns it into
-            aligned updates, surfaces blockers, and scores how on-track they
-            are against your goals.
+            Tensient is one place for all your thinking &mdash; with an AI
+            that remembers.
           </p>
 
           <div className="flex flex-wrap items-center gap-4">
-            <SlantedButton href="/sign-up">TRY IT FREE</SlantedButton>
+            <SlantedButton href="/sign-up">START A CONVERSATION</SlantedButton>
             <SlantedButton variant="outline" href="#how-it-works">
               SEE HOW IT WORKS
             </SlantedButton>
           </div>
         </section>
 
-        {/* See It In Action -- Archetype Tabs */}
-        <section className="mb-24">
-          <MonoLabel className="mb-8 block">SEE IT IN ACTION</MonoLabel>
-          <ArchetypeTabs />
-        </section>
-
-        {/* You Already Know These People */}
-        <section className="mb-24">
-          <MonoLabel className="mb-4 block text-primary">
-            YOU ALREADY KNOW THESE PEOPLE
-          </MonoLabel>
-          <h2 className="font-display text-3xl font-bold uppercase tracking-tight mb-8 max-w-[700px]">
-            SLACK CAN&apos;T SHOW YOU THIS.{" "}
-            <span className="text-muted">TENSIENT CAN.</span>
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <PanelCard>
-              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
-                Your team has a Marcus.
-              </span>
-              <MonoLabel className="block mb-3 text-muted">
-                Senior Engineer
-              </MonoLabel>
-              <p className="font-body text-base leading-relaxed text-muted">
-                His work is critical. His updates are hieroglyphics. Leadership
-                can&apos;t see what he&apos;s doing.
-              </p>
-            </PanelCard>
-            <PanelCard>
-              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
-                Your team has a Sam.
-              </span>
-              <MonoLabel className="block mb-3 text-muted">
-                Customer Success Lead
-              </MonoLabel>
-              <p className="font-body text-base leading-relaxed text-muted">
-                He&apos;s drowning in tickets. You won&apos;t know until he
-                quits.
-              </p>
-            </PanelCard>
-            <PanelCard>
-              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
-                Your team has a Jordan.
-              </span>
-              <MonoLabel className="block mb-3 text-muted">
-                Product Manager
-              </MonoLabel>
-              <p className="font-body text-base leading-relaxed text-muted">
-                She validated demand from two paying customers. Her update
-                buried the lead.
-              </p>
-            </PanelCard>
-            <PanelCard>
-              <span className="font-display text-base font-bold uppercase tracking-tight text-primary block mb-1">
-                Your team has a Priya.
-              </span>
-              <MonoLabel className="block mb-3 text-muted">
-                Product Marketing
-              </MonoLabel>
-              <p className="font-body text-base leading-relaxed text-muted">
-                Everything is &quot;game-changing.&quot; The real work is buried
-                under adjectives.
-              </p>
-            </PanelCard>
-          </div>
-        </section>
-
-        {/* How It Works */}
+        {/* The Transformation */}
         <section id="how-it-works" className="mb-24">
-          <MonoLabel className="mb-8 block">HOW IT WORKS</MonoLabel>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {steps.map((step) => (
-              <PanelCard key={step.number}>
-                <span className="font-mono text-xs text-primary mb-4 block">
-                  {step.number}
-                </span>
-                <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
-                  {step.title}
-                </h3>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  {step.description}
-                </p>
-              </PanelCard>
-            ))}
+          <MonoLabel className="mb-8 block">
+            WHAT HAPPENS WHEN YOU THINK OUT LOUD
+          </MonoLabel>
+          <ConversationDemo />
+          <div className="mt-8 max-w-[900px] mx-auto">
+            <p className="font-body text-base text-muted leading-relaxed">
+              Your AI reads your{" "}
+              <span className="text-foreground font-medium">Brain</span>{" "}
+              (personal notes),{" "}
+              your{" "}
+              <span className="text-foreground font-medium">Canon</span>{" "}
+              (team strategy),{" "}
+              and your selected{" "}
+              <span className="text-foreground font-medium">Coaches</span>
+              {" "}&mdash; before every response.
+            </p>
           </div>
         </section>
 
-        {/* Why This Exists */}
+        {/* Three Layers */}
         <section className="mb-24">
-          <div className="grid grid-cols-1 gap-12 md:grid-cols-5">
-            <div className="md:col-span-2">
-              <MonoLabel className="mb-4 block text-primary">
-                WHY THIS EXISTS
-              </MonoLabel>
-              <h2 className="font-display text-3xl font-bold uppercase tracking-tight">
-                SLACK IS WHERE ALIGNMENT GOES TO DIE
-              </h2>
-            </div>
-            <div className="md:col-span-3 space-y-6">
-              <div>
-                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
-                  THE WEEKLY UPDATE IS EXCRUCIATING
-                </h4>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  You do standups every day. So why is it so hard to summarize
-                  your week? Because most people can&apos;t synthesize. If you
-                  can&apos;t synthesize, you can&apos;t see the system
-                  you&apos;re in. If you can&apos;t see the system, you
-                  can&apos;t make trade-offs. If you can&apos;t make trade-offs,
-                  you can&apos;t prioritize.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
-                  EVERY INTERACTION WITHOUT COACHING IS WASTED
-                </h4>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  We have access to the thinking of the best operators in the
-                  world -- Huang, Graham, Benioff. But none of that expertise
-                  shows up when people are actually doing the work. Every Slack
-                  message and every status update is a missed coaching
-                  opportunity.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
-                  ALIGNMENT ERODES SILENTLY
-                </h4>
-                <p className="font-body text-base leading-relaxed text-muted">
-                  Every word and every hour should move the company toward its
-                  goals. But without constant comparison to your goals, alignment
-                  erodes quietly. Most of what goes into Slack is noise. Tensient
-                  measures how aligned your team is to what actually matters.
-                </p>
-              </div>
+          <MonoLabel className="mb-8 block">THREE LAYERS OF CONTEXT</MonoLabel>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <PanelCard>
+              <span className="font-mono text-xs text-primary mb-4 block">
+                01
+              </span>
+              <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
+                CONVERSATIONS
+              </h3>
+              <p className="font-body text-base leading-relaxed text-muted">
+                Talk through anything &mdash; strategy, frustrations,
+                decisions. Voice or text. AI responds with structure, actions,
+                and the questions you should be asking. Every conversation is
+                saved. Pick up where you left off.
+              </p>
+            </PanelCard>
+
+            <PanelCard>
+              <span className="font-mono text-xs text-primary mb-4 block">
+                02
+              </span>
+              <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
+                BRAIN
+              </h3>
+              <p className="font-body text-base leading-relaxed text-muted">
+                Your personal context library. Notes, documents, PDFs,
+                screenshots &mdash; anything you want the AI to know about
+                you. It reads your Brain before every response. Your thinking
+                compounds over time.
+              </p>
+            </PanelCard>
+
+            <PanelCard>
+              <span className="font-mono text-xs text-primary mb-4 block">
+                03
+              </span>
+              <h3 className="font-display text-xl font-bold uppercase tracking-tight mb-3">
+                CANON
+              </h3>
+              <p className="font-body text-base leading-relaxed text-muted">
+                Your team&apos;s shared knowledge. Strategy docs, playbooks,
+                company goals. When the AI responds, it checks your thinking
+                against the Canon. Alignment isn&apos;t measured &mdash;
+                it&apos;s built into every interaction.
+              </p>
+            </PanelCard>
+          </div>
+        </section>
+
+        {/* Coaches */}
+        <section className="mb-24">
+          <MonoLabel className="mb-8 block">OPTIONAL COACHES</MonoLabel>
+          <p className="font-body text-base text-muted mb-6 max-w-[640px]">
+            Not every conversation needs coaching. But when it does, choose
+            your lens.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <PanelCard>
+              <h4 className="font-display text-base font-bold uppercase tracking-tight text-primary mb-1">
+                JENSEN T5T
+              </h4>
+              <p className="font-body text-base text-muted">
+                Prioritize ruthlessly. Top 5 only.
+              </p>
+            </PanelCard>
+            <PanelCard>
+              <h4 className="font-display text-base font-bold uppercase tracking-tight text-primary mb-1">
+                PAUL GRAHAM
+              </h4>
+              <p className="font-body text-base text-muted">
+                Think from first principles.
+              </p>
+            </PanelCard>
+            <PanelCard>
+              <h4 className="font-display text-base font-bold uppercase tracking-tight text-primary mb-1">
+                WARTIME GENERAL
+              </h4>
+              <p className="font-body text-base text-muted">
+                Hard truths, no comfort.
+              </p>
+            </PanelCard>
+          </div>
+          <p className="font-mono text-sm text-muted mt-4">
+            Fork any coach. Build your own. Your coaches, your rules.
+          </p>
+        </section>
+
+        {/* The Compounding Problem */}
+        <section className="mb-24">
+          <div className="max-w-[700px]">
+            <MonoLabel className="mb-4 block text-primary">
+              WHY THIS IS DIFFERENT
+            </MonoLabel>
+            <h2 className="font-display text-3xl font-bold uppercase tracking-tight mb-6">
+              EVERY AI TOOL YOU USE FORGETS EVERYTHING
+            </h2>
+            <div className="space-y-4">
+              <p className="font-body text-base leading-relaxed text-muted">
+                The problem isn&apos;t any single AI tool. The problem is
+                you use five of them &mdash; ChatGPT, Claude, Gemini, Grok,
+                Perplexity &mdash; whichever is best this week. Every one of
+                them starts from zero. Your thinking fragments more with
+                every new tool you adopt.
+              </p>
+              <p className="font-body text-base leading-relaxed text-foreground">
+                Tensient is the persistent layer. The AI changes underneath.
+                Your Brain, your Canon, your conversation history &mdash;
+                that stays. Your context compounds instead of scattering.
+              </p>
             </div>
           </div>
         </section>
@@ -203,12 +180,8 @@ export default function Home() {
             as="h2"
             className="text-4xl md:text-5xl mb-3"
           />
-          <MonoLabel className="block text-muted mb-6">
-            AMBIENT ENTERPRISE TENSION
-          </MonoLabel>
           <p className="mx-auto max-w-[500px] font-body text-lg leading-relaxed text-foreground mb-8">
-            Your team is already telling you everything you need to know. Start
-            listening.
+            Your thinking deserves a home.
           </p>
           <div className="flex justify-center gap-4">
             <SlantedButton size="lg" href="/sign-up">

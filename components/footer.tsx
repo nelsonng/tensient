@@ -4,104 +4,9 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-background py-16">
       <div className="mx-auto max-w-[1200px] px-6">
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-4">
+        <div className="flex flex-col sm:flex-row justify-between gap-8">
           <div>
-            <MonoLabel className="mb-4 block text-foreground">
-              PRODUCT
-            </MonoLabel>
-            <ul className="space-y-2">
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  Overview
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  Documentation
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  Changelog
-                </a>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <MonoLabel className="mb-4 block text-foreground">
-              COMPANY
-            </MonoLabel>
-            <ul className="space-y-2">
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  About
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  Blog
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  Careers
-                </a>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <MonoLabel className="mb-4 block text-foreground">
-              CONNECT
-            </MonoLabel>
-            <ul className="space-y-2">
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  GitHub
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  X / Twitter
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="font-body text-base text-muted transition-colors hover:text-primary"
-                >
-                  Discord
-                </a>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <MonoLabel className="mb-4 block text-foreground">
-              LEGAL
-            </MonoLabel>
+            <MonoLabel className="mb-4 block text-foreground">LEGAL</MonoLabel>
             <ul className="space-y-2">
               <li>
                 <a
@@ -121,11 +26,19 @@ export function Footer() {
               </li>
             </ul>
           </div>
+          <div className="sm:text-right">
+            <MonoLabel className="mb-4 block text-foreground">
+              CONTACT
+            </MonoLabel>
+            <a
+              href="mailto:hello@tensient.com"
+              className="font-body text-base text-muted transition-colors hover:text-primary"
+            >
+              hello@tensient.com
+            </a>
+          </div>
         </div>
         <div className="mt-16 border-t border-border pt-8">
-          <p className="font-mono text-sm text-muted/60 mb-1">
-            AMBIENT ENTERPRISE TENSION
-          </p>
           <p className="font-mono text-sm text-muted">
             &copy; {new Date().getFullYear()} Tensient. All rights reserved.
           </p>
