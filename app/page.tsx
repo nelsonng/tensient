@@ -18,7 +18,7 @@ export default function Home() {
           </MonoLabel>
 
           <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold uppercase tracking-tight mb-6 max-w-[900px]">
-            Your context is scattered across ChatGPT, Claude, Gemini, and{" "}
+            Your context is scattered across GPT, Claude, Gemini, and{" "}
             <span className="text-primary">
               47 tabs that forgot everything.
             </span>
@@ -143,7 +143,7 @@ export default function Home() {
             </PanelCard>
           </div>
           <p className="font-mono text-sm text-muted mt-4">
-            Fork any coach. Build your own. Your coaches, your rules.
+            An advisory board in your ear. Jensen, Graham, or your own &mdash; on demand.
           </p>
         </section>
 
@@ -154,15 +154,15 @@ export default function Home() {
               WHY THIS IS DIFFERENT
             </MonoLabel>
             <h2 className="font-display text-3xl font-bold uppercase tracking-tight mb-6">
-              EVERY AI TOOL YOU USE FORGETS EVERYTHING
+              FIVE AI TOOLS. FIVE DIFFERENT MEMORIES.{" "}
+              <span className="text-primary">ZERO CONNECTION.</span>
             </h2>
             <div className="space-y-4">
               <p className="font-body text-base leading-relaxed text-muted">
-                The problem isn&apos;t any single AI tool. The problem is
-                you use five of them &mdash; ChatGPT, Claude, Gemini, Grok,
-                Perplexity &mdash; whichever is best this week. Every one of
-                them starts from zero. Your thinking fragments more with
-                every new tool you adopt.
+                GPT remembers some things. Claude remembers others. Gemini
+                has its own context. None of them talk to each other. Your
+                thinking is spread across five walled gardens that will never
+                connect.
               </p>
               <p className="font-body text-base leading-relaxed text-foreground">
                 Tensient is the persistent layer. The AI changes underneath.
