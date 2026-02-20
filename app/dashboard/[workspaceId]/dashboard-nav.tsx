@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
@@ -28,8 +28,12 @@ export function DashboardNav({
   workspaces?: WorkspaceInfo[];
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const basePath = `/dashboard/${workspaceId}`;
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentWorkspace = workspaces.find((w) => w.id === workspaceId);
@@ -107,12 +111,64 @@ export function DashboardNav({
                       >
                         JOIN WORKSPACE
                       </Link>
-                      <button
-                        disabled
-                        className="block w-full text-left px-3 py-2 font-mono text-xs text-muted/40 cursor-not-allowed"
-                      >
-                        NEW WORKSPACE
-                      </button>
+                      {showNewForm ? (
+                        <form
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!newName.trim() || creating) return;
+                            setCreating(true);
+                            try {
+                              const res = await fetch("/api/workspaces", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ name: newName.trim() }),
+                              });
+                              const data = await res.json();
+                              if (res.ok) {
+                                setDropdownOpen(false);
+                                setShowNewForm(false);
+                                setNewName("");
+                                router.push(`/dashboard/${data.id}`);
+                              }
+                            } finally {
+                              setCreating(false);
+                            }
+                          }}
+                          className="px-3 py-2"
+                        >
+                          <input
+                            type="text"
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            placeholder="Workspace name"
+                            autoFocus
+                            className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground placeholder:text-muted/40 focus:border-primary focus:outline-none mb-1"
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              type="submit"
+                              disabled={creating || !newName.trim()}
+                              className="font-mono text-[10px] text-primary hover:text-primary/80 cursor-pointer disabled:text-muted/40 disabled:cursor-not-allowed"
+                            >
+                              {creating ? "CREATING..." : "CREATE"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setShowNewForm(false); setNewName(""); }}
+                              className="font-mono text-[10px] text-muted hover:text-foreground cursor-pointer"
+                            >
+                              CANCEL
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <button
+                          onClick={() => setShowNewForm(true)}
+                          className="block w-full text-left px-3 py-2 font-mono text-xs text-muted hover:text-foreground hover:bg-border/30 transition-colors cursor-pointer"
+                        >
+                          NEW WORKSPACE
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
