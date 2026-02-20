@@ -7,17 +7,13 @@ import { ConversationViewClient } from "./conversation-view-client";
 
 export default async function ConversationPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ workspaceId: string; conversationId: string }>;
-  searchParams: Promise<{ onboarding?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
 
   const { workspaceId, conversationId } = await params;
-  const { onboarding } = await searchParams;
-  const isOnboarding = onboarding === "true";
 
   // Verify membership
   const [membership] = await db
@@ -91,7 +87,6 @@ export default async function ConversationPage({
         createdAt: m.createdAt.toISOString(),
       }))}
       coaches={coaches}
-      isOnboarding={isOnboarding}
     />
   );
 }

@@ -51,7 +51,7 @@ export default async function DashboardPage({
       })
       .returning();
 
-    redirect(`/dashboard/${workspaceId}/conversations/${firstConvo.id}?onboarding=true`);
+    redirect(`/dashboard/${workspaceId}/conversations/${firstConvo.id}`);
   }
 
   // Fetch conversations

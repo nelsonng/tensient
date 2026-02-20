@@ -36,24 +36,15 @@ interface ConversationViewProps {
   };
   initialMessages: Message[];
   coaches: Coach[];
-  isOnboarding?: boolean;
 }
 
 // ── Component ──────────────────────────────────────────────────────────
-
-const INTENT_CHIPS = [
-  { label: "Organize my thoughts", value: "I want to organize my thoughts and think through something important." },
-  { label: "Challenge my strategy", value: "I want you to challenge my current strategy and help me think critically about my approach." },
-  { label: "Process my week", value: "I want to process what happened this week and extract lessons and next steps." },
-  { label: "Something else", value: "" },
-] as const;
 
 export function ConversationViewClient({
   workspaceId,
   conversation,
   initialMessages,
   coaches,
-  isOnboarding = false,
 }: ConversationViewProps) {
   const router = useRouter();
   const [msgs, setMsgs] = useState<Message[]>(initialMessages);
@@ -68,11 +59,6 @@ export function ConversationViewClient({
   const [uploading, setUploading] = useState(false);
   const [title, setTitle] = useState(conversation.title);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [onboardingPhase, setOnboardingPhase] = useState<"intent" | "input" | "done">(
-    isOnboarding && initialMessages.length === 0 ? "intent" : "done"
-  );
-  const [showSaveToCanon, setShowSaveToCanon] = useState(false);
-  const [savingCanon, setSavingCanon] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -150,11 +136,6 @@ export function ConversationViewClient({
       if (!title) {
         router.refresh();
       }
-
-      // After first AI response in onboarding, offer Save to Canon
-      if (isOnboarding && msgs.length <= 2) {
-        setShowSaveToCanon(true);
-      }
     } catch (error) {
       // Remove optimistic message on error
       setMsgs((prev) => prev.filter((m) => m.id !== tempId));
@@ -223,83 +204,6 @@ export function ConversationViewClient({
     );
   }
 
-  // ── Intent chip selection (onboarding) ───────────────────────────────
-
-  function handleIntentChip(chip: typeof INTENT_CHIPS[number]) {
-    if (chip.value) {
-      setInput(chip.value);
-      setOnboardingPhase("input");
-      // Auto-send the intent
-      setTimeout(() => {
-        const content = chip.value;
-        setSending(true);
-        setInput("");
-        const tempId = `temp-${Date.now()}`;
-        const optimisticMsg: Message = {
-          id: tempId,
-          role: "user",
-          content,
-          audioUrl: null,
-          attachments: null,
-          metadata: null,
-          coachIds: null,
-          createdAt: new Date().toISOString(),
-        };
-        setMsgs((prev) => [...prev, optimisticMsg]);
-
-        fetch(
-          `/api/workspaces/${workspaceId}/conversations/${conversation.id}/messages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content }),
-          }
-        )
-          .then((res) => res.json())
-          .then((data) => {
-            setMsgs((prev) => {
-              const filtered = prev.filter((m) => m.id !== tempId);
-              return [...filtered, data.userMessage, data.assistantMessage];
-            });
-            if (isOnboarding) setShowSaveToCanon(true);
-          })
-          .catch(() => {
-            setMsgs((prev) => prev.filter((m) => m.id !== tempId));
-          })
-          .finally(() => setSending(false));
-      }, 100);
-    } else {
-      // "Something else" -- just show the input
-      setOnboardingPhase("input");
-    }
-  }
-
-  // ── Save to Canon (onboarding) ──────────────────────────────────────
-
-  async function handleSaveToCanon() {
-    setSavingCanon(true);
-    try {
-      // Gather all assistant messages as Canon content
-      const assistantMsgs = msgs.filter((m) => m.role === "assistant");
-      const content = assistantMsgs.map((m) => m.content).join("\n\n---\n\n");
-
-      await fetch(`/api/workspaces/${workspaceId}/canon`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title || "Getting Started",
-          content,
-        }),
-      });
-
-      setShowSaveToCanon(false);
-    } catch (error) {
-      console.error("Save to Canon failed:", error);
-    } finally {
-      setSavingCanon(false);
-    }
-  }
-
   // ── Coach toggle ────────────────────────────────────────────────────
 
   function toggleCoach(coachId: string) {
@@ -339,29 +243,7 @@ export function ConversationViewClient({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {msgs.length === 0 && onboardingPhase === "intent" && (
-          <div className="py-16">
-            <div className="bg-panel border border-border rounded-lg px-6 py-5 max-w-[75%]">
-              <MonoLabel className="text-[10px] mb-2 block">TENSIENT</MonoLabel>
-              <p className="text-sm text-foreground mb-6">
-                What do you need right now?
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {INTENT_CHIPS.map((chip) => (
-                  <button
-                    key={chip.label}
-                    onClick={() => handleIntentChip(chip)}
-                    className="px-4 py-2 rounded-lg border border-primary/30 bg-primary/5 text-sm text-primary hover:bg-primary/10 transition-colors font-body"
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {msgs.length === 0 && onboardingPhase !== "intent" && (
+        {msgs.length === 0 && (
           <div className="text-center py-16">
             <MonoLabel className="text-muted block mb-2">Start the conversation</MonoLabel>
             <p className="text-sm text-muted">Type a message, record your voice, or attach files.</p>
@@ -534,37 +416,6 @@ export function ConversationViewClient({
               </button>
             </span>
           ))}
-        </div>
-      )}
-
-      {/* Save to Canon prompt (onboarding) */}
-      {showSaveToCanon && (
-        <div className="mb-3">
-          <PanelCard className="p-4 border-primary/20 bg-primary/5">
-            <div className="flex items-center justify-between">
-              <div>
-                <MonoLabel className="text-[10px] text-primary mb-1 block">SAVE TO CANON</MonoLabel>
-                <p className="text-xs text-muted">
-                  Save this conversation&apos;s insights to your Canon as shared workspace knowledge?
-                </p>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <button
-                  onClick={() => setShowSaveToCanon(false)}
-                  className="font-mono text-[10px] text-muted hover:text-foreground px-3 py-1 transition-colors"
-                >
-                  Skip
-                </button>
-                <button
-                  onClick={handleSaveToCanon}
-                  disabled={savingCanon}
-                  className="font-mono text-[10px] text-primary border border-primary/30 rounded px-3 py-1 hover:bg-primary/10 transition-colors"
-                >
-                  {savingCanon ? "Saving..." : "Save to Canon"}
-                </button>
-              </div>
-            </div>
-          </PanelCard>
         </div>
       )}
 
