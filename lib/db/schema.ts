@@ -308,6 +308,8 @@ export const platformEventTypeEnum = pgEnum("platform_event_type", [
   "message_sent",
   "brain_document_created",
   "canon_document_created",
+  "workspace_joined",
+  "workspace_created",
   "api_error",
   "client_error",
 ]);

@@ -471,9 +471,11 @@ function WorkspaceTab({
     }
   };
 
-  const copyJoinCode = async () => {
+  const joinUrl = `https://tensient.com/join?code=${workspace.joinCode}`;
+
+  const copyJoinLink = async () => {
     try {
-      await navigator.clipboard.writeText(workspace.joinCode);
+      await navigator.clipboard.writeText(joinUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -528,17 +530,17 @@ function WorkspaceTab({
       </PanelCard>
 
       <PanelCard>
-        <MonoLabel className="text-primary mb-4 block">JOIN CODE</MonoLabel>
+        <MonoLabel className="text-primary mb-4 block">INVITE LINK</MonoLabel>
         <p className="font-body text-base text-muted mb-3">
-          Share this code with team members so they can join your workspace.
+          Share this link with team members so they can join your workspace.
         </p>
         <div className="flex items-center gap-3">
-          <code className="font-mono text-2xl font-bold text-foreground tracking-widest bg-border/30 px-4 py-2 rounded">
-            {workspace.joinCode}
+          <code className="font-mono text-sm text-foreground bg-border/30 px-4 py-2 rounded break-all">
+            {joinUrl}
           </code>
           <button
-            onClick={copyJoinCode}
-            className="font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+            onClick={copyJoinLink}
+            className="font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer shrink-0"
           >
             {copied ? "COPIED" : "COPY"}
           </button>
@@ -634,9 +636,11 @@ function MembersTab({
     }
   };
 
-  const copyJoinCode = async () => {
+  const joinUrl = `https://tensient.com/join?code=${workspace.joinCode}`;
+
+  const copyJoinLink = async () => {
     try {
-      await navigator.clipboard.writeText(workspace.joinCode);
+      await navigator.clipboard.writeText(joinUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -659,15 +663,15 @@ function MembersTab({
           INVITE MEMBERS
         </MonoLabel>
         <p className="font-body text-base text-muted mb-3">
-          Share the join code so team members can join this workspace.
+          Share this link so team members can join this workspace.
         </p>
         <div className="flex items-center gap-3">
-          <code className="font-mono text-xl font-bold text-foreground tracking-widest bg-border/30 px-4 py-2 rounded">
-            {workspace.joinCode}
+          <code className="font-mono text-sm text-foreground bg-border/30 px-4 py-2 rounded break-all">
+            {joinUrl}
           </code>
           <button
-            onClick={copyJoinCode}
-            className="font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+            onClick={copyJoinLink}
+            className="font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer shrink-0"
           >
             {copied ? "COPIED" : "COPY"}
           </button>

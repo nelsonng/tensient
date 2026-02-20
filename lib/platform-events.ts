@@ -17,6 +17,8 @@ type PlatformEventType =
   | "message_sent"
   | "brain_document_created"
   | "canon_document_created"
+  | "workspace_joined"
+  | "workspace_created"
   | "api_error"
   | "client_error";
 
