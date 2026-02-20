@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { memberships } from "@/lib/db/schema";
 import Link from "next/link";
@@ -9,11 +9,11 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
 
-  // Find user's first workspace
   const [membership] = await db
     .select({ workspaceId: memberships.workspaceId })
     .from(memberships)
     .where(eq(memberships.userId, session.user.id))
+    .orderBy(desc(memberships.createdAt))
     .limit(1);
 
   if (membership) {
