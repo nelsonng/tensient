@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { SlantedButton } from "./slanted-button";
 
 const navItems = [
   { label: "SIGN IN", href: "/sign-in", mobileVisible: true },
@@ -28,12 +27,6 @@ export function Nav() {
               {item.label}
             </Link>
           ))}
-          <span className="sm:hidden">
-            <SlantedButton size="sm" href="/sign-up">TRY IT FREE</SlantedButton>
-          </span>
-          <span className="hidden sm:inline-flex">
-            <SlantedButton size="default" href="/sign-up">TRY IT FREE</SlantedButton>
-          </span>
         </div>
       </nav>
     </header>
