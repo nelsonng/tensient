@@ -155,8 +155,6 @@ export const memberships = pgTable(
       .notNull(),
     role: membershipRoleEnum("role").notNull().default("member"),
 
-    // Gamification
-    lastCaptureAt: timestamp("last_capture_at"),
     streakCount: integer("streak_count").default(0).notNull(),
     tractionScore: real("traction_score").default(0).notNull(),
 
@@ -296,7 +294,6 @@ export const emailVerificationTokens = pgTable(
 // ── Platform Events (Admin Observability) ─────────────────────────────
 
 export const platformEventTypeEnum = pgEnum("platform_event_type", [
-  // Lifecycle
   "sign_up_started",
   "sign_up_completed",
   "sign_up_failed",
@@ -304,21 +301,13 @@ export const platformEventTypeEnum = pgEnum("platform_event_type", [
   "sign_in_failed",
   "onboarding_started",
   "onboarding_completed",
-  // Product usage
-  "strategy_created",
-  "capture_submitted",
-  "synthesis_generated",
-  "digest_generated",
-  "action_created",
   "transcription_started",
   "transcription_completed",
   "transcription_failed",
-  // V2 events
   "conversation_created",
   "message_sent",
   "brain_document_created",
   "canon_document_created",
-  // Errors
   "api_error",
   "client_error",
 ]);

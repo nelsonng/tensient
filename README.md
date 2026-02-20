@@ -1,8 +1,8 @@
 # Tensient
 
-**Enterprise Traction Control** -- prevents organizational drift by turning unstructured team updates into aligned, measurable action.
+**Any model. One place. Persistent context.**
 
-Your team generates noise. Tensient extracts signal. Every thought is measured against your goals. Alignment scored. Drift surfaced. Actions extracted.
+Start a conversation on Claude, GPT, or Gemini. Your context persists across all of them -- every conversation, every session. Brain documents, Canon knowledge, and optional Coaches give the AI memory that compounds over time.
 
 **Live:** [tensient.com](https://tensient.com)
 
@@ -10,20 +10,19 @@ Your team generates noise. Tensient extracts signal. Every thought is measured a
 
 ## How It Works
 
-1. **Managers set strategy** -- paste goals into the Genesis flow. AI extracts pillars, vectorizes them as the "Canon" (strategic truth).
-2. **Team members submit updates** -- text or voice. These are "Captures."
-3. **AI processes every Capture** -- multi-coach composite prompt scores alignment against the Canon, extracts action items, and provides coaching feedback.
-4. **Dashboard surfaces drift** -- alignment trends, team traction scores, streaks, weekly digests, and goal-linked actions.
+1. **Start a conversation** -- text or voice. Pick any model.
+2. **AI responds with context** -- it reads your Brain (personal notes), Canon (shared knowledge), and selected Coaches before every response. Structured output: summary, action items, coaching questions.
+3. **Context compounds** -- every conversation, document, and upload becomes part of your persistent knowledge layer. The AI gets better the more you use it.
 
 ```
-Capture (voice/text)
+Message (voice/text/files)
     |
     v
-AI Processing (Claude Opus 4.6 + Gemini embeddings)
+AI Processing (Claude Opus 4.6 + Brain/Canon vector search + Coaches)
     |
-    +--> Artifact (drift score, sentiment, coaching)
-    +--> Actions (goal-linked, priority-ranked)
-    +--> Traction Score (rolling alignment average)
+    +--> Structured Response (summary, actions, coaching questions)
+    +--> Auto-generated Title
+    +--> Context persisted for future conversations
 ```
 
 ---
@@ -59,10 +58,7 @@ cp .env.example .env.local
 # 3. Push schema to database
 npx drizzle-kit push
 
-# 4. (Optional) Seed demo data
-SEED_PASSWORD=your-password npx tsx lib/db/seed-demo.ts
-
-# 5. Run
+# 4. Run
 npm run dev
 ```
 
@@ -72,15 +68,17 @@ npm run dev
 
 ```
 app/
-  (auth)/           # Sign-in, sign-up pages
-  dashboard/        # Workspace dashboard (server + client components)
-  api/              # API routes (captures, strategy, actions, transcribe)
+  (auth)/           # Sign-in, sign-up, password reset, email verification
+  dashboard/        # Workspace: conversations, brain, canon, coaches, settings
+  admin/            # Super admin control center (metrics, funnels, retention)
+  api/              # API routes (conversations, brain, canon, coaches, transcribe)
 lib/
-  db/               # Schema, migrations, seed scripts
-  services/         # Core business logic (process-capture, genesis-setup, generate-digest)
+  db/               # Drizzle schema
+  services/         # Core AI (process-conversation, extract-text)
   auth/             # Authorization helpers
   ai.ts             # AI clients (Anthropic LLM + Gemini embeddings)
   usage-guard.ts    # Cost controls (trial limits, daily caps, monthly budgets)
+  platform-events.ts # Event tracking (acquisition, activation, errors)
 components/         # Reusable UI components
 hooks/              # Custom React hooks (audio capture)
 ```
