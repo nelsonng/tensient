@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
@@ -38,6 +37,18 @@ interface ConversationViewProps {
   coaches: Coach[];
 }
 
+const UNTITLED_CONVERSATION = "Untitled conversation";
+
+function isUntitledTitle(value: string | null | undefined): boolean {
+  return !value || value.trim().toLowerCase() === UNTITLED_CONVERSATION.toLowerCase();
+}
+
+function buildFallbackTitle(content: string): string {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  if (!normalized) return UNTITLED_CONVERSATION;
+  return normalized.length <= 50 ? normalized : `${normalized.slice(0, 47)}...`;
+}
+
 // ── Component ──────────────────────────────────────────────────────────
 
 export function ConversationViewClient({
@@ -46,7 +57,6 @@ export function ConversationViewClient({
   initialMessages,
   coaches,
 }: ConversationViewProps) {
-  const router = useRouter();
   const [msgs, setMsgs] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -62,6 +72,7 @@ export function ConversationViewClient({
   const [editingTitle, setEditingTitle] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -71,12 +82,53 @@ export function ConversationViewClient({
     scrollToBottom();
   }, [msgs, scrollToBottom]);
 
+  useEffect(() => {
+    setTitle(conversation.title);
+  }, [conversation.title]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+  }, [input]);
+
+  const pollForGeneratedTitle = useCallback(
+    async (baselineTitle: string) => {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        try {
+          const res = await fetch(
+            `/api/workspaces/${workspaceId}/conversations/${conversation.id}`
+          );
+          if (!res.ok) continue;
+          const data = await res.json();
+          const serverTitle =
+            typeof data.title === "string" && data.title.trim().length > 0
+              ? data.title
+              : null;
+
+          if (serverTitle && serverTitle !== baselineTitle) {
+            setTitle(serverTitle);
+            return;
+          }
+        } catch {
+          // Keep polling quietly; failure here should never block chat flow.
+        }
+      }
+    },
+    [workspaceId, conversation.id]
+  );
+
   // ── Send message ────────────────────────────────────────────────────
 
   async function handleSend() {
     if ((!input.trim() && pendingAttachments.length === 0) || sending) return;
 
     const content = input.trim() || "(attached files)";
+    const shouldWatchForGeneratedTitle = isUntitledTitle(title);
+    const fallbackTitle = buildFallbackTitle(content);
+
     setSending(true);
     setSendError(null);
     setInput("");
@@ -135,8 +187,9 @@ export function ConversationViewClient({
       });
 
       // If title was generated, refresh it
-      if (!title) {
-        router.refresh();
+      if (shouldWatchForGeneratedTitle) {
+        setTitle(fallbackTitle);
+        void pollForGeneratedTitle(fallbackTitle);
       }
     } catch (error) {
       // Remove optimistic message on error
@@ -154,7 +207,7 @@ export function ConversationViewClient({
   // ── Voice transcription callback ────────────────────────────────────
 
   function handleTranscription(text: string, audioUrl: string) {
-    setInput(text);
+    setInput((prev) => (prev.trim() ? `${prev}\n\n${text}` : text));
     setShowVoice(false);
     // Auto-send after transcription for a smooth conversational flow
     // User can edit before it sends
@@ -241,7 +294,7 @@ export function ConversationViewClient({
             onClick={() => setEditingTitle(true)}
             className="font-display text-xl font-bold tracking-tight text-foreground cursor-pointer hover:text-primary transition-colors"
           >
-            {title || "Untitled conversation"}
+            {title || UNTITLED_CONVERSATION}
           </h1>
         )}
       </div>
@@ -506,6 +559,7 @@ export function ConversationViewClient({
           {/* Text input */}
           <div className="flex-1">
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -519,8 +573,8 @@ export function ConversationViewClient({
               }}
               placeholder="Type a message..."
               rows={1}
-              className="w-full bg-panel border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted/50 outline-none focus:border-primary/30 resize-none font-body"
-              style={{ minHeight: "40px", maxHeight: "120px" }}
+              className="w-full bg-panel border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted/50 outline-none focus:border-primary/30 resize-none overflow-y-auto font-body"
+              style={{ minHeight: "40px", maxHeight: "200px" }}
             />
           </div>
 

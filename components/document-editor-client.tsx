@@ -95,7 +95,7 @@ export function DocumentEditorClient({
           onClick={() => router.push(listPath)}
           className="font-mono text-xs text-muted hover:text-foreground transition-colors"
         >
-          ← Back to {kind === "brain" ? "Brain" : "Canon"}
+          ← Back to {kind === "brain" ? "My Context" : "Workspace Context"}
         </button>
         <div className="flex items-center gap-4">
           <span className="font-mono text-[10px] text-muted">

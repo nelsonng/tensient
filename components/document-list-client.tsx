@@ -35,7 +35,7 @@ export function DocumentListClient({
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const label = kind === "brain" ? "Brain" : "Canon";
+  const label = kind === "brain" ? "My Context" : "Workspace Context";
   const apiPath = `/api/workspaces/${workspaceId}/${kind}`;
   const pagePath = `/dashboard/${workspaceId}/${kind}`;
 
@@ -134,7 +134,7 @@ export function DocumentListClient({
       {documents.length === 0 && (
         <PanelCard className="text-center py-16">
           <MonoLabel className="text-muted mb-4 block">
-            No {kind} documents yet
+            No {label.toLowerCase()} documents yet
           </MonoLabel>
           <p className="text-sm text-muted mb-6">
             {kind === "brain"

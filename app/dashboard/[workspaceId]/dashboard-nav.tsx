@@ -7,8 +7,8 @@ import { signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
   { label: "CONVERSATIONS", path: "" },
-  { label: "BRAIN", path: "brain" },
-  { label: "CANON", path: "canon" },
+  { label: "MY CONTEXT", path: "brain" },
+  { label: "WORKSPACE CONTEXT", path: "canon" },
   { label: "COACHES", path: "coaches" },
   { label: "SETTINGS", path: "settings" },
 ] as const;

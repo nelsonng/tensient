@@ -11,6 +11,12 @@ import { logger } from "@/lib/logger";
 
 type Params = { params: Promise<{ workspaceId: string; conversationId: string }> };
 
+function buildFallbackTitle(content: string): string {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  if (!normalized) return "Untitled conversation";
+  return normalized.length <= 50 ? normalized : `${normalized.slice(0, 47)}...`;
+}
+
 // POST /api/workspaces/[id]/conversations/[cid]/messages -- Send message (triggers AI)
 export async function POST(request: Request, { params }: Params) {
   const session = await auth();
@@ -57,6 +63,8 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
+  const trimmedContent = content.trim();
+
   try {
     // 1. Insert user message
     const [userMessage] = await db
@@ -64,12 +72,23 @@ export async function POST(request: Request, { params }: Params) {
       .values({
         conversationId,
         role: "user",
-        content: content.trim(),
+        content: trimmedContent,
         audioUrl: audioUrl || null,
         attachments: attachments || null,
         coachIds: coachIds || null,
       })
       .returning();
+
+    // 1b. Ensure conversation has a usable title immediately
+    if (!conversation.title || conversation.title.trim().toLowerCase() === "untitled conversation") {
+      await db
+        .update(conversations)
+        .set({
+          title: buildFallbackTitle(trimmedContent),
+          updatedAt: new Date(),
+        })
+        .where(eq(conversations.id, conversationId));
+    }
 
     // 2. Process via AI and get assistant response
     const { assistantMessage, usage } = await processConversationMessage({

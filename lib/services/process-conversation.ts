@@ -299,14 +299,14 @@ function composeSystemPrompt(
   ];
 
   if (brainDocs.length > 0) {
-    parts.push("\n## Personal Brain (user's private context)");
+    parts.push("\n## My Context (user's private context)");
     for (const doc of brainDocs) {
       parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
     }
   }
 
   if (canonDocs.length > 0) {
-    parts.push("\n## Canon (shared workspace knowledge)");
+    parts.push("\n## Workspace Context (shared workspace knowledge)");
     for (const doc of canonDocs) {
       parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
     }
@@ -347,6 +347,7 @@ async function generateConversationTitle(
           title: { type: "string", description: "A short conversation title, 3-7 words" },
         },
         required: ["title"],
+        additionalProperties: false,
       },
       maxTokens: 100,
     });
