@@ -77,6 +77,7 @@ const AI_RESPONSE_SCHEMA = {
           priority: { type: "string" as const, enum: ["critical", "high", "medium", "low"] },
         },
         required: ["task"] as const,
+        additionalProperties: false,
       },
       description: "Action items extracted from the conversation",
     },
@@ -91,6 +92,7 @@ const AI_RESPONSE_SCHEMA = {
     },
   },
   required: ["reply"] as const,
+  additionalProperties: false,
 };
 
 // ── Main Processing Function ───────────────────────────────────────────

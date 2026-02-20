@@ -57,6 +57,7 @@ export function ConversationViewClient({
     Array<{ url: string; filename: string; contentType: string; sizeBytes: number }>
   >([]);
   const [uploading, setUploading] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [title, setTitle] = useState(conversation.title);
   const [editingTitle, setEditingTitle] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,7 @@ export function ConversationViewClient({
 
     const content = input.trim() || "(attached files)";
     setSending(true);
+    setSendError(null);
     setInput("");
 
     // Optimistic user message
@@ -140,6 +142,9 @@ export function ConversationViewClient({
       // Remove optimistic message on error
       setMsgs((prev) => prev.filter((m) => m.id !== tempId));
       setInput(content);
+      const message =
+        error instanceof Error ? error.message : "Message failed to send";
+      setSendError(message);
       console.error("Send failed:", error);
     } finally {
       setSending(false);
@@ -421,6 +426,19 @@ export function ConversationViewClient({
 
       {/* Input area */}
       <div className="border-t border-border pt-3 pb-4">
+        {sendError && (
+          <div className="mb-3 rounded border border-destructive/40 bg-destructive/10 px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-mono text-[11px] text-destructive">{sendError}</p>
+              <button
+                onClick={() => setSendError(null)}
+                className="font-mono text-[10px] uppercase tracking-wide text-destructive/80 hover:text-destructive transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           {/* Attachment button */}
           <button
@@ -489,7 +507,10 @@ export function ConversationViewClient({
           <div className="flex-1">
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (sendError) setSendError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();

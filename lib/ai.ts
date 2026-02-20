@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
+import { logger } from "@/lib/logger";
 
 // ── Anthropic (primary LLM) ──────────────────────────────────────────
 
@@ -36,24 +37,52 @@ export async function generateStructuredJSON<T>(opts: {
 }): Promise<{ result: T; inputTokens: number; outputTokens: number }> {
   const anthropic = getAnthropic();
 
-  const response = await anthropic.messages.create({
-    model: DEFAULT_MODEL,
-    max_tokens: opts.maxTokens ?? 4096,
-    messages: [{ role: "user", content: opts.prompt }],
-    ...(opts.system ? { system: opts.system } : {}),
-    output_config: {
-      format: {
-        type: "json_schema" as const,
-        schema: opts.schema,
+  let response: Awaited<ReturnType<typeof anthropic.messages.create>>;
+  try {
+    response = await anthropic.messages.create({
+      model: DEFAULT_MODEL,
+      max_tokens: opts.maxTokens ?? 4096,
+      messages: [{ role: "user", content: opts.prompt }],
+      ...(opts.system ? { system: opts.system } : {}),
+      output_config: {
+        format: {
+          type: "json_schema" as const,
+          schema: opts.schema,
+        },
       },
-    },
-  });
+    });
+  } catch (error) {
+    const anthropicError = error as
+      | { status?: number; type?: string; message?: string; error?: unknown }
+      | undefined;
+
+    logger.error("Anthropic structured output request failed", {
+      model: DEFAULT_MODEL,
+      status: anthropicError?.status ?? null,
+      type: anthropicError?.type ?? null,
+      message: anthropicError?.message ?? "Unknown Anthropic error",
+      error: anthropicError?.error ?? String(error),
+    });
+    throw error;
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   const text = textBlock && textBlock.type === "text" ? textBlock.text : "{}";
 
+  let parsedResult: T;
+  try {
+    parsedResult = JSON.parse(text) as T;
+  } catch (error) {
+    logger.error("Anthropic returned invalid JSON", {
+      model: DEFAULT_MODEL,
+      preview: text.slice(0, 500),
+      error: String(error),
+    });
+    throw error;
+  }
+
   return {
-    result: JSON.parse(text) as T,
+    result: parsedResult,
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
   };
