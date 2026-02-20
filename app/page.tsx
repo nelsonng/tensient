@@ -1,7 +1,6 @@
 import { GlitchText } from "@/components/glitch-text";
 import { SlantedButton } from "@/components/slanted-button";
 import { MonoLabel } from "@/components/mono-label";
-import { ConversationDemo } from "@/components/conversation-demo";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 
@@ -11,7 +10,7 @@ export default function Home() {
       <Nav />
       <main className="mx-auto max-w-[1200px] px-6 pt-32 pb-24">
         {/* Hero */}
-        <section className="mb-24">
+        <section className="mb-16">
           <MonoLabel className="mb-4 block text-primary">
             FOR PEOPLE WHO THINK FOR A LIVING
           </MonoLabel>
@@ -29,12 +28,7 @@ export default function Home() {
           <SlantedButton href="/sign-up">START A CONVERSATION</SlantedButton>
         </section>
 
-        {/* Conversation Demo */}
-        <section className="mb-24">
-          <ConversationDemo />
-        </section>
-
-        {/* Final CTA */}
+        {/* Close */}
         <section className="text-center mb-12">
           <GlitchText
             text="TENSIENT"
