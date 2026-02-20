@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GlitchText } from "@/components/glitch-text";
 import { SlantedButton } from "@/components/slanted-button";
 
-export default function JoinPage() {
+function JoinForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefilled = searchParams.get("code") || "";
@@ -50,6 +50,35 @@ export default function JoinPage() {
   }
 
   return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
+          JOIN CODE
+        </label>
+        <input
+          type="text"
+          value={joinCode}
+          onChange={(e) => setJoinCode(e.target.value)}
+          required
+          autoFocus
+          className="w-full rounded-md border border-border bg-panel px-4 py-3 font-mono text-lg tracking-widest text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+          placeholder="XXXXXXXX"
+        />
+      </div>
+
+      {error && (
+        <p className="font-mono text-xs text-destructive">{error}</p>
+      )}
+
+      <SlantedButton disabled={loading} className="w-full">
+        {loading ? "JOINING..." : "JOIN WORKSPACE"}
+      </SlantedButton>
+    </form>
+  );
+}
+
+export default function JoinPage() {
+  return (
     <div className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8">
@@ -64,30 +93,9 @@ export default function JoinPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block font-mono text-sm uppercase tracking-widest text-muted mb-2">
-              JOIN CODE
-            </label>
-            <input
-              type="text"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              required
-              autoFocus
-              className="w-full rounded-md border border-border bg-panel px-4 py-3 font-mono text-lg tracking-widest text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
-              placeholder="XXXXXXXX"
-            />
-          </div>
-
-          {error && (
-            <p className="font-mono text-xs text-destructive">{error}</p>
-          )}
-
-          <SlantedButton disabled={loading} className="w-full">
-            {loading ? "JOINING..." : "JOIN WORKSPACE"}
-          </SlantedButton>
-        </form>
+        <Suspense>
+          <JoinForm />
+        </Suspense>
 
         <p className="mt-6 text-center font-body text-base text-muted">
           No account?{" "}
