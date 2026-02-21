@@ -247,7 +247,7 @@ export default async function ActivationPage({
         <FunnelBar label="ACCOUNT CREATED" value={data.funnel.accountCreated} max={data.funnel.accountCreated} />
         <FunnelBar label="FIRST CONTEXT DOC" value={data.funnel.firstBrainDoc} max={data.funnel.accountCreated} prevValue={data.funnel.accountCreated} />
         <FunnelBar label="FIRST CONVERSATION" value={data.funnel.firstConversation} max={data.funnel.accountCreated} prevValue={data.funnel.firstBrainDoc} />
-        <FunnelBar label="FIRST COACH REPLY" value={data.funnel.firstReply} max={data.funnel.accountCreated} prevValue={data.funnel.firstConversation} />
+        <FunnelBar label="FIRST AI REPLY" value={data.funnel.firstReply} max={data.funnel.accountCreated} prevValue={data.funnel.firstConversation} />
         <FunnelBar label="SECOND SESSION (2+ DAYS)" value={data.funnel.secondSession} max={data.funnel.accountCreated} prevValue={data.funnel.firstReply} />
         <FunnelBar label="INVITED A TEAMMATE" value={data.funnel.invitedTeammate} max={data.funnel.accountCreated} prevValue={data.funnel.secondSession} />
       </div>

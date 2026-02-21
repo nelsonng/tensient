@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { label: "CONVERSATIONS", path: "" },
   { label: "MY CONTEXT", path: "brain" },
   { label: "WORKSPACE CONTEXT", path: "canon" },
-  { label: "COACHES", path: "coaches" },
   { label: "SETTINGS", path: "settings" },
 ] as const;
 

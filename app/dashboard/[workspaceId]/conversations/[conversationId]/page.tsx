@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { memberships, conversations, messages, protocols } from "@/lib/db/schema";
-import { eq, and, asc, or } from "drizzle-orm";
+import { memberships, conversations, messages } from "@/lib/db/schema";
+import { eq, and, asc } from "drizzle-orm";
 import { ConversationViewClient } from "./conversation-view-client";
 
 export default async function ConversationPage({
@@ -51,23 +51,6 @@ export default async function ConversationPage({
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.createdAt));
 
-  // Fetch available coaches (system + workspace + user)
-  const coaches = await db
-    .select({
-      id: protocols.id,
-      name: protocols.name,
-      description: protocols.description,
-      category: protocols.category,
-    })
-    .from(protocols)
-    .where(
-      or(
-        eq(protocols.ownerType, "system"),
-        eq(protocols.ownerId, workspaceId),
-        eq(protocols.ownerId, session.user.id)
-      )
-    );
-
   return (
     <ConversationViewClient
       workspaceId={workspaceId}
@@ -83,10 +66,8 @@ export default async function ConversationPage({
         audioUrl: m.audioUrl,
         attachments: m.attachments as Array<{ url: string; filename: string; contentType: string }> | null,
         metadata: m.metadata as Record<string, unknown> | null,
-        coachIds: m.coachIds as string[] | null,
         createdAt: m.createdAt.toISOString(),
       }))}
-      coaches={coaches}
     />
   );
 }

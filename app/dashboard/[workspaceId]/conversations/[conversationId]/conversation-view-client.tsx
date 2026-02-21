@@ -5,6 +5,10 @@ import { upload } from "@vercel/blob/client";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { VoiceRecorder } from "@/components/voice-recorder";
+import {
+  SaveToContextForm,
+  type ContextScope,
+} from "@/components/save-to-context-form";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -15,15 +19,7 @@ interface Message {
   audioUrl: string | null;
   attachments: Array<{ url: string; filename: string; contentType: string }> | null;
   metadata: Record<string, unknown> | null;
-  coachIds: string[] | null;
   createdAt: string;
-}
-
-interface Coach {
-  id: string;
-  name: string;
-  description: string | null;
-  category: string | null;
 }
 
 interface ConversationViewProps {
@@ -34,7 +30,6 @@ interface ConversationViewProps {
     createdAt: string;
   };
   initialMessages: Message[];
-  coaches: Coach[];
 }
 
 const UNTITLED_CONVERSATION = "Untitled conversation";
@@ -49,20 +44,23 @@ function buildFallbackTitle(content: string): string {
   return normalized.length <= 50 ? normalized : `${normalized.slice(0, 47)}...`;
 }
 
+function buildContextDocumentTitle(content: string): string {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  if (!normalized) return "Untitled document";
+  return normalized.length <= 50 ? normalized : `${normalized.slice(0, 47)}...`;
+}
+
 // ── Component ──────────────────────────────────────────────────────────
 
 export function ConversationViewClient({
   workspaceId,
   conversation,
   initialMessages,
-  coaches,
 }: ConversationViewProps) {
   const [msgs, setMsgs] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
-  const [showCoaches, setShowCoaches] = useState(false);
-  const [selectedCoachIds, setSelectedCoachIds] = useState<string[]>([]);
   const [pendingAttachments, setPendingAttachments] = useState<
     Array<{ url: string; filename: string; contentType: string; sizeBytes: number }>
   >([]);
@@ -70,6 +68,11 @@ export function ConversationViewClient({
   const [sendError, setSendError] = useState<string | null>(null);
   const [title, setTitle] = useState(conversation.title);
   const [editingTitle, setEditingTitle] = useState(false);
+  const [openSaveForMessageId, setOpenSaveForMessageId] = useState<string | null>(null);
+  const [savedContextNotice, setSavedContextNotice] = useState<{
+    messageId: string;
+    scope: ContextScope;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -92,6 +95,18 @@ export function ConversationViewClient({
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
   }, [input]);
+
+  useEffect(() => {
+    if (!savedContextNotice) return;
+
+    const timer = setTimeout(() => {
+      setSavedContextNotice((current) =>
+        current?.messageId === savedContextNotice.messageId ? null : current
+      );
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [savedContextNotice]);
 
   const pollForGeneratedTitle = useCallback(
     async (baselineTitle: string) => {
@@ -142,7 +157,6 @@ export function ConversationViewClient({
       audioUrl: null,
       attachments: pendingAttachments.length > 0 ? pendingAttachments : null,
       metadata: null,
-      coachIds: selectedCoachIds.length > 0 ? selectedCoachIds : null,
       createdAt: new Date().toISOString(),
     };
     setMsgs((prev) => [...prev, optimisticMsg]);
@@ -158,7 +172,6 @@ export function ConversationViewClient({
           body: JSON.stringify({
             content,
             attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
-            coachIds: selectedCoachIds.length > 0 ? selectedCoachIds : undefined,
           }),
         }
       );
@@ -259,16 +272,6 @@ export function ConversationViewClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newTitle }),
       }
-    );
-  }
-
-  // ── Coach toggle ────────────────────────────────────────────────────
-
-  function toggleCoach(coachId: string) {
-    setSelectedCoachIds((prev) =>
-      prev.includes(coachId)
-        ? prev.filter((id) => id !== coachId)
-        : [...prev, coachId]
     );
   }
 
@@ -377,12 +380,49 @@ export function ConversationViewClient({
                 );
               })()}
 
-              <span className="font-mono text-[9px] text-muted mt-2 block">
-                {new Date(msg.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="font-mono text-[9px] text-muted">
+                  {new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                {msg.role === "assistant" && (
+                  <div className="flex items-center gap-2">
+                    {savedContextNotice?.messageId === msg.id && (
+                      <span className="font-mono text-[9px] text-success">
+                        Saved to{" "}
+                        {savedContextNotice.scope === "brain"
+                          ? "My Context"
+                          : "Workspace Context"}
+                      </span>
+                    )}
+                    <button
+                      onClick={() =>
+                        setOpenSaveForMessageId((current) =>
+                          current === msg.id ? null : msg.id
+                        )
+                      }
+                      className="font-mono text-[9px] uppercase tracking-wide text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Save to Context
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {msg.role === "assistant" && openSaveForMessageId === msg.id && (
+                <SaveToContextForm
+                  workspaceId={workspaceId}
+                  initialTitle={buildContextDocumentTitle(msg.content)}
+                  initialContent={msg.content}
+                  onCancel={() => setOpenSaveForMessageId(null)}
+                  onSaved={(scope) => {
+                    setOpenSaveForMessageId(null);
+                    setSavedContextNotice({ messageId: msg.id, scope });
+                  }}
+                />
+              )}
             </div>
           </div>
         ))}
@@ -409,6 +449,7 @@ export function ConversationViewClient({
           <PanelCard>
             <VoiceRecorder
               workspaceId={workspaceId}
+              autoStart={true}
               onTranscription={handleTranscription}
               onError={(err) => {
                 console.error("Voice error:", err);
@@ -420,36 +461,6 @@ export function ConversationViewClient({
               className="mt-2 font-mono text-xs text-muted hover:text-destructive transition-colors"
             >
               Cancel
-            </button>
-          </PanelCard>
-        </div>
-      )}
-
-      {/* Coach selector */}
-      {showCoaches && (
-        <div className="mb-3">
-          <PanelCard className="p-3">
-            <MonoLabel className="text-[10px] mb-2 block">SELECT COACHES</MonoLabel>
-            <div className="flex flex-wrap gap-2">
-              {coaches.map((coach) => (
-                <button
-                  key={coach.id}
-                  onClick={() => toggleCoach(coach.id)}
-                  className={`px-3 py-1 rounded font-mono text-[10px] tracking-wider border transition-colors ${
-                    selectedCoachIds.includes(coach.id)
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted hover:border-primary/30"
-                  }`}
-                >
-                  {coach.name}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowCoaches(false)}
-              className="mt-2 font-mono text-[10px] text-muted hover:text-foreground"
-            >
-              Done
             </button>
           </PanelCard>
         </div>
@@ -531,29 +542,6 @@ export function ConversationViewClient({
               <line x1="12" y1="19" x2="12" y2="23" />
               <line x1="8" y1="23" x2="16" y2="23" />
             </svg>
-          </button>
-
-          {/* Coach button */}
-          <button
-            onClick={() => setShowCoaches(!showCoaches)}
-            className={`p-2 transition-colors shrink-0 ${
-              selectedCoachIds.length > 0
-                ? "text-secondary"
-                : "text-muted hover:text-foreground"
-            }`}
-            title={`Coaches${selectedCoachIds.length > 0 ? ` (${selectedCoachIds.length})` : ""}`}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 00-3-3.87" />
-              <path d="M16 3.13a4 4 0 010 7.75" />
-            </svg>
-            {selectedCoachIds.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-secondary text-[8px] text-white flex items-center justify-center font-mono">
-                {selectedCoachIds.length}
-              </span>
-            )}
           </button>
 
           {/* Text input */}

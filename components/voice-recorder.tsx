@@ -13,6 +13,7 @@ interface VoiceRecorderProps {
   onError?: (error: string, audioUrl?: string) => void;
   onUnsupported?: () => void;
   className?: string;
+  autoStart?: boolean;
 }
 
 type RecorderState =
@@ -50,6 +51,7 @@ export function VoiceRecorder({
   onError,
   onUnsupported,
   className = "",
+  autoStart = false,
 }: VoiceRecorderProps) {
   const {
     frequencies,
@@ -73,6 +75,7 @@ export function VoiceRecorder({
     () => new Array(BAR_COUNT).fill(0)
   );
   const idleAnimRef = useRef<number | null>(null);
+  const autoStartTriggeredRef = useRef(false);
 
   // ── Detect support + permission state on mount ─────────────────────
 
@@ -167,6 +170,12 @@ export function VoiceRecorder({
       setState("denied");
     }
   }, [captureError]);
+
+  useEffect(() => {
+    if (!autoStart || state !== "idle" || autoStartTriggeredRef.current) return;
+    autoStartTriggeredRef.current = true;
+    void handleTapToRecord();
+  }, [autoStart, state, handleTapToRecord]);
 
   const handlePause = useCallback(() => {
     pauseCapture();

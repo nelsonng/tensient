@@ -54,7 +54,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const body = await request.json();
-  const { content, audioUrl, attachments, coachIds } = body;
+  const { content, audioUrl, attachments } = body;
 
   if (!content || typeof content !== "string" || content.trim().length < 1) {
     return NextResponse.json(
@@ -75,7 +75,6 @@ export async function POST(request: Request, { params }: Params) {
         content: trimmedContent,
         audioUrl: audioUrl || null,
         attachments: attachments || null,
-        coachIds: coachIds || null,
       })
       .returning();
 
@@ -96,7 +95,6 @@ export async function POST(request: Request, { params }: Params) {
       workspaceId,
       userId: session.user.id,
       userMessage,
-      coachIds: coachIds || [],
     });
 
     // 3. Log usage
@@ -122,7 +120,6 @@ export async function POST(request: Request, { params }: Params) {
         conversationId,
         hasAudio: !!audioUrl,
         attachmentCount: attachments?.length || 0,
-        coachCount: coachIds?.length || 0,
       },
     });
 

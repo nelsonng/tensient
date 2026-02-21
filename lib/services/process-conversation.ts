@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { messages, brainDocuments, protocols, conversations } from "@/lib/db/schema";
+import { messages, brainDocuments, conversations } from "@/lib/db/schema";
 import { eq, and, asc, desc, isNull, sql } from "drizzle-orm";
 import {
   generateStructuredJSON,
@@ -19,7 +19,6 @@ interface MessageRow {
   audioUrl: string | null;
   attachments: unknown;
   metadata: unknown;
-  coachIds: unknown;
   createdAt: Date;
 }
 
@@ -37,7 +36,6 @@ interface ProcessInput {
   workspaceId: string;
   userId: string;
   userMessage: MessageRow;
-  coachIds: string[];
 }
 
 interface Attachment {
@@ -100,7 +98,7 @@ const AI_RESPONSE_SCHEMA = {
 export async function processConversationMessage(
   input: ProcessInput
 ): Promise<ProcessResult> {
-  const { conversationId, workspaceId, userId, userMessage, coachIds } = input;
+  const { conversationId, workspaceId, userId, userMessage } = input;
 
   // 1. Fetch conversation history (excluding the just-inserted user message)
   const history = await db
@@ -125,29 +123,25 @@ export async function processConversationMessage(
     userMessage.content
   );
 
-  // 4. Fetch selected coaches' system prompts
-  const coachPrompts = await fetchCoachPrompts(coachIds);
-
-  // 5. Extract text from any attachments on the current message
+  // 4. Extract text from any attachments on the current message
   const attachmentTexts = await extractAttachmentTexts(
     userMessage.attachments as Attachment[] | null
   );
 
-  // 6. Compose the system prompt
+  // 5. Compose the system prompt
   const systemPrompt = composeSystemPrompt(
     brainContext,
     canonContext,
-    coachPrompts,
     attachmentTexts
   );
 
-  // 7. Compose message history for context
+  // 6. Compose message history for context
   const conversationMessages = history.map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
   }));
 
-  // 8. Call Claude via structured JSON
+  // 7. Call Claude via structured JSON
   const prompt = conversationMessages
     .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
     .join("\n\n");
@@ -160,7 +154,7 @@ export async function processConversationMessage(
       maxTokens: 4096,
     });
 
-  // 9. Insert assistant message
+  // 8. Insert assistant message
   const metadata: Record<string, unknown> = {};
   if (result.sentiment !== undefined) metadata.sentiment = result.sentiment;
   if (result.actions?.length) metadata.actions = result.actions;
@@ -174,11 +168,10 @@ export async function processConversationMessage(
       role: "assistant",
       content: result.reply,
       metadata: Object.keys(metadata).length > 0 ? metadata : null,
-      coachIds: coachIds.length > 0 ? coachIds : null,
     })
     .returning();
 
-  // 10. Fire-and-forget: generate conversation title after first AI response
+  // 9. Fire-and-forget: generate conversation title after first AI response
   const messageCount = history.length;
   if (messageCount <= 2) {
     generateConversationTitle(conversationId, userMessage.content, result.reply).catch(
@@ -240,26 +233,6 @@ async function fetchRelevantDocuments(
   }
 }
 
-// ── Helper: Fetch coach system prompts ─────────────────────────────────
-
-async function fetchCoachPrompts(
-  coachIds: string[]
-): Promise<Array<{ name: string; prompt: string }>> {
-  if (!coachIds.length) return [];
-
-  try {
-    const coaches = await db
-      .select({ name: protocols.name, systemPrompt: protocols.systemPrompt })
-      .from(protocols)
-      .where(sql`${protocols.id} = ANY(${coachIds})`);
-
-    return coaches.map((c) => ({ name: c.name, prompt: c.systemPrompt }));
-  } catch (error) {
-    logger.error("Failed to fetch coach prompts", { error: String(error) });
-    return [];
-  }
-}
-
 // ── Helper: Extract text from attachments ──────────────────────────────
 
 async function extractAttachmentTexts(
@@ -289,7 +262,6 @@ async function extractAttachmentTexts(
 function composeSystemPrompt(
   brainDocs: Array<{ title: string; content: string }>,
   canonDocs: Array<{ title: string; content: string }>,
-  coaches: Array<{ name: string; prompt: string }>,
   attachmentTexts: string[]
 ): string {
   const parts: string[] = [
@@ -309,16 +281,6 @@ function composeSystemPrompt(
     parts.push("\n## Workspace Context (shared workspace knowledge)");
     for (const doc of canonDocs) {
       parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
-    }
-  }
-
-  if (coaches.length > 0) {
-    parts.push("\n## Active Coaching Lenses");
-    parts.push(
-      "Apply the following coaching perspectives when analyzing the user's input:"
-    );
-    for (const coach of coaches) {
-      parts.push(`### ${coach.name}\n${coach.prompt}`);
     }
   }
 

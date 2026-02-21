@@ -2,7 +2,7 @@
 
 **Any model. One place. Persistent context.**
 
-Start a conversation on Claude, GPT, or Gemini. Your context persists across all of them -- every conversation, every session. Brain documents, Canon knowledge, and optional Coaches give the AI memory that compounds over time.
+Start a conversation on Claude, GPT, or Gemini. Your context persists across all of them -- every conversation, every session. Brain documents and Canon knowledge give the AI memory that compounds over time.
 
 **Live:** [tensient.com](https://tensient.com)
 
@@ -11,14 +11,14 @@ Start a conversation on Claude, GPT, or Gemini. Your context persists across all
 ## How It Works
 
 1. **Start a conversation** -- text or voice. Pick any model.
-2. **AI responds with context** -- it reads your Brain (personal notes), Canon (shared knowledge), and selected Coaches before every response. Structured output: summary, action items, coaching questions.
+2. **AI responds with context** -- it reads your Brain (personal notes) and Canon (shared knowledge) before every response. Structured output: summary, action items, coaching questions.
 3. **Context compounds** -- every conversation, document, and upload becomes part of your persistent knowledge layer. The AI gets better the more you use it.
 
 ```
 Message (voice/text/files)
     |
     v
-AI Processing (Claude Opus 4.6 + Brain/Canon vector search + Coaches)
+AI Processing (Claude Opus 4.6 + Brain/Canon vector search)
     |
     +--> Structured Response (summary, actions, coaching questions)
     +--> Auto-generated Title
@@ -69,9 +69,9 @@ npm run dev
 ```
 app/
   (auth)/           # Sign-in, sign-up, password reset, email verification
-  dashboard/        # Workspace: conversations, brain, canon, coaches, settings
+  dashboard/        # Workspace: conversations, brain, canon, settings
   admin/            # Super admin control center (metrics, funnels, retention)
-  api/              # API routes (conversations, brain, canon, coaches, transcribe)
+  api/              # API routes (conversations, brain, canon, transcribe)
 lib/
   db/               # Drizzle schema
   services/         # Core AI (process-conversation, extract-text)

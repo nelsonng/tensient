@@ -50,7 +50,7 @@ export default function TermsOfServicePage() {
               Tensient is an AI-powered alignment tool for teams. The Service
               allows managers to define strategic goals, team members to submit
               updates, and AI to process those updates into alignment scores,
-              action items, and coaching feedback. The Service is currently in
+              action items, and synthesized feedback. The Service is currently in
               early access.
             </p>
           </section>
@@ -166,7 +166,7 @@ export default function TermsOfServicePage() {
             <p>
               The Service uses artificial intelligence to generate alignment
               scores, sentiment analysis, action items, synthesized summaries,
-              and coaching feedback (&quot;AI Output&quot;). AI Output is
+              and feedback suggestions (&quot;AI Output&quot;). AI Output is
               provided for informational purposes only and should not be relied
               upon as professional, legal, or managerial advice. AI Output may
               be inaccurate, incomplete, or biased. You are solely responsible
@@ -180,7 +180,7 @@ export default function TermsOfServicePage() {
               7. Intellectual Property
             </h2>
             <p>
-              The Service, including its design, code, protocols, AI models
+              The Service, including its design, code, AI models
               integration, and branding, is owned by Tensient. Nothing in these
               Terms grants you any right to use Tensient&apos;s trademarks,
               logos, or branding without prior written consent.
