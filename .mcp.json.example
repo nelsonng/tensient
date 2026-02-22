@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "tensient": {
+      "command": "node_modules/.bin/tsx",
+      "args": ["-r", "tsconfig-paths/register", "mcp/server.ts"],
+      "env": {
+        "DATABASE_URL": "postgresql://<user>:<password>@<host>/<db>?sslmode=require",
+        "ANTHROPIC_API_KEY": "sk-ant-...",
+        "GEMINI_API_KEY": "AIza...",
+        "TENSIENT_WORKSPACE_ID": "<workspace-uuid>",
+        "TENSIENT_USER_ID": "<user-uuid>"
+      }
+    }
+  }
+}

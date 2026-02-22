@@ -9,6 +9,7 @@ interface SignalRow {
   content: string;
   conversationId: string;
   conversationTitle: string | null;
+  status: "open" | "resolved" | "dismissed";
   aiPriority: "critical" | "high" | "medium" | "low" | null;
   humanPriority: "critical" | "high" | "medium" | "low" | null;
   reviewedAt: string | null;
@@ -26,6 +27,11 @@ const PRIORITIES: Array<"critical" | "high" | "medium" | "low"> = [
   "high",
   "medium",
   "low",
+];
+const STATUSES: Array<"open" | "resolved" | "dismissed"> = [
+  "open",
+  "resolved",
+  "dismissed",
 ];
 
 function priorityBadge(priority: string | null) {
@@ -59,7 +65,8 @@ export function SignalListClient({
 
   const subtitle = useMemo(() => {
     const unreviewed = items.filter((item) => !item.humanPriority).length;
-    return `${items.length} signal${items.length !== 1 ? "s" : ""} · ${unreviewed} unreviewed`;
+    const openCount = items.filter((item) => item.status === "open").length;
+    return `${items.length} signal${items.length !== 1 ? "s" : ""} · ${openCount} open · ${unreviewed} unreviewed`;
   }, [items]);
 
   async function setPriority(signalId: string, priority: string | null) {
@@ -91,6 +98,39 @@ export function SignalListClient({
     }
   }
 
+  function nextStatus(current: "open" | "resolved" | "dismissed") {
+    const idx = STATUSES.indexOf(current);
+    return STATUSES[(idx + 1) % STATUSES.length];
+  }
+
+  async function cycleStatus(signalId: string, current: "open" | "resolved" | "dismissed") {
+    setUpdatingId(signalId);
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}/signals/${signalId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus(current) }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+
+      const updated = await res.json();
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === signalId
+            ? {
+                ...item,
+                status: updated.status,
+              }
+            : item
+        )
+      );
+    } catch {
+      alert("Failed to update signal status.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   async function deleteSignal(signalId: string) {
     const confirmed = window.confirm("Delete this signal?");
     if (!confirmed) return;
@@ -114,6 +154,31 @@ export function SignalListClient({
         <span className="block max-w-[430px] truncate text-sm text-foreground">
           {row.content}
         </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (row) => (
+        <button
+          type="button"
+          disabled={updatingId === row.id}
+          onClick={(event) => {
+            event.stopPropagation();
+            void cycleStatus(row.id, row.status);
+          }}
+          className={`font-mono text-[11px] uppercase tracking-wide ${
+            row.status === "open"
+              ? "text-primary"
+              : row.status === "resolved"
+                ? "text-success"
+                : "text-muted"
+          }`}
+          title="Click to cycle status"
+        >
+          {row.status.toUpperCase()}
+        </button>
       ),
     },
     {

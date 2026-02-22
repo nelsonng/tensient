@@ -52,6 +52,12 @@ export const signalPriorityEnum = pgEnum("signal_priority", [
   "low",
 ]);
 
+export const signalStatusEnum = pgEnum("signal_status", [
+  "open",
+  "resolved",
+  "dismissed",
+]);
+
 export const synthesisTriggerEnum = pgEnum("synthesis_trigger", [
   "conversation_end",
   "manual",
@@ -383,6 +389,7 @@ export const signals = pgTable(
     embedding: vector("embedding", { dimensions: 1536 }),
     aiPriority: signalPriorityEnum("ai_priority"),
     humanPriority: signalPriorityEnum("human_priority"),
+    status: signalStatusEnum("status").notNull().default("open"),
     reviewedAt: timestamp("reviewed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

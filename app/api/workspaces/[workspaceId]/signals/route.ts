@@ -32,6 +32,7 @@ export async function GET(request: Request, { params }: Params) {
       conversationId: signals.conversationId,
       messageId: signals.messageId,
       content: signals.content,
+      status: signals.status,
       aiPriority: signals.aiPriority,
       humanPriority: signals.humanPriority,
       reviewedAt: signals.reviewedAt,

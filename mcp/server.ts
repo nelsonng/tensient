@@ -44,6 +44,10 @@ server.tool(
       .uuid()
       .optional()
       .describe("Filter by conversation ID"),
+    status: z
+      .enum(["open", "resolved", "dismissed"])
+      .optional()
+      .describe("Filter by signal status"),
     priority: z
       .enum(["critical", "high", "medium", "low"])
       .optional()
@@ -56,15 +60,17 @@ server.tool(
       .default(50)
       .describe("Max results (default 50)"),
   },
-  async ({ conversationId, priority, limit }) => {
+  async ({ conversationId, status, priority, limit }) => {
     const conditions = [eq(signals.workspaceId, WORKSPACE_ID)];
     if (conversationId) conditions.push(eq(signals.conversationId, conversationId));
+    if (status) conditions.push(eq(signals.status, status));
     if (priority) conditions.push(eq(signals.aiPriority, priority));
 
     const rows = await db
       .select({
         id: signals.id,
         content: signals.content,
+        status: signals.status,
         aiPriority: signals.aiPriority,
         humanPriority: signals.humanPriority,
         reviewedAt: signals.reviewedAt,
@@ -381,21 +387,48 @@ server.tool(
 
 server.tool(
   "update_signal",
-  "Update a signal's human priority or mark it as reviewed.",
+  "Update a signal's human priority, status, or review state.",
   {
     signalId: z.string().uuid().describe("Signal ID to update"),
     humanPriority: z
       .enum(["critical", "high", "medium", "low"])
       .nullable()
+      .optional()
       .describe("Human-assigned priority (null to clear)"),
+    status: z
+      .enum(["open", "resolved", "dismissed"])
+      .optional()
+      .describe("Signal status"),
   },
-  async ({ signalId, humanPriority }) => {
+  async ({ signalId, humanPriority, status }) => {
+    if (humanPriority === undefined && status === undefined) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "Provide at least one field to update: humanPriority or status",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const updates: {
+      humanPriority?: "critical" | "high" | "medium" | "low" | null;
+      reviewedAt?: Date | null;
+      status?: "open" | "resolved" | "dismissed";
+    } = {};
+    if (humanPriority !== undefined) {
+      updates.humanPriority = humanPriority ?? null;
+      updates.reviewedAt = humanPriority ? new Date() : null;
+    }
+    if (status !== undefined) {
+      updates.status = status;
+    }
+
     const [row] = await db
       .update(signals)
-      .set({
-        humanPriority: humanPriority ?? null,
-        reviewedAt: humanPriority ? new Date() : null,
-      })
+      .set(updates)
       .where(
         and(eq(signals.id, signalId), eq(signals.workspaceId, WORKSPACE_ID))
       )

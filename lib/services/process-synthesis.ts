@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   brainDocuments,
@@ -108,7 +108,12 @@ export async function processSynthesis(input: {
       createdAt: signals.createdAt,
     })
     .from(signals)
-    .where(eq(signals.workspaceId, workspaceId))
+    .where(
+      and(
+        eq(signals.workspaceId, workspaceId),
+        ne(signals.status, "dismissed")
+      )
+    )
     .orderBy(desc(signals.createdAt));
 
   if (allSignals.length === 0) {
@@ -363,7 +368,12 @@ export async function getUnprocessedSignalCount(workspaceId: string): Promise<nu
     const all = await db
       .select({ id: signals.id })
       .from(signals)
-      .where(eq(signals.workspaceId, workspaceId));
+      .where(
+        and(
+          eq(signals.workspaceId, workspaceId),
+          ne(signals.status, "dismissed")
+        )
+      );
     if (all.length === 0) return 0;
 
     const linked = await db

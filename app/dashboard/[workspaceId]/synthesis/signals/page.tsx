@@ -38,6 +38,7 @@ export default async function SynthesisSignalsPage({
         content: signals.content,
         conversationId: signals.conversationId,
         conversationTitle: conversations.title,
+        status: signals.status,
         aiPriority: signals.aiPriority,
         humanPriority: signals.humanPriority,
         reviewedAt: signals.reviewedAt,

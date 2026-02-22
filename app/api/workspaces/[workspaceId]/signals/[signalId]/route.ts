@@ -28,6 +28,7 @@ export async function GET(_request: Request, { params }: Params) {
       conversationId: signals.conversationId,
       messageId: signals.messageId,
       content: signals.content,
+      status: signals.status,
       aiPriority: signals.aiPriority,
       humanPriority: signals.humanPriority,
       reviewedAt: signals.reviewedAt,
@@ -67,6 +68,7 @@ export async function PATCH(request: Request, { params }: Params) {
     | "low"
     | null
     | undefined;
+  const status = body?.status as "open" | "resolved" | "dismissed" | undefined;
 
   if (
     humanPriority !== undefined &&
@@ -76,12 +78,34 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Invalid humanPriority" }, { status: 400 });
   }
 
+  if (status !== undefined && !["open", "resolved", "dismissed"].includes(status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  if (humanPriority === undefined && status === undefined) {
+    return NextResponse.json(
+      { error: "Provide at least one field: humanPriority or status" },
+      { status: 400 }
+    );
+  }
+
+  const updateValues: {
+    humanPriority?: "critical" | "high" | "medium" | "low" | null;
+    reviewedAt?: Date | null;
+    status?: "open" | "resolved" | "dismissed";
+  } = {};
+
+  if (humanPriority !== undefined) {
+    updateValues.humanPriority = humanPriority ?? null;
+    updateValues.reviewedAt = humanPriority ? new Date() : null;
+  }
+  if (status !== undefined) {
+    updateValues.status = status;
+  }
+
   const [row] = await db
     .update(signals)
-    .set({
-      humanPriority: humanPriority ?? null,
-      reviewedAt: humanPriority ? new Date() : null,
-    })
+    .set(updateValues)
     .where(and(eq(signals.id, signalId), eq(signals.workspaceId, workspaceId)))
     .returning();
 
