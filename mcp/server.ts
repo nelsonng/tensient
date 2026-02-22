@@ -1,18 +1,17 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { eq, and, desc, asc, isNull, sql, inArray } from "drizzle-orm";
-import { db } from "./db";
-import { generateEmbedding } from "./embeddings";
-import { generateStructuredJSON } from "./ai";
+import { eq, and, desc, asc, isNull, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { generateEmbedding, calculateCostCents } from "@/lib/ai";
+import { processSynthesis } from "@/lib/services/process-synthesis";
+import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import {
   signals,
   conversations,
   messages,
   brainDocuments,
   synthesisCommits,
-  synthesisDocumentVersions,
-  synthesisCommitSignals,
 } from "../lib/db/schema";
 
 // ── Config ──────────────────────────────────────────────────────────────
@@ -311,6 +310,52 @@ server.tool(
       .describe("Priority level"),
   },
   async ({ content, conversationId, messageId, aiPriority }) => {
+    const [conversation] = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.id, conversationId),
+          eq(conversations.workspaceId, WORKSPACE_ID)
+        )
+      )
+      .limit(1);
+
+    if (!conversation) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "Conversation not found in this workspace",
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const [message] = await db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.id, messageId),
+          eq(messages.conversationId, conversationId)
+        )
+      )
+      .limit(1);
+
+    if (!message) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "Message not found in the specified conversation",
+          },
+        ],
+        isError: true,
+      };
+    }
+
     const embedding = await generateEmbedding(content.slice(0, 2000));
 
     const [row] = await db
@@ -593,42 +638,6 @@ server.tool(
 
 // ── Run Synthesis ────────────────────────────────────────────────────────
 
-const SYNTHESIS_SCHEMA = {
-  type: "object",
-  properties: {
-    operations: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          action: { type: "string", enum: ["create", "modify", "delete"] },
-          documentId: { type: "string" },
-          title: { type: "string" },
-          content: { type: "string" },
-          reasoning: { type: "string" },
-        },
-        required: ["action", "title", "content"],
-        additionalProperties: false,
-      },
-    },
-    commitSummary: { type: "string" },
-    priorityRecommendations: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          signalId: { type: "string" },
-          recommended: { type: "string", enum: ["critical", "high", "medium", "low"] },
-        },
-        required: ["signalId", "recommended"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["operations", "commitSummary", "priorityRecommendations"],
-  additionalProperties: false,
-} as const;
-
 server.tool(
   "run_synthesis",
   "Trigger synthesis: processes unprocessed signals against current synthesis documents to update the workspace world-model. Requires ANTHROPIC_API_KEY. Returns the commit summary and operations performed.",
@@ -641,127 +650,61 @@ server.tool(
       };
     }
 
-    // Get all signals
-    const allSignals = await db
-      .select({ id: signals.id, content: signals.content, aiPriority: signals.aiPriority, createdAt: signals.createdAt })
-      .from(signals)
-      .where(eq(signals.workspaceId, WORKSPACE_ID))
-      .orderBy(desc(signals.createdAt));
-
-    if (allSignals.length === 0) {
-      return { content: [{ type: "text" as const, text: JSON.stringify({ summary: "No signals to process.", operations: [] }) }] };
+    const usageCheck = await checkUsageAllowed(USER_ID);
+    if (!usageCheck.allowed) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: usageCheck.reason ?? "Usage limit reached",
+          },
+        ],
+        isError: true,
+      };
     }
 
-    // Find unprocessed signals
-    const linkedSignals = await db
-      .select({ signalId: synthesisCommitSignals.signalId })
-      .from(synthesisCommitSignals);
-    const processedIds = new Set(linkedSignals.map((r) => r.signalId));
-    const pendingSignals = allSignals.filter((s) => !processedIds.has(s.id));
-
-    if (pendingSignals.length === 0) {
-      return { content: [{ type: "text" as const, text: JSON.stringify({ summary: "No new signals to process.", operations: [] }) }] };
-    }
-
-    // Get current synthesis documents
-    const currentDocs = await db
-      .select({ id: brainDocuments.id, title: brainDocuments.title, content: brainDocuments.content })
-      .from(brainDocuments)
-      .where(and(eq(brainDocuments.workspaceId, WORKSPACE_ID), eq(brainDocuments.scope, "synthesis"), isNull(brainDocuments.userId)));
-
-    // Get head commit
-    const [headCommit] = await db
-      .select()
-      .from(synthesisCommits)
-      .where(eq(synthesisCommits.workspaceId, WORKSPACE_ID))
-      .orderBy(desc(synthesisCommits.createdAt))
-      .limit(1);
-
-    // Call Claude for synthesis
-    const prompt = [
-      "Current synthesis documents:",
-      currentDocs.length ? JSON.stringify(currentDocs.map((d) => ({ id: d.id, title: d.title, content: d.content ?? "" })), null, 2) : "[]",
-      "",
-      "New signals to process:",
-      JSON.stringify(pendingSignals.map((s) => ({ id: s.id, content: s.content, aiPriority: s.aiPriority })), null, 2),
-    ].join("\n");
-
-    const { result } = await generateStructuredJSON<{
-      operations: Array<{ action: "create" | "modify" | "delete"; documentId?: string; title: string; content: string; reasoning?: string }>;
-      commitSummary: string;
-      priorityRecommendations: Array<{ signalId: string; recommended: "critical" | "high" | "medium" | "low" }>;
-    }>({
-      system: "You maintain a workspace synthesis document set. Update documents based on new signals. Keep output concise and actionable.",
-      prompt,
-      schema: SYNTHESIS_SCHEMA,
-      maxTokens: 4096,
+    const synthesisResult = await processSynthesis({
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      trigger: "manual",
     });
 
-    // Apply operations
-    const documentMap = new Map(currentDocs.map((d) => [d.id, d]));
-    const changedVersions: Array<{ documentId: string; title: string; content: string; changeType: "created" | "modified" | "deleted" }> = [];
-
-    for (const op of result.operations) {
-      if (op.action === "create") {
-        const embedding = op.content ? await generateEmbedding(op.content.slice(0, 8000)) : null;
-        const [created] = await db
-          .insert(brainDocuments)
-          .values({ workspaceId: WORKSPACE_ID, userId: null, scope: "synthesis", title: op.title, content: op.content, embedding })
-          .returning({ id: brainDocuments.id, title: brainDocuments.title, content: brainDocuments.content });
-        changedVersions.push({ documentId: created.id, title: created.title, content: created.content ?? "", changeType: "created" });
-      } else if (op.action === "modify" && op.documentId && documentMap.has(op.documentId)) {
-        const embedding = op.content ? await generateEmbedding(op.content.slice(0, 8000)) : null;
-        const [updated] = await db
-          .update(brainDocuments)
-          .set({ title: op.title, content: op.content, embedding, updatedAt: new Date() })
-          .where(and(eq(brainDocuments.id, op.documentId), eq(brainDocuments.workspaceId, WORKSPACE_ID), eq(brainDocuments.scope, "synthesis"), isNull(brainDocuments.userId)))
-          .returning({ id: brainDocuments.id, title: brainDocuments.title, content: brainDocuments.content });
-        if (updated) changedVersions.push({ documentId: updated.id, title: updated.title, content: updated.content ?? "", changeType: "modified" });
-      } else if (op.action === "delete" && op.documentId && documentMap.has(op.documentId)) {
-        const existing = documentMap.get(op.documentId);
-        const [deleted] = await db
-          .delete(brainDocuments)
-          .where(and(eq(brainDocuments.id, op.documentId), eq(brainDocuments.workspaceId, WORKSPACE_ID), eq(brainDocuments.scope, "synthesis"), isNull(brainDocuments.userId)))
-          .returning({ id: brainDocuments.id });
-        if (deleted && existing) changedVersions.push({ documentId: existing.id, title: existing.title, content: existing.content ?? "", changeType: "deleted" });
-      }
-    }
-
-    // Create commit
-    const [commit] = await db
-      .insert(synthesisCommits)
-      .values({ workspaceId: WORKSPACE_ID, parentId: headCommit?.id ?? null, summary: result.commitSummary, trigger: "manual", signalCount: pendingSignals.length })
-      .returning({ id: synthesisCommits.id, summary: synthesisCommits.summary });
-
-    // Record document versions
-    if (changedVersions.length > 0) {
-      await db.insert(synthesisDocumentVersions).values(
-        changedVersions.map((v) => ({ documentId: v.documentId, commitId: commit.id, title: v.title, content: v.content, changeType: v.changeType }))
-      );
-    }
-
-    // Link signals to commit
-    await db.insert(synthesisCommitSignals).values(
-      pendingSignals.map((s) => ({ commitId: commit.id, signalId: s.id }))
-    );
-
-    // Apply priority recommendations
-    const validIds = new Set(pendingSignals.map((s) => s.id));
-    for (const rec of result.priorityRecommendations.filter((r) => validIds.has(r.signalId))) {
-      await db.update(signals).set({ aiPriority: rec.recommended }).where(eq(signals.id, rec.signalId));
+    if (synthesisResult.usage) {
+      await logUsage({
+        userId: USER_ID,
+        workspaceId: WORKSPACE_ID,
+        operation: "mcp_synthesis",
+        inputTokens: synthesisResult.usage.inputTokens,
+        outputTokens: synthesisResult.usage.outputTokens,
+        estimatedCostCents: calculateCostCents(
+          synthesisResult.usage.inputTokens,
+          synthesisResult.usage.outputTokens
+        ),
+      });
     }
 
     return {
-      content: [{
-        type: "text" as const,
-        text: JSON.stringify({
-          commitId: commit.id,
-          summary: commit.summary,
-          processedSignals: pendingSignals.length,
-          operations: result.operations.map((op) => ({ action: op.action, title: op.title, reasoning: op.reasoning })),
-          priorityRecommendations: result.priorityRecommendations,
-        }, null, 2),
-      }],
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              commitId: synthesisResult.commitId,
+              summary: synthesisResult.summary,
+              processedSignals: synthesisResult.processedSignalCount,
+              operations: synthesisResult.operations.map((op) => ({
+                action: op.action,
+                title: op.title,
+                reasoning: op.reasoning,
+              })),
+              priorityRecommendations:
+                synthesisResult.priorityRecommendations,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 );
