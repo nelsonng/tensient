@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { messages, brainDocuments, conversations } from "@/lib/db/schema";
+import { messages, brainDocuments, conversations, signals } from "@/lib/db/schema";
 import { eq, and, asc, desc, isNull, sql } from "drizzle-orm";
 import {
   generateStructuredJSON,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai";
 import { extractTextFromFile } from "@/lib/extract-text";
 import { logger } from "@/lib/logger";
+import { trackEvent } from "@/lib/platform-events";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -48,7 +49,10 @@ interface Attachment {
 interface AIResponse {
   reply: string;
   sentiment?: number;
-  actions?: Array<{ task: string; priority?: string }>;
+  actions?: Array<{
+    task: string;
+    priority?: "critical" | "high" | "medium" | "low";
+  }>;
   coachingQuestions?: string[];
   alignmentNote?: string;
 }
@@ -124,6 +128,14 @@ export async function processConversationMessage(
   );
 
   // 4. Extract text from any attachments on the current message
+  const synthesisContext = await fetchRelevantDocuments(
+    workspaceId,
+    null,
+    "synthesis",
+    userMessage.content
+  );
+
+  // 4. Extract text from any attachments on the current message
   const attachmentTexts = await extractAttachmentTexts(
     userMessage.attachments as Attachment[] | null
   );
@@ -132,6 +144,7 @@ export async function processConversationMessage(
   const systemPrompt = composeSystemPrompt(
     brainContext,
     canonContext,
+    synthesisContext,
     attachmentTexts
   );
 
@@ -171,6 +184,16 @@ export async function processConversationMessage(
     })
     .returning();
 
+  if (result.actions?.length) {
+    void persistSignals({
+      workspaceId,
+      userId,
+      conversationId,
+      messageId: assistantMessage.id,
+      actions: result.actions,
+    });
+  }
+
   // 9. Fire-and-forget: generate conversation title after first AI response
   const messageCount = history.length;
   if (messageCount <= 2) {
@@ -189,12 +212,68 @@ export async function processConversationMessage(
   };
 }
 
+async function persistSignals(input: {
+  workspaceId: string;
+  userId: string;
+  conversationId: string;
+  messageId: string;
+  actions: Array<{ task: string; priority?: "critical" | "high" | "medium" | "low" }>;
+}) {
+  const { workspaceId, userId, conversationId, messageId, actions } = input;
+
+  try {
+    for (const action of actions) {
+      const task = action.task?.trim();
+      if (!task) continue;
+
+      const [signal] = await db
+        .insert(signals)
+        .values({
+          workspaceId,
+          userId,
+          conversationId,
+          messageId,
+          content: task,
+          aiPriority: action.priority ?? null,
+        })
+        .returning({ id: signals.id, content: signals.content });
+
+      if (signal?.id) {
+        try {
+          const embedding = await generateEmbedding(task.slice(0, 2000));
+          await db
+            .update(signals)
+            .set({ embedding })
+            .where(eq(signals.id, signal.id));
+        } catch (embeddingError) {
+          logger.error("Signal embedding generation failed", {
+            signalId: signal.id,
+            error: String(embeddingError),
+          });
+        }
+      }
+    }
+
+    trackEvent("signal_extracted", {
+      userId,
+      workspaceId,
+      metadata: { conversationId, count: actions.length },
+    });
+  } catch (error) {
+    logger.error("Signal extraction persistence failed", {
+      workspaceId,
+      conversationId,
+      error: String(error),
+    });
+  }
+}
+
 // ── Helper: Fetch relevant documents by embedding similarity ───────────
 
 async function fetchRelevantDocuments(
   workspaceId: string,
   userId: string | null,
-  scope: "personal" | "workspace",
+  scope: "personal" | "workspace" | "synthesis",
   queryText: string,
   limit = 5
 ): Promise<Array<{ title: string; content: string }>> {
@@ -262,6 +341,7 @@ async function extractAttachmentTexts(
 function composeSystemPrompt(
   brainDocs: Array<{ title: string; content: string }>,
   canonDocs: Array<{ title: string; content: string }>,
+  synthesisDocs: Array<{ title: string; content: string }>,
   attachmentTexts: string[]
 ): string {
   const parts: string[] = [
@@ -280,6 +360,13 @@ function composeSystemPrompt(
   if (canonDocs.length > 0) {
     parts.push("\n## Workspace Context (shared workspace knowledge)");
     for (const doc of canonDocs) {
+      parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
+    }
+  }
+
+  if (synthesisDocs.length > 0) {
+    parts.push("\n## Synthesis (workspace world model)");
+    for (const doc of synthesisDocs) {
       parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
     }
   }

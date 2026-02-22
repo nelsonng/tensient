@@ -14,7 +14,7 @@ interface DocumentEditorClientProps {
     fileType: string | null;
     fileName: string | null;
   };
-  kind: "brain" | "canon";
+  kind: "brain" | "canon" | "synthesis";
 }
 
 export function DocumentEditorClient({
@@ -30,8 +30,14 @@ export function DocumentEditorClient({
   const [deleting, setDeleting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const apiPath = `/api/workspaces/${workspaceId}/${kind}/${doc.id}`;
-  const listPath = `/dashboard/${workspaceId}/${kind}`;
+  const apiPath =
+    kind === "synthesis"
+      ? `/api/workspaces/${workspaceId}/synthesis/documents/${doc.id}`
+      : `/api/workspaces/${workspaceId}/${kind}/${doc.id}`;
+  const listPath =
+    kind === "synthesis"
+      ? `/dashboard/${workspaceId}/synthesis`
+      : `/dashboard/${workspaceId}/${kind}`;
 
   const save = useCallback(
     async (updates: { title?: string; content?: string }) => {
@@ -95,7 +101,12 @@ export function DocumentEditorClient({
           onClick={() => router.push(listPath)}
           className="font-mono text-xs text-muted hover:text-foreground transition-colors"
         >
-          ← Back to {kind === "brain" ? "My Context" : "Workspace Context"}
+          ← Back to{" "}
+          {kind === "brain"
+            ? "My Context"
+            : kind === "canon"
+              ? "Workspace Context"
+              : "Synthesis"}
         </button>
         <div className="flex items-center gap-4">
           <span className="font-mono text-[10px] text-muted">

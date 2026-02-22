@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   index,
   vector,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -41,6 +42,26 @@ export const brainDocumentScopeEnum = pgEnum("brain_document_scope", [
   "personal",
   "workspace",
   "org",
+  "synthesis",
+]);
+
+export const signalPriorityEnum = pgEnum("signal_priority", [
+  "critical",
+  "high",
+  "medium",
+  "low",
+]);
+
+export const synthesisTriggerEnum = pgEnum("synthesis_trigger", [
+  "conversation_end",
+  "manual",
+  "scheduled",
+]);
+
+export const synthesisChangeTypeEnum = pgEnum("synthesis_change_type", [
+  "created",
+  "modified",
+  "deleted",
 ]);
 
 // ── Organizations ──────────────────────────────────────────────────────
@@ -299,6 +320,8 @@ export const platformEventTypeEnum = pgEnum("platform_event_type", [
   "sign_up_failed",
   "sign_in_success",
   "sign_in_failed",
+  "capture_submitted",
+  "synthesis_generated",
   "onboarding_started",
   "onboarding_completed",
   "transcription_started",
@@ -310,6 +333,8 @@ export const platformEventTypeEnum = pgEnum("platform_event_type", [
   "canon_document_created",
   "workspace_joined",
   "workspace_created",
+  "signal_extracted",
+  "synthesis_completed",
   "api_error",
   "client_error",
 ]);
@@ -331,6 +356,120 @@ export const platformEvents = pgTable(
     index("idx_platform_events_type").on(table.type),
     index("idx_platform_events_created").on(table.createdAt),
     index("idx_platform_events_user").on(table.userId),
+  ]
+);
+
+// ── Signals ──────────────────────────────────────────────────────────────
+
+export const signals = pgTable(
+  "signals",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    messageId: uuid("message_id")
+      .references(() => messages.id, { onDelete: "cascade" })
+      .notNull(),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: 1536 }),
+    aiPriority: signalPriorityEnum("ai_priority"),
+    humanPriority: signalPriorityEnum("human_priority"),
+    reviewedAt: timestamp("reviewed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_signals_workspace").on(table.workspaceId),
+    index("idx_signals_conversation").on(table.conversationId),
+    index("idx_signals_message").on(table.messageId),
+    index("idx_signals_created").on(table.createdAt),
+  ]
+);
+
+// ── Synthesis Commits (DAG) ─────────────────────────────────────────────
+
+export const synthesisCommits = pgTable(
+  "synthesis_commits",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
+    parentId: uuid("parent_id"),
+    summary: text("summary").notNull(),
+    trigger: synthesisTriggerEnum("trigger").notNull(),
+    signalCount: integer("signal_count").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+      name: "fk_synthesis_commits_parent",
+    }),
+    index("idx_synthesis_commits_workspace").on(table.workspaceId),
+    index("idx_synthesis_commits_parent").on(table.parentId),
+    index("idx_synthesis_commits_created").on(table.createdAt),
+  ]
+);
+
+// ── Synthesis Document Versions ──────────────────────────────────────────
+
+export const synthesisDocumentVersions = pgTable(
+  "synthesis_document_versions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    documentId: uuid("document_id")
+      .references(() => brainDocuments.id, { onDelete: "cascade" })
+      .notNull(),
+    commitId: uuid("commit_id")
+      .references(() => synthesisCommits.id, { onDelete: "cascade" })
+      .notNull(),
+    title: text("title").notNull(),
+    content: text("content"),
+    changeType: synthesisChangeTypeEnum("change_type").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_synthesis_document_versions_document").on(table.documentId),
+    index("idx_synthesis_document_versions_commit").on(table.commitId),
+  ]
+);
+
+// ── Synthesis Commit Signals ─────────────────────────────────────────────
+
+export const synthesisCommitSignals = pgTable(
+  "synthesis_commit_signals",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    commitId: uuid("commit_id")
+      .references(() => synthesisCommits.id, { onDelete: "cascade" })
+      .notNull(),
+    signalId: uuid("signal_id")
+      .references(() => signals.id, { onDelete: "cascade" })
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_synthesis_commit_signals_unique").on(
+      table.commitId,
+      table.signalId
+    ),
+    index("idx_synthesis_commit_signals_commit").on(table.commitId),
+    index("idx_synthesis_commit_signals_signal").on(table.signalId),
   ]
 );
 

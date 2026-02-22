@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { SlantedButton } from "@/components/slanted-button";
-import { PanelCard } from "@/components/panel-card";
-import { MonoLabel } from "@/components/mono-label";
 
 interface Conversation {
   id: string;
   title: string | null;
+  messageCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -40,6 +39,21 @@ export function ConversationListClient({
     }
   }
 
+  async function handleDeleteConversation(conversationId: string) {
+    const confirmed = window.confirm("Delete this conversation?");
+    if (!confirmed) return;
+
+    const res = await fetch(
+      `/api/workspaces/${workspaceId}/conversations/${conversationId}`,
+      { method: "DELETE" }
+    );
+    if (!res.ok) {
+      alert("Failed to delete conversation.");
+      return;
+    }
+    router.refresh();
+  }
+
   function formatRelativeTime(dateStr: string) {
     const date = new Date(dateStr);
     const now = new Date();
@@ -55,59 +69,64 @@ export function ConversationListClient({
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 
+  const columns: Array<DataTableColumn<Conversation>> = [
+    {
+      key: "title",
+      label: "Title",
+      sortable: true,
+      render: (convo) => (
+        <span className="truncate font-body text-sm text-foreground">
+          {convo.title || "Untitled conversation"}
+        </span>
+      ),
+    },
+    {
+      key: "messageCount",
+      label: "Messages",
+      sortable: true,
+      sortValue: (convo) => convo.messageCount,
+      render: (convo) => (
+        <span className="font-mono text-[11px] text-muted">{convo.messageCount}</span>
+      ),
+    },
+    {
+      key: "updatedAt",
+      label: "Updated",
+      sortable: true,
+      sortValue: (convo) => new Date(convo.updatedAt).getTime(),
+      render: (convo) => (
+        <span className="font-mono text-[11px] text-muted">
+          {formatRelativeTime(convo.updatedAt)}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div className="mx-auto max-w-[1200px] px-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
-            Conversations
-          </h1>
-          <p className="font-mono text-xs text-muted mt-1">
-            {conversations.length} conversation{conversations.length !== 1 ? "s" : ""}
-          </p>
-        </div>
+    <DataTable
+      title="Conversations"
+      subtitle={`${conversations.length} conversation${
+        conversations.length !== 1 ? "s" : ""
+      }`}
+      rows={conversations}
+      columns={columns}
+      toolbar={
         <SlantedButton onClick={handleNewConversation} disabled={creating}>
           {creating ? "Creating..." : "+ New Conversation"}
         </SlantedButton>
-      </div>
-
-      {/* Empty state */}
-      {conversations.length === 0 && (
-        <PanelCard className="text-center py-16">
-          <MonoLabel className="text-muted mb-4 block">No conversations yet</MonoLabel>
-          <p className="text-sm text-muted mb-6">
-            Start your first conversation to begin thinking with Tensient.
-          </p>
-          <SlantedButton onClick={handleNewConversation} disabled={creating}>
-            Start First Conversation
-          </SlantedButton>
-        </PanelCard>
-      )}
-
-      {/* Conversation list */}
-      <div className="space-y-2">
-        {conversations.map((convo) => (
-          <Link
-            key={convo.id}
-            href={`/dashboard/${workspaceId}/conversations/${convo.id}`}
-            className="block"
-          >
-            <PanelCard className="hover:border-primary/30 transition-colors cursor-pointer group">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-body text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                    {convo.title || "Untitled conversation"}
-                  </h3>
-                </div>
-                <span className="font-mono text-[10px] text-muted ml-4 shrink-0">
-                  {formatRelativeTime(convo.updatedAt)}
-                </span>
-              </div>
-            </PanelCard>
-          </Link>
-        ))}
-      </div>
-    </div>
+      }
+      onRowClick={(convo) => router.push(`/dashboard/${workspaceId}/conversations/${convo.id}`)}
+      rowActions={[
+        {
+          label: "Delete",
+          variant: "danger",
+          onClick: async (convo) => {
+            await handleDeleteConversation(convo.id);
+          },
+        },
+      ]}
+      emptyTitle="No conversations yet"
+      emptyDescription="Start your first conversation to begin thinking with Tensient."
+    />
   );
 }

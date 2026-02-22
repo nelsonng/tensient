@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { users, organizations, workspaces, memberships, conversations, messages, usageLogs } from "@/lib/db/schema";
-import { count, sql } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 
 async function getOverviewStats() {
   const [userCount] = await db.select({ count: count() }).from(users);
@@ -14,6 +14,13 @@ async function getOverviewStats() {
   const [costResult] = await db
     .select({ total: sql<number>`COALESCE(SUM(${usageLogs.estimatedCostCents}), 0)` })
     .from(usageLogs);
+
+  const [synthesisCostResult] = await db
+    .select({
+      total: sql<number>`COALESCE(SUM(${usageLogs.estimatedCostCents}), 0)`,
+    })
+    .from(usageLogs)
+    .where(eq(usageLogs.operation, "synthesis"));
 
   // Users signed up in last 7 days
   const [recentUsers] = await db
@@ -35,6 +42,7 @@ async function getOverviewStats() {
     conversations: conversationCount.count,
     messages: messageCount.count,
     totalCostCents: Number(costResult.total),
+    synthesisCostCents: Number(synthesisCostResult.total),
     recentUsers: recentUsers.count,
     recentConversations: recentConversations.count,
   };
@@ -83,6 +91,11 @@ export default async function AdminOverviewPage() {
         <StatCard
           label="AI Spend"
           value={`$${(stats.totalCostCents / 100).toFixed(2)}`}
+          sub="all time"
+        />
+        <StatCard
+          label="Synthesis Spend"
+          value={`$${(stats.synthesisCostCents / 100).toFixed(2)}`}
           sub="all time"
         />
       </div>

@@ -19,6 +19,8 @@ type PlatformEventType =
   | "canon_document_created"
   | "workspace_joined"
   | "workspace_created"
+  | "signal_extracted"
+  | "synthesis_completed"
   | "api_error"
   | "client_error";
 

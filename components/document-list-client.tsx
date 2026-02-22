@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { upload } from "@vercel/blob/client";
+import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { SlantedButton } from "@/components/slanted-button";
-import { PanelCard } from "@/components/panel-card";
-import { MonoLabel } from "@/components/mono-label";
 
 interface Document {
   id: string;
@@ -96,21 +94,72 @@ export function DocumentListClient({
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 
-  return (
-    <div className="mx-auto max-w-[1200px] px-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
-            {label}
-          </h1>
-          <p className="font-mono text-xs text-muted mt-1">
-            {kind === "brain" ? "Your personal context" : "Shared workspace knowledge"}
-            {" · "}
-            {documents.length} document{documents.length !== 1 ? "s" : ""}
-          </p>
+  async function handleDelete(documentId: string) {
+    const confirmed = window.confirm("Delete this document?");
+    if (!confirmed) return;
+
+    const res = await fetch(`${apiPath}/${documentId}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      alert("Failed to delete document.");
+      return;
+    }
+
+    router.refresh();
+  }
+
+  const columns: Array<DataTableColumn<Document>> = [
+    {
+      key: "title",
+      label: "Title",
+      sortable: true,
+      render: (doc) => (
+        <div className="min-w-0">
+          <p className="truncate font-body text-sm text-foreground">{doc.title}</p>
         </div>
-        <div className="flex items-center gap-3">
+      ),
+    },
+    {
+      key: "fileType",
+      label: "Type",
+      sortable: true,
+      render: (doc) =>
+        doc.fileType?.split("/")[1]?.toUpperCase() ?? (doc.fileUrl ? "FILE" : "TEXT"),
+    },
+    {
+      key: "content",
+      label: "Preview",
+      render: (doc) => (
+        <span className="block max-w-[460px] truncate text-xs text-muted">
+          {doc.content?.slice(0, 120) || "--"}
+        </span>
+      ),
+    },
+    {
+      key: "updatedAt",
+      label: "Updated",
+      sortable: true,
+      sortValue: (doc) => new Date(doc.updatedAt).getTime(),
+      render: (doc) => (
+        <span className="font-mono text-[11px] text-muted">
+          {formatRelativeTime(doc.updatedAt)}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <DataTable
+      title={label}
+      subtitle={`${kind === "brain" ? "Your personal context" : "Shared workspace knowledge"} · ${
+        documents.length
+      } document${documents.length !== 1 ? "s" : ""}`}
+      rows={documents}
+      columns={columns}
+      toolbar={
+        <>
           <label className="cursor-pointer">
             <input
               type="file"
@@ -118,7 +167,8 @@ export function DocumentListClient({
               onChange={handleFileUpload}
               className="hidden"
             />
-            <span className="inline-flex items-center px-4 py-2 font-mono text-xs tracking-wider border border-border text-muted hover:border-primary/30 hover:text-foreground transition-colors rounded"
+            <span
+              className="inline-flex items-center rounded border border-border px-4 py-2 font-mono text-xs tracking-wider text-muted transition-colors hover:border-primary/30 hover:text-foreground"
               style={{ clipPath: "polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)" }}
             >
               {uploading ? "Uploading..." : "Upload File"}
@@ -127,57 +177,24 @@ export function DocumentListClient({
           <SlantedButton onClick={handleNew} disabled={creating}>
             {creating ? "Creating..." : "+ New Document"}
           </SlantedButton>
-        </div>
-      </div>
-
-      {/* Empty state */}
-      {documents.length === 0 && (
-        <PanelCard className="text-center py-16">
-          <MonoLabel className="text-muted mb-4 block">
-            No {label.toLowerCase()} documents yet
-          </MonoLabel>
-          <p className="text-sm text-muted mb-6">
-            {kind === "brain"
-              ? "Add personal context that Tensient will use in your conversations."
-              : "Add shared knowledge that everyone in the workspace can reference."}
-          </p>
-          <SlantedButton onClick={handleNew} disabled={creating}>
-            Create First Document
-          </SlantedButton>
-        </PanelCard>
-      )}
-
-      {/* Document list */}
-      <div className="space-y-2">
-        {documents.map((doc) => (
-          <Link key={doc.id} href={`${pagePath}/${doc.id}`} className="block">
-            <PanelCard className="hover:border-primary/30 transition-colors cursor-pointer group">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-body text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                      {doc.title}
-                    </h3>
-                    {doc.fileUrl && (
-                      <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-info/10 text-info border border-info/20">
-                        {doc.fileType?.split("/")[1]?.toUpperCase() || "FILE"}
-                      </span>
-                    )}
-                  </div>
-                  {doc.content && (
-                    <p className="text-xs text-muted truncate mt-0.5">
-                      {doc.content.slice(0, 120)}
-                    </p>
-                  )}
-                </div>
-                <span className="font-mono text-[10px] text-muted ml-4 shrink-0">
-                  {formatRelativeTime(doc.updatedAt)}
-                </span>
-              </div>
-            </PanelCard>
-          </Link>
-        ))}
-      </div>
-    </div>
+        </>
+      }
+      onRowClick={(doc) => router.push(`${pagePath}/${doc.id}`)}
+      rowActions={[
+        {
+          label: "Delete",
+          variant: "danger",
+          onClick: async (doc) => {
+            await handleDelete(doc.id);
+          },
+        },
+      ]}
+      emptyTitle={`No ${label.toLowerCase()} documents yet`}
+      emptyDescription={
+        kind === "brain"
+          ? "Add personal context that Tensient will use in your conversations."
+          : "Add shared knowledge that everyone in the workspace can reference."
+      }
+    />
   );
 }

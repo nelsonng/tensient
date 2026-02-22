@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { memberships, conversations } from "@/lib/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { memberships, conversations, messages } from "@/lib/db/schema";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { ConversationListClient } from "./conversation-list-client";
 
 export default async function DashboardPage({
@@ -66,12 +66,29 @@ export default async function DashboardPage({
     )
     .orderBy(desc(conversations.updatedAt));
 
+  const conversationIds = convos.map((c) => c.id);
+  const countsByConversation = conversationIds.length
+    ? await db
+        .select({
+          conversationId: messages.conversationId,
+          count: sql<number>`count(*)`,
+        })
+        .from(messages)
+        .where(inArray(messages.conversationId, conversationIds))
+        .groupBy(messages.conversationId)
+    : [];
+
+  const countMap = new Map<string, number>(
+    countsByConversation.map((row) => [row.conversationId, Number(row.count)])
+  );
+
   return (
     <ConversationListClient
       workspaceId={workspaceId}
       conversations={convos.map((c) => ({
         id: c.id,
         title: c.title,
+        messageCount: countMap.get(c.id) ?? 0,
         createdAt: c.createdAt.toISOString(),
         updatedAt: c.updatedAt.toISOString(),
       }))}

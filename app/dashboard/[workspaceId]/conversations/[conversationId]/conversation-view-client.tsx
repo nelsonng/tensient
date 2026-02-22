@@ -350,6 +350,7 @@ export function ConversationViewClient({
               {/* Metadata: actions, coaching questions */}
               {msg.metadata && msg.role === "assistant" && (() => {
                 const meta = msg.metadata as { actions?: Array<{ task: string }>; coachingQuestions?: string[] };
+                const signalCount = meta.actions?.length ?? 0;
                 return (
                   <div className="mt-3 space-y-2">
                     {meta.actions && meta.actions.length > 0 && (
@@ -374,6 +375,16 @@ export function ConversationViewClient({
                             </li>
                           ))}
                         </ul>
+                      </div>
+                    )}
+                    {signalCount > 0 && (
+                      <div>
+                        <a
+                          href={`/dashboard/${workspaceId}/synthesis/signals?conversationId=${conversation.id}`}
+                          className="font-mono text-[9px] uppercase tracking-wide text-primary hover:text-primary/80"
+                        >
+                          {signalCount} signal{signalCount !== 1 ? "s" : ""} captured
+                        </a>
                       </div>
                     )}
                   </div>
