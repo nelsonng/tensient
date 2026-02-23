@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MonoLabel } from "@/components/mono-label";
 import { PanelCard } from "@/components/panel-card";
+import { SlantedButton } from "@/components/slanted-button";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ const TABS = [
   { id: "security", label: "SECURITY" },
   { id: "workspace", label: "WORKSPACE" },
   { id: "members", label: "MEMBERS" },
+  { id: "developer", label: "DEVELOPER" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -119,6 +121,271 @@ export function SettingsClient({
           isOwner={currentUserRole === "owner"}
         />
       )}
+      {activeTab === "developer" && (
+        <DeveloperTab workspaceId={workspaceId} />
+      )}
+    </div>
+  );
+}
+
+interface ApiKeyRow {
+  id: string;
+  workspaceId: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+function DeveloperTab({ workspaceId }: { workspaceId: string }) {
+  const [keys, setKeys] = useState<ApiKeyRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [newKeyName, setNewKeyName] = useState("My Cursor Key");
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const loadKeys = useCallback(async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/user/api-keys?workspaceId=${workspaceId}`);
+      if (!res.ok) {
+        setMessage("Failed to load API keys");
+        return;
+      }
+      const data = (await res.json()) as ApiKeyRow[];
+      setKeys(data);
+    } catch {
+      setMessage("Network error while loading API keys");
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadKeys();
+  }, [loadKeys]);
+
+  async function handleCreate() {
+    setCreating(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/user/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          name: newKeyName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Failed to create key");
+        return;
+      }
+
+      setRevealedKey(data.key);
+      setNewKeyName("My Cursor Key");
+      await loadKeys();
+    } catch {
+      setMessage("Network error while creating API key");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleRotate(keyId: string, name: string) {
+    setCreating(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/user/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          name,
+          rotateFromId: keyId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Failed to rotate key");
+        return;
+      }
+      setRevealedKey(data.key);
+      await loadKeys();
+    } catch {
+      setMessage("Network error while rotating API key");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleRevoke(id: string) {
+    const confirmed = window.confirm("Revoke this API key?");
+    if (!confirmed) return;
+    setRevokingId(id);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/user/api-keys", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Failed to revoke key");
+        return;
+      }
+      await loadKeys();
+    } catch {
+      setMessage("Network error while revoking key");
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  async function copyKey() {
+    if (!revealedKey) return;
+    try {
+      await navigator.clipboard.writeText(revealedKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setMessage("Failed to copy key");
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PanelCard>
+        <MonoLabel className="text-primary mb-4 block">API KEYS</MonoLabel>
+        <p className="font-body text-sm text-muted mb-4">
+          Generate keys for MCP clients. A key is shown once and then hidden forever.
+        </p>
+        <a
+          href="/docs"
+          className="inline-block font-mono text-xs text-primary hover:text-primary/80 transition-colors mb-4"
+        >
+          READ MCP DOCS →
+        </a>
+        <p className="font-mono text-xs text-muted mb-4">Workspace ID: {workspaceId}</p>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={newKeyName}
+            onChange={(e) => setNewKeyName(e.target.value)}
+            placeholder="Key name"
+            className="w-full bg-background border border-border rounded px-3 py-2 font-body text-base text-foreground focus:border-primary focus:outline-none transition-colors"
+          />
+          <SlantedButton onClick={handleCreate} disabled={creating}>
+            {creating ? "GENERATING..." : "GENERATE NEW KEY"}
+          </SlantedButton>
+        </div>
+
+        {message && <p className="font-mono text-sm text-destructive mt-3">{message}</p>}
+      </PanelCard>
+
+      {revealedKey && (
+        <PanelCard>
+          <MonoLabel className="text-warning mb-3 block">KEY REVEAL</MonoLabel>
+          <p className="font-body text-sm text-muted mb-3">
+            This key will not be shown again. Copy and store it now.
+          </p>
+          <code className="block w-full overflow-x-auto bg-border/30 px-3 py-2 rounded font-mono text-xs text-foreground">
+            {revealedKey}
+          </code>
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              onClick={copyKey}
+              className="font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+            >
+              {copied ? "COPIED" : "COPY KEY"}
+            </button>
+            <button
+              onClick={() => setRevealedKey(null)}
+              className="font-mono text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              DISMISS
+            </button>
+          </div>
+        </PanelCard>
+      )}
+
+      <PanelCard>
+        <MonoLabel className="text-primary mb-4 block">
+          ACTIVE + REVOKED KEYS ({keys.length})
+        </MonoLabel>
+        {loading ? (
+          <p className="font-mono text-sm text-muted">Loading keys...</p>
+        ) : keys.length === 0 ? (
+          <p className="font-mono text-sm text-muted">No API keys yet.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {keys.map((key) => {
+              const isRevoked = Boolean(key.revokedAt);
+              return (
+                <div key={key.id} className="py-3 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-body text-base text-foreground">{key.name}</span>
+                      <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
+                        {key.keyPrefix}...
+                      </span>
+                      {isRevoked && (
+                        <span className="font-mono text-[10px] text-destructive">
+                          REVOKED
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-mono text-xs text-muted mt-1">
+                      Created{" "}
+                      {new Date(key.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                      {" · "}
+                      Last used{" "}
+                      {key.lastUsedAt
+                        ? new Date(key.lastUsedAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "never"}
+                    </p>
+                  </div>
+
+                  {!isRevoked && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => void handleRotate(key.id, `${key.name} (rotated)`)}
+                        disabled={creating}
+                        className="font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        ROTATE
+                      </button>
+                      <button
+                        onClick={() => void handleRevoke(key.id)}
+                        disabled={revokingId === key.id}
+                        className="font-mono text-xs text-destructive hover:text-destructive/80 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {revokingId === key.id ? "REVOKING..." : "REVOKE"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </PanelCard>
     </div>
   );
 }

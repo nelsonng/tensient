@@ -22,7 +22,12 @@ type PlatformEventType =
   | "signal_extracted"
   | "synthesis_completed"
   | "api_error"
-  | "client_error";
+  | "client_error"
+  | "mcp_connection"
+  | "mcp_tool_called"
+  | "mcp_auth_failed"
+  | "api_key_created"
+  | "api_key_revoked";
 
 interface TrackEventParams {
   userId?: string;

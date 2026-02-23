@@ -49,10 +49,8 @@ export default function Home() {
             <div>
               <MonoLabel className="mb-4 block">03 / QUERY</MonoLabel>
               <p className="font-body text-base leading-relaxed text-muted">
-                Any AI agent queries the world model via MCP &mdash; the open
-                protocol agents use to connect to tools. Your coding agent, your
-                support bot, your ops automation. A 5-person team operates like
-                a 100-person team.
+                Any AI agent queries the world model via MCP. Connect with one API
+                key. No SDK, no custom integration.
               </p>
             </div>
           </div>
@@ -83,18 +81,46 @@ export default function Home() {
           <MonoLabel className="mb-10 block text-foreground">
             AGENT-NATIVE
           </MonoLabel>
-          <p className="font-body text-lg leading-relaxed text-muted mb-6">
-            16 MCP tools. Sensors, actuators, and a synthesis engine. Not a
-            document store &mdash; a queryable world model. Agents don&apos;t
-            retrieve files. They ask questions: &ldquo;What are the open P1
-            signals?&rdquo; &ldquo;What changed in the last 24
-            hours?&rdquo; &ldquo;What patterns are emerging across customer
-            feedback?&rdquo;
+          <p className="font-body text-lg leading-relaxed text-muted mb-4">
+            Connect any AI agent in 30 seconds. Your agent gets 16 tools: read
+            signals, query context, run synthesis, and write insights back.
           </p>
-          <p className="font-body text-lg leading-relaxed text-muted">
-            The web app is the human interface. MCP is the agent interface. Same
-            data. Same world model.
-          </p>
+          <pre className="rounded-lg border border-border bg-panel p-4 overflow-x-auto font-mono text-xs text-foreground mb-5">
+{`{
+  "mcpServers": {
+    "tensient": {
+      "url": "https://tensient.com/api/mcp",
+      "headers": { "Authorization": "Bearer tns_YOUR_KEY_HERE" }
+    }
+  }
+}`}
+          </pre>
+          <div>
+            <SlantedButton href="/docs" size="sm">READ THE DOCS</SlantedButton>
+          </div>
+        </section>
+
+        {/* For Developers */}
+        <section className="mb-32 max-w-[900px]">
+          <MonoLabel className="mb-6 block text-foreground">FOR DEVELOPERS</MonoLabel>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="border border-border rounded-lg bg-panel p-4">
+              <p className="font-mono text-xs text-primary tracking-widest mb-2">01</p>
+              <p className="font-body text-sm text-muted">Sign up and open your workspace.</p>
+            </div>
+            <div className="border border-border rounded-lg bg-panel p-4">
+              <p className="font-mono text-xs text-primary tracking-widest mb-2">02</p>
+              <p className="font-body text-sm text-muted">
+                Generate an API key in Settings → Developer.
+              </p>
+            </div>
+            <div className="border border-border rounded-lg bg-panel p-4">
+              <p className="font-mono text-xs text-primary tracking-widest mb-2">03</p>
+              <p className="font-body text-sm text-muted">
+                Paste the config into your MCP client and call tools.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Closing CTA */}

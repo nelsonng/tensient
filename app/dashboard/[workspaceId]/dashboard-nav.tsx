@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: "CONVERSATIONS", path: "" },
   { label: "CONTEXT", path: "context" },
   { label: "SYNTHESIS", path: "synthesis" },
+  { label: "INTEGRATIONS", path: "integrations" },
   { label: "SETTINGS", path: "settings" },
 ] as const;
 

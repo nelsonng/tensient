@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "mcp": "npx tsx -r tsconfig-paths/register mcp/server.ts"
+    "mcp": "npx tsx -r tsconfig-paths/register mcp/local-server.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",

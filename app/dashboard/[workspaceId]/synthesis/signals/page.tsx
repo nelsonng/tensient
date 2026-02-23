@@ -31,41 +31,31 @@ export default async function SynthesisSignalsPage({
 
   if (!membership) redirect("/sign-in");
 
-  try {
-    const rows = await db
-      .select({
-        id: signals.id,
-        content: signals.content,
-        conversationId: signals.conversationId,
-        conversationTitle: conversations.title,
-        status: signals.status,
-        aiPriority: signals.aiPriority,
-        humanPriority: signals.humanPriority,
-        reviewedAt: signals.reviewedAt,
-        createdAt: signals.createdAt,
-      })
-      .from(signals)
-      .innerJoin(conversations, eq(conversations.id, signals.conversationId))
-      .where(
-        and(
-          eq(signals.workspaceId, workspaceId),
-          conversationId ? eq(signals.conversationId, conversationId) : undefined
-        )
+  const rows = await db
+    .select({
+      id: signals.id,
+      content: signals.content,
+      conversationId: signals.conversationId,
+      conversationTitle: conversations.title,
+      status: signals.status,
+      aiPriority: signals.aiPriority,
+      humanPriority: signals.humanPriority,
+      reviewedAt: signals.reviewedAt,
+      source: signals.source,
+      createdAt: signals.createdAt,
+    })
+    .from(signals)
+    .innerJoin(conversations, eq(conversations.id, signals.conversationId))
+    .where(
+      and(
+        eq(signals.workspaceId, workspaceId),
+        conversationId ? eq(signals.conversationId, conversationId) : undefined
       )
-      .orderBy(desc(signals.createdAt));
+    )
+    .orderBy(desc(signals.createdAt))
+    .catch(() => null);
 
-    return (
-      <SignalListClient
-        workspaceId={workspaceId}
-        conversationFilter={conversationId ?? null}
-        rows={rows.map((row) => ({
-          ...row,
-          reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
-          createdAt: row.createdAt.toISOString(),
-        }))}
-      />
-    );
-  } catch {
+  if (!rows) {
     return (
       <div className="mx-auto max-w-[1200px] px-6">
         <div className="rounded-lg border border-border bg-panel p-6">
@@ -80,4 +70,16 @@ export default async function SynthesisSignalsPage({
       </div>
     );
   }
+
+  return (
+    <SignalListClient
+      workspaceId={workspaceId}
+      conversationFilter={conversationId ?? null}
+      rows={rows.map((row) => ({
+        ...row,
+        reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
+        createdAt: row.createdAt.toISOString(),
+      }))}
+    />
+  );
 }

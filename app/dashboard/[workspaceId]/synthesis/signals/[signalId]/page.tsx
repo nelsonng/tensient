@@ -35,6 +35,7 @@ export default async function SignalDetailPage({
       aiPriority: signals.aiPriority,
       humanPriority: signals.humanPriority,
       reviewedAt: signals.reviewedAt,
+      source: signals.source,
       createdAt: signals.createdAt,
       conversationId: signals.conversationId,
       conversationTitle: conversations.title,
@@ -79,6 +80,9 @@ export default async function SignalDetailPage({
           <div>
             <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
               Source
+            </p>
+            <p className="mt-1 font-mono text-xs text-primary">
+              {signal.source.toUpperCase()}
             </p>
             <Link
               href={`/dashboard/${workspaceId}/conversations/${signal.conversationId}`}

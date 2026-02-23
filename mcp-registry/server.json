@@ -1,0 +1,21 @@
+{
+  "name": "tensient",
+  "displayName": "Tensient",
+  "description": "The organizational world model for AI agents. Query signals, context, and synthesis state via MCP.",
+  "version": "0.1.0",
+  "websiteUrl": "https://tensient.com",
+  "repositoryUrl": "https://github.com/nelsonng/tensient",
+  "endpoints": {
+    "streamableHttp": {
+      "url": "https://tensient.com/api/mcp"
+    }
+  },
+  "auth": {
+    "type": "bearer",
+    "instructions": "Generate an API key in Tensient Settings > Developer, then send Authorization: Bearer tns_..."
+  },
+  "capabilities": {
+    "tools": true
+  },
+  "toolCount": 16
+}

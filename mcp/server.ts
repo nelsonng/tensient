@@ -1,7 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { eq, and, desc, asc, isNull, sql } from "drizzle-orm";
+import { eq, and, desc, asc, isNull, sql, gte, lte, ilike, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { generateEmbedding, calculateCostCents } from "@/lib/ai";
 import { processSynthesis } from "@/lib/services/process-synthesis";
@@ -14,24 +13,13 @@ import {
   synthesisCommits,
 } from "../lib/db/schema";
 
-// ── Config ──────────────────────────────────────────────────────────────
-
-const WORKSPACE_ID = process.env.TENSIENT_WORKSPACE_ID!;
-const USER_ID = process.env.TENSIENT_USER_ID!;
-
-if (!WORKSPACE_ID || !USER_ID) {
-  console.error(
-    "Missing required env vars: TENSIENT_WORKSPACE_ID, TENSIENT_USER_ID"
-  );
-  process.exit(1);
-}
-
-// ── Server ──────────────────────────────────────────────────────────────
-
-const server = new McpServer({
-  name: "tensient",
-  version: "0.1.0",
-});
+export function registerTools(
+  server: McpServer,
+  workspaceId: string,
+  userId: string
+) {
+  const WORKSPACE_ID = workspaceId;
+  const USER_ID = userId;
 
 // ── Sensors (Read) ──────────────────────────────────────────────────────
 
@@ -59,12 +47,45 @@ server.tool(
       .max(200)
       .default(50)
       .describe("Max results (default 50)"),
+    since: z
+      .string()
+      .datetime()
+      .optional()
+      .describe("Only signals created at or after this ISO timestamp"),
+    before: z
+      .string()
+      .datetime()
+      .optional()
+      .describe("Only signals created at or before this ISO timestamp"),
+    humanPriority: z
+      .enum(["critical", "high", "medium", "low"])
+      .optional()
+      .describe("Filter by human-assigned priority"),
+    search: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe("Case-insensitive keyword match on signal content"),
   },
-  async ({ conversationId, status, priority, limit }) => {
+  async ({
+    conversationId,
+    status,
+    priority,
+    limit,
+    since,
+    before,
+    humanPriority,
+    search,
+  }) => {
     const conditions = [eq(signals.workspaceId, WORKSPACE_ID)];
     if (conversationId) conditions.push(eq(signals.conversationId, conversationId));
     if (status) conditions.push(eq(signals.status, status));
     if (priority) conditions.push(eq(signals.aiPriority, priority));
+    if (humanPriority) conditions.push(eq(signals.humanPriority, humanPriority));
+    if (since) conditions.push(gte(signals.createdAt, new Date(since)));
+    if (before) conditions.push(lte(signals.createdAt, new Date(before)));
+    if (search) conditions.push(ilike(signals.content, `%${search}%`));
 
     const rows = await db
       .select({
@@ -74,6 +95,7 @@ server.tool(
         aiPriority: signals.aiPriority,
         humanPriority: signals.humanPriority,
         reviewedAt: signals.reviewedAt,
+        source: signals.source,
         createdAt: signals.createdAt,
         conversationId: signals.conversationId,
         conversationTitle: conversations.title,
@@ -155,8 +177,48 @@ server.tool(
 server.tool(
   "list_brain_documents",
   "Get personal brain documents — the user's private knowledge base.",
-  {},
-  async () => {
+  {
+    search: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe("Case-insensitive keyword match on title + content"),
+    since: z
+      .string()
+      .datetime()
+      .optional()
+      .describe("Only documents created at or after this ISO timestamp"),
+    before: z
+      .string()
+      .datetime()
+      .optional()
+      .describe("Only documents created at or before this ISO timestamp"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(200)
+      .default(50)
+      .describe("Max results (default 50)"),
+  },
+  async ({ search, since, before, limit }) => {
+    const conditions = [
+      eq(brainDocuments.workspaceId, WORKSPACE_ID),
+      eq(brainDocuments.userId, USER_ID),
+      eq(brainDocuments.scope, "personal"),
+    ];
+    if (since) conditions.push(gte(brainDocuments.createdAt, new Date(since)));
+    if (before) conditions.push(lte(brainDocuments.createdAt, new Date(before)));
+    if (search) {
+      conditions.push(
+        or(
+          ilike(brainDocuments.title, `%${search}%`),
+          ilike(brainDocuments.content, `%${search}%`)
+        )!
+      );
+    }
+
     const docs = await db
       .select({
         id: brainDocuments.id,
@@ -167,14 +229,9 @@ server.tool(
         updatedAt: brainDocuments.updatedAt,
       })
       .from(brainDocuments)
-      .where(
-        and(
-          eq(brainDocuments.workspaceId, WORKSPACE_ID),
-          eq(brainDocuments.userId, USER_ID),
-          eq(brainDocuments.scope, "personal")
-        )
-      )
-      .orderBy(desc(brainDocuments.updatedAt));
+      .where(and(...conditions))
+      .orderBy(desc(brainDocuments.updatedAt))
+      .limit(limit);
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(docs, null, 2) }],
@@ -185,8 +242,48 @@ server.tool(
 server.tool(
   "list_canon_documents",
   "Get shared workspace canon documents — the team's shared knowledge base.",
-  {},
-  async () => {
+  {
+    search: z
+      .string()
+      .trim()
+      .min(1)
+      .optional()
+      .describe("Case-insensitive keyword match on title + content"),
+    since: z
+      .string()
+      .datetime()
+      .optional()
+      .describe("Only documents created at or after this ISO timestamp"),
+    before: z
+      .string()
+      .datetime()
+      .optional()
+      .describe("Only documents created at or before this ISO timestamp"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(200)
+      .default(50)
+      .describe("Max results (default 50)"),
+  },
+  async ({ search, since, before, limit }) => {
+    const conditions = [
+      eq(brainDocuments.workspaceId, WORKSPACE_ID),
+      eq(brainDocuments.scope, "workspace"),
+      isNull(brainDocuments.userId),
+    ];
+    if (since) conditions.push(gte(brainDocuments.createdAt, new Date(since)));
+    if (before) conditions.push(lte(brainDocuments.createdAt, new Date(before)));
+    if (search) {
+      conditions.push(
+        or(
+          ilike(brainDocuments.title, `%${search}%`),
+          ilike(brainDocuments.content, `%${search}%`)
+        )!
+      );
+    }
+
     const docs = await db
       .select({
         id: brainDocuments.id,
@@ -197,14 +294,9 @@ server.tool(
         updatedAt: brainDocuments.updatedAt,
       })
       .from(brainDocuments)
-      .where(
-        and(
-          eq(brainDocuments.workspaceId, WORKSPACE_ID),
-          eq(brainDocuments.scope, "workspace"),
-          isNull(brainDocuments.userId)
-        )
-      )
-      .orderBy(desc(brainDocuments.updatedAt));
+      .where(and(...conditions))
+      .orderBy(desc(brainDocuments.updatedAt))
+      .limit(limit);
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(docs, null, 2) }],
@@ -376,6 +468,7 @@ server.tool(
         aiPriority: aiPriority ?? null,
         humanPriority: null,
         reviewedAt: null,
+        source: "mcp",
       })
       .returning();
 
@@ -783,15 +876,5 @@ server.tool(
     return { content: [{ type: "text" as const, text: JSON.stringify({ deleted: deleted.id, title: deleted.title, scope: deleted.scope }) }] };
   }
 );
-
-// ── Start ───────────────────────────────────────────────────────────────
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
 }
 
-main().catch((err) => {
-  console.error("Tensient MCP server failed to start:", err);
-  process.exit(1);
-});

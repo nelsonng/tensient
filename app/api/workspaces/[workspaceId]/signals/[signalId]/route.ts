@@ -32,6 +32,7 @@ export async function GET(_request: Request, { params }: Params) {
       aiPriority: signals.aiPriority,
       humanPriority: signals.humanPriority,
       reviewedAt: signals.reviewedAt,
+      source: signals.source,
       createdAt: signals.createdAt,
       conversationTitle: conversations.title,
     })

@@ -13,6 +13,7 @@ interface SignalRow {
   aiPriority: "critical" | "high" | "medium" | "low" | null;
   humanPriority: "critical" | "high" | "medium" | "low" | null;
   reviewedAt: string | null;
+  source: "web" | "mcp";
   createdAt: string;
 }
 
@@ -185,9 +186,18 @@ export function SignalListClient({
       key: "source",
       label: "Source",
       render: (row) => (
-        <span className="font-mono text-[11px] text-muted">
-          {row.conversationTitle || "Untitled conversation"}
-        </span>
+        <div className="flex flex-col">
+          <span
+            className={`font-mono text-[10px] ${
+              row.source === "mcp" ? "text-primary" : "text-muted"
+            }`}
+          >
+            {row.source.toUpperCase()}
+          </span>
+          <span className="font-mono text-[11px] text-muted">
+            {row.conversationTitle || "Untitled conversation"}
+          </span>
+        </div>
       ),
     },
     {

@@ -58,6 +58,8 @@ export const signalStatusEnum = pgEnum("signal_status", [
   "dismissed",
 ]);
 
+export const signalSourceEnum = pgEnum("signal_source", ["web", "mcp"]);
+
 export const synthesisTriggerEnum = pgEnum("synthesis_trigger", [
   "conversation_end",
   "manual",
@@ -343,6 +345,11 @@ export const platformEventTypeEnum = pgEnum("platform_event_type", [
   "synthesis_completed",
   "api_error",
   "client_error",
+  "mcp_connection",
+  "mcp_tool_called",
+  "mcp_auth_failed",
+  "api_key_created",
+  "api_key_revoked",
 ]);
 
 export const platformEvents = pgTable(
@@ -391,6 +398,7 @@ export const signals = pgTable(
     humanPriority: signalPriorityEnum("human_priority"),
     status: signalStatusEnum("status").notNull().default("open"),
     reviewedAt: timestamp("reviewed_at"),
+    source: signalSourceEnum("source").notNull().default("web"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -503,5 +511,33 @@ export const usageLogs = pgTable(
   (table) => [
     index("idx_usage_logs_user").on(table.userId),
     index("idx_usage_logs_created").on(table.createdAt),
+  ]
+);
+
+// ── API Keys (MCP Auth) ────────────────────────────────────────────────
+
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
+    name: text("name").notNull(),
+    keyPrefix: text("key_prefix").notNull(),
+    keyHash: text("key_hash").notNull().unique(),
+    lastUsedAt: timestamp("last_used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (table) => [
+    index("idx_api_keys_user").on(table.userId),
+    index("idx_api_keys_workspace").on(table.workspaceId),
+    index("idx_api_keys_active").on(table.revokedAt),
   ]
 );

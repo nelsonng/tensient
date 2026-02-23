@@ -1,6 +1,16 @@
 import { db } from "@/lib/db";
-import { users, organizations, workspaces, memberships, conversations, messages, usageLogs } from "@/lib/db/schema";
-import { count, eq, sql } from "drizzle-orm";
+import {
+  users,
+  organizations,
+  workspaces,
+  memberships,
+  conversations,
+  messages,
+  usageLogs,
+  platformEvents,
+  apiKeys,
+} from "@/lib/db/schema";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 
 async function getOverviewStats() {
   const [userCount] = await db.select({ count: count() }).from(users);
@@ -34,6 +44,31 @@ async function getOverviewStats() {
     .from(conversations)
     .where(sql`${conversations.createdAt} > NOW() - INTERVAL '7 days'`);
 
+  const [mcpConnections7d] = await db
+    .select({ count: count() })
+    .from(platformEvents)
+    .where(
+      and(
+        eq(platformEvents.type, "mcp_connection"),
+        sql`${platformEvents.createdAt} > NOW() - INTERVAL '7 days'`
+      )
+    );
+
+  const [mcpToolCalls7d] = await db
+    .select({ count: count() })
+    .from(platformEvents)
+    .where(
+      and(
+        eq(platformEvents.type, "mcp_tool_called"),
+        sql`${platformEvents.createdAt} > NOW() - INTERVAL '7 days'`
+      )
+    );
+
+  const [activeApiKeys] = await db
+    .select({ count: count() })
+    .from(apiKeys)
+    .where(isNull(apiKeys.revokedAt));
+
   return {
     users: userCount.count,
     orgs: orgCount.count,
@@ -45,6 +80,9 @@ async function getOverviewStats() {
     synthesisCostCents: Number(synthesisCostResult.total),
     recentUsers: recentUsers.count,
     recentConversations: recentConversations.count,
+    mcpConnections7d: mcpConnections7d.count,
+    mcpToolCalls7d: mcpToolCalls7d.count,
+    activeApiKeys: activeApiKeys.count,
   };
 }
 
@@ -98,6 +136,9 @@ export default async function AdminOverviewPage() {
           value={`$${(stats.synthesisCostCents / 100).toFixed(2)}`}
           sub="all time"
         />
+        <StatCard label="MCP Connections (7d)" value={stats.mcpConnections7d} />
+        <StatCard label="MCP Tool Calls (7d)" value={stats.mcpToolCalls7d} />
+        <StatCard label="Active API Keys" value={stats.activeApiKeys} />
       </div>
 
       {/* Funnel Quick Links */}

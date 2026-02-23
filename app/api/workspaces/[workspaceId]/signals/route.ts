@@ -36,6 +36,7 @@ export async function GET(request: Request, { params }: Params) {
       aiPriority: signals.aiPriority,
       humanPriority: signals.humanPriority,
       reviewedAt: signals.reviewedAt,
+      source: signals.source,
       createdAt: signals.createdAt,
       conversationTitle: conversations.title,
     })
@@ -101,6 +102,7 @@ export async function POST(request: Request, { params }: Params) {
       aiPriority: aiPriority ?? null,
       humanPriority: humanPriority ?? null,
       reviewedAt: humanPriority ? new Date() : null,
+      source: "web",
     })
     .returning();
 
