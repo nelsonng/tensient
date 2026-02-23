@@ -144,7 +144,7 @@ export function DataTable<T extends object>({
                   colSpan={columns.length + (rowActions.length > 0 ? 1 : 0)}
                   className="px-4 py-8 text-center"
                 >
-                  <p className="font-mono text-sm uppercase tracking-wider text-muted">
+                  <p className="font-mono text-sm tracking-wider text-muted">
                     {emptyTitle}
                   </p>
                   <p className="mt-2 text-sm text-muted">{emptyDescription}</p>

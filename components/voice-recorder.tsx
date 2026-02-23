@@ -285,7 +285,7 @@ export function VoiceRecorder({
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-destructive/30 bg-destructive/10">
             <MicOffIcon />
           </div>
-          <p className="font-display text-lg font-bold uppercase tracking-tight mb-2">
+          <p className="font-display text-lg font-bold tracking-tight mb-2">
             Microphone blocked
           </p>
           <p className="font-body text-sm text-muted max-w-[360px] mb-4 leading-relaxed">
@@ -361,7 +361,7 @@ export function VoiceRecorder({
               >
                 <MicIcon size={32} />
               </motion.div>
-              <span className="font-display text-sm font-bold uppercase tracking-widest text-muted">
+              <span className="font-display text-sm font-bold tracking-widest text-muted">
                 Tap to start talking
               </span>
             </motion.button>

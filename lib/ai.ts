@@ -66,6 +66,15 @@ export async function generateStructuredJSON<T>(opts: {
     throw error;
   }
 
+  if (response.stop_reason === "max_tokens") {
+    logger.error("Anthropic structured output truncated at max tokens", {
+      model: DEFAULT_MODEL,
+      maxTokens: opts.maxTokens ?? 4096,
+      outputTokens: response.usage.output_tokens,
+    });
+    throw new Error("AI response was truncated (hit max_tokens limit)");
+  }
+
   const textBlock = response.content.find((b) => b.type === "text");
   const text = textBlock && textBlock.type === "text" ? textBlock.text : "{}";
 

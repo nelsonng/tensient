@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 const navItems = [
+  { label: "DOCS", href: "/docs", mobileVisible: true },
   { label: "SIGN IN", href: "/sign-in", mobileVisible: true },
 ];
 

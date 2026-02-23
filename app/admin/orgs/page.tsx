@@ -268,7 +268,7 @@ export default async function OrgsPage() {
     <div className="max-w-[1100px]">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="font-display text-xl font-bold tracking-wider text-foreground uppercase">
+        <h1 className="font-display text-xl font-bold tracking-wider text-foreground">
           Org Diffusion
         </h1>
         <p className="font-mono text-xs text-muted mt-1">

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Syncopate, Space_Mono } from "next/font/google";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { NoiseBackground } from "@/components/noise-background";
 import { GlobalErrorListener } from "@/components/global-error-listener";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
-const syncopate = Syncopate({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-display",
@@ -67,7 +67,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${syncopate.variable} ${spaceMono.variable} ${satoshi.variable}`}
+      className={`${spaceGrotesk.variable} ${spaceMono.variable} ${satoshi.variable}`}
     >
       <body className="bg-background text-foreground font-body antialiased">
         <NoiseBackground />

@@ -10,7 +10,7 @@ export default function Home() {
       <main className="mx-auto max-w-[1200px] px-6 pt-32 pb-24">
         {/* Hero */}
         <section className="mb-32">
-          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold uppercase tracking-tight mb-6 max-w-[900px]">
+          <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-6 max-w-[900px]">
             Every AI agent starts with full organizational context.
           </h1>
           <p className="max-w-[640px] font-body text-lg leading-relaxed text-muted mb-10">
@@ -71,7 +71,7 @@ export default function Home() {
             from scratch. A 5-person team should operate like a 100-person team
             &mdash; but only if their agents know what the organization knows.
           </p>
-          <p className="font-display text-2xl md:text-3xl font-bold uppercase tracking-tight text-primary">
+          <p className="font-display text-2xl md:text-3xl font-bold tracking-tight text-primary">
             Tensient is the thermostat. Sense. Synthesize. Act.
           </p>
         </section>
@@ -125,7 +125,7 @@ export default function Home() {
 
         {/* Closing CTA */}
         <section className="border-t border-border pt-16">
-          <h2 className="font-display text-2xl md:text-3xl font-bold uppercase tracking-tight mb-8 max-w-[700px]">
+          <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight mb-8 max-w-[700px]">
             Your agents are starting from zero. Give them your world model.
           </h2>
           <SlantedButton href="/sign-up">BUILD YOUR WORLD MODEL</SlantedButton>

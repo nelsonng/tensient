@@ -4,6 +4,7 @@ import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { processSynthesis } from "@/lib/services/process-synthesis";
 import { trackEvent } from "@/lib/platform-events";
+import { logger } from "@/lib/logger";
 
 type Params = { params: Promise<{ workspaceId: string }> };
 
@@ -37,22 +38,33 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ error: usageCheck.reason }, { status: 429 });
   }
 
-  const result = await processSynthesis({
-    workspaceId,
-    userId: session.user.id,
-    trigger: "manual",
-  });
-
-  if (result.usage) {
-    await logUsage({
-      userId: session.user.id,
+  try {
+    const result = await processSynthesis({
       workspaceId,
-      operation: "synthesis",
-      inputTokens: result.usage.inputTokens,
-      outputTokens: result.usage.outputTokens,
-      estimatedCostCents: result.usage.estimatedCostCents,
+      userId: session.user.id,
+      trigger: "manual",
     });
-  }
 
-  return NextResponse.json(result);
+    if (result.usage) {
+      await logUsage({
+        userId: session.user.id,
+        workspaceId,
+        operation: "synthesis",
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        estimatedCostCents: result.usage.estimatedCostCents,
+      });
+    }
+
+    return NextResponse.json(result);
+  } catch (error) {
+    logger.error("Failed to run synthesis", {
+      workspaceId,
+      userId: session.user.id,
+      error: String(error),
+    });
+    const message =
+      error instanceof Error ? error.message : "Failed to run synthesis";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

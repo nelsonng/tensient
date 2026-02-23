@@ -80,7 +80,7 @@ export function SettingsClient({
     <div className="mx-auto max-w-[800px] px-6 pb-24">
       <div className="mb-8">
         <MonoLabel className="mb-2 block text-primary">SETTINGS</MonoLabel>
-        <h1 className="font-display text-2xl font-bold uppercase tracking-tight">
+        <h1 className="font-display text-2xl font-bold tracking-tight">
           Settings
         </h1>
       </div>
@@ -138,6 +138,18 @@ interface ApiKeyRow {
   revokedAt: string | null;
 }
 
+const MCP_ENDPOINT_URL = "https://tensient.com/api/mcp";
+const QUICKSTART_CONFIG_SNIPPET = `{
+  "mcpServers": {
+    "tensient": {
+      "url": "https://tensient.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer tns_YOUR_KEY_HERE"
+      }
+    }
+  }
+}`;
+
 function DeveloperTab({ workspaceId }: { workspaceId: string }) {
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,6 +159,8 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
   const [newKeyName, setNewKeyName] = useState("My Cursor Key");
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [endpointCopied, setEndpointCopied] = useState(false);
+  const [configCopied, setConfigCopied] = useState(false);
 
   const loadKeys = useCallback(async () => {
     setLoading(true);
@@ -260,20 +274,77 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
     }
   }
 
+  async function copyEndpoint() {
+    try {
+      await navigator.clipboard.writeText(MCP_ENDPOINT_URL);
+      setEndpointCopied(true);
+      setTimeout(() => setEndpointCopied(false), 1500);
+    } catch {
+      setMessage("Failed to copy MCP endpoint");
+    }
+  }
+
+  async function copyQuickstartConfig() {
+    try {
+      await navigator.clipboard.writeText(QUICKSTART_CONFIG_SNIPPET);
+      setConfigCopied(true);
+      setTimeout(() => setConfigCopied(false), 1500);
+    } catch {
+      setMessage("Failed to copy quickstart config");
+    }
+  }
+
   return (
     <div className="space-y-6">
+      <PanelCard>
+        <MonoLabel className="text-primary mb-4 block">MCP CONNECTION</MonoLabel>
+        <p className="font-body text-sm text-muted mb-4">
+          Use this endpoint and auth format to connect your MCP client directly to this workspace.
+        </p>
+        <div className="mb-4">
+          <p className="font-mono text-xs text-muted mb-2">Endpoint URL</p>
+          <code className="block w-full overflow-x-auto bg-border/30 px-3 py-2 rounded font-mono text-xs text-foreground">
+            {MCP_ENDPOINT_URL}
+          </code>
+          <button
+            onClick={copyEndpoint}
+            className="mt-2 font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+          >
+            {endpointCopied ? "COPIED" : "COPY ENDPOINT"}
+          </button>
+        </div>
+        <div className="mb-4">
+          <p className="font-mono text-xs text-muted mb-2">Authorization Header</p>
+          <code className="block w-full overflow-x-auto bg-border/30 px-3 py-2 rounded font-mono text-xs text-foreground">
+            Authorization: Bearer tns_YOUR_KEY_HERE
+          </code>
+        </div>
+        <div className="mb-4">
+          <p className="font-mono text-xs text-muted mb-2">Quickstart mcp.json</p>
+          <pre className="w-full overflow-x-auto bg-border/30 px-3 py-2 rounded font-mono text-xs text-foreground">
+            {QUICKSTART_CONFIG_SNIPPET}
+          </pre>
+          <button
+            onClick={copyQuickstartConfig}
+            className="mt-2 font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+          >
+            {configCopied ? "COPIED" : "COPY CONFIG"}
+          </button>
+        </div>
+        <p className="font-mono text-xs text-muted mb-4">Workspace ID: {workspaceId}</p>
+        <a
+          href="/docs"
+          className="inline-block font-mono text-xs text-primary hover:text-primary/80 transition-colors"
+        >
+          READ MCP DOCS →
+        </a>
+      </PanelCard>
+
       <PanelCard>
         <MonoLabel className="text-primary mb-4 block">API KEYS</MonoLabel>
         <p className="font-body text-sm text-muted mb-4">
           Generate keys for MCP clients. A key is shown once and then hidden forever.
         </p>
-        <a
-          href="/docs"
-          className="inline-block font-mono text-xs text-primary hover:text-primary/80 transition-colors mb-4"
-        >
-          READ MCP DOCS →
-        </a>
-        <p className="font-mono text-xs text-muted mb-4">Workspace ID: {workspaceId}</p>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <input

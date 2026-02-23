@@ -22,11 +22,7 @@ export default function TermsOfServicePage() {
           </Link>
         </div>
 
-        <GlitchText
-          text="TERMS OF SERVICE"
-          as="h1"
-          className="text-3xl mb-3"
-        />
+        <GlitchText text="Terms of Service" as="h1" className="text-3xl mb-3" />
         <MonoLabel className="block mb-12">
           Effective Date: February 9, 2026
         </MonoLabel>
@@ -43,7 +39,7 @@ export default function TermsOfServicePage() {
 
           {/* 1. Description of Service */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               1. Description of Service
             </h2>
             <p>
@@ -57,7 +53,7 @@ export default function TermsOfServicePage() {
 
           {/* 2. Accounts */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               2. Accounts
             </h2>
             <p>To use the Service, you must create an account. You agree to:</p>
@@ -83,7 +79,7 @@ export default function TermsOfServicePage() {
 
           {/* 3. Free Trial and Usage Limits */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               3. Free Trial and Usage Limits
             </h2>
             <p>
@@ -103,7 +99,7 @@ export default function TermsOfServicePage() {
 
           {/* 4. Acceptable Use */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               4. Acceptable Use
             </h2>
             <p>You agree not to:</p>
@@ -136,7 +132,7 @@ export default function TermsOfServicePage() {
 
           {/* 5. Your Content */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               5. Your Content
             </h2>
             <p className="mb-3">
@@ -160,7 +156,7 @@ export default function TermsOfServicePage() {
 
           {/* 6. AI-Generated Content */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               6. AI-Generated Content
             </h2>
             <p>
@@ -176,7 +172,7 @@ export default function TermsOfServicePage() {
 
           {/* 7. Intellectual Property */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               7. Intellectual Property
             </h2>
             <p>
@@ -189,7 +185,7 @@ export default function TermsOfServicePage() {
 
           {/* 8. Termination */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               8. Termination
             </h2>
             <p className="mb-3">
@@ -206,7 +202,7 @@ export default function TermsOfServicePage() {
 
           {/* 9. Disclaimers */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               9. Disclaimers
             </h2>
             <p>
@@ -222,7 +218,7 @@ export default function TermsOfServicePage() {
 
           {/* 10. Limitation of Liability */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               10. Limitation of Liability
             </h2>
             <p>
@@ -238,7 +234,7 @@ export default function TermsOfServicePage() {
 
           {/* 11. Governing Law */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               11. Governing Law
             </h2>
             <p>
@@ -251,7 +247,7 @@ export default function TermsOfServicePage() {
 
           {/* 12. Changes to These Terms */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               12. Changes to These Terms
             </h2>
             <p>
@@ -265,7 +261,7 @@ export default function TermsOfServicePage() {
 
           {/* 13. Contact */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               13. Contact
             </h2>
             <p>

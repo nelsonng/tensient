@@ -107,7 +107,7 @@ export default async function AdminOverviewPage() {
     <div className="max-w-[1100px]">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-display text-xl font-bold tracking-wider text-foreground uppercase">
+        <h1 className="font-display text-xl font-bold tracking-wider text-foreground">
           Control Center
         </h1>
         <p className="font-mono text-xs text-muted mt-1">

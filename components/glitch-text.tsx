@@ -30,7 +30,7 @@ export function GlitchText({
     return () => clearInterval(interval);
   }, [autoGlitch]);
 
-  const baseClasses = `font-display font-bold uppercase tracking-tight ${className}`;
+  const baseClasses = `font-display font-bold tracking-tight ${className}`;
 
   return (
     <span

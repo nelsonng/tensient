@@ -40,8 +40,14 @@ export default function DocsToolsPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-[950px] px-6 pt-28 pb-24">
+        <a
+          href="/docs"
+          className="mb-4 inline-block font-mono text-xs text-muted transition-colors hover:text-primary"
+        >
+          ← BACK TO DOCS
+        </a>
         <MonoLabel className="mb-3 block text-primary">DOCS / TOOLS</MonoLabel>
-        <h1 className="font-display text-3xl font-bold uppercase tracking-tight mb-6">
+        <h1 className="font-display text-3xl font-bold tracking-tight mb-6">
           Tool Reference
         </h1>
         <p className="font-body text-base text-muted mb-8">

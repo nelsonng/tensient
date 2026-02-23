@@ -65,9 +65,23 @@ export function SynthesisDocumentListClient({
       const res = await fetch(`/api/workspaces/${workspaceId}/synthesis/run`, {
         method: "POST",
       });
-      const body = await res.json();
+      const rawBody = await res.text();
+      let body: (SynthesisRunResult & { error?: string }) | null = null;
+      if (rawBody) {
+        try {
+          body = JSON.parse(rawBody) as SynthesisRunResult & { error?: string };
+        } catch {
+          body = null;
+        }
+      }
+
       if (!res.ok) {
-        throw new Error(body?.error || "Failed to run synthesis");
+        throw new Error(
+          body?.error || `Failed to run synthesis (HTTP ${res.status})`
+        );
+      }
+      if (!body) {
+        throw new Error("Synthesis failed: empty response body.");
       }
       setResult({
         summary: body.summary,

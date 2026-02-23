@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
           </Link>
         </div>
 
-        <GlitchText text="PRIVACY POLICY" as="h1" className="text-3xl mb-3" />
+        <GlitchText text="Privacy Policy" as="h1" className="text-3xl mb-3" />
         <MonoLabel className="block mb-12">
           Effective Date: February 9, 2026
         </MonoLabel>
@@ -38,11 +38,11 @@ export default function PrivacyPolicyPage() {
 
           {/* 1. Information We Collect */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               1. Information We Collect
             </h2>
 
-            <h3 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
+            <h3 className="font-display text-base font-bold tracking-tight text-foreground mb-2">
               Account Information
             </h3>
             <p className="mb-4">
@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
               before storage and is never stored in plain text.
             </p>
 
-            <h3 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
+            <h3 className="font-display text-base font-bold tracking-tight text-foreground mb-2">
               User-Generated Content
             </h3>
             <p className="mb-4">
@@ -61,7 +61,7 @@ export default function PrivacyPolicyPage() {
               your audio recording is stored and transcribed.
             </p>
 
-            <h3 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
+            <h3 className="font-display text-base font-bold tracking-tight text-foreground mb-2">
               AI-Generated Data
             </h3>
             <p className="mb-4">
@@ -71,7 +71,7 @@ export default function PrivacyPolicyPage() {
               This data is stored alongside your original content.
             </p>
 
-            <h3 className="font-display text-base font-bold uppercase tracking-tight text-foreground mb-2">
+            <h3 className="font-display text-base font-bold tracking-tight text-foreground mb-2">
               Usage Data
             </h3>
             <p>
@@ -85,7 +85,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 2. How We Use Your Information */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               2. How We Use Your Information
             </h2>
             <p>We use the information we collect to:</p>
@@ -105,7 +105,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 3. Third-Party Services */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               3. Third-Party Services
             </h2>
             <p className="mb-4">
@@ -115,7 +115,7 @@ export default function PrivacyPolicyPage() {
 
             <ul className="space-y-3">
               <li>
-                <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
+                <span className="font-display text-sm font-bold tracking-tight text-foreground">
                   Anthropic Claude
                 </span>{" "}
                 &mdash; Your text content is sent to Anthropic&apos;s API
@@ -123,28 +123,28 @@ export default function PrivacyPolicyPage() {
                 extraction, and coaching feedback.
               </li>
               <li>
-                <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
+                <span className="font-display text-sm font-bold tracking-tight text-foreground">
                   Google Gemini
                 </span>{" "}
                 &mdash; Your text content is sent to Google&apos;s Gemini API
                 for vector embedding generation used in alignment scoring.
               </li>
               <li>
-                <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
+                <span className="font-display text-sm font-bold tracking-tight text-foreground">
                   Groq
                 </span>{" "}
                 &mdash; If you use voice input, your audio file is sent to Groq
                 for transcription using their Whisper model.
               </li>
               <li>
-                <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
+                <span className="font-display text-sm font-bold tracking-tight text-foreground">
                   Vercel
                 </span>{" "}
                 &mdash; The Service is hosted on Vercel. Audio files are stored
                 using Vercel Blob storage.
               </li>
               <li>
-                <span className="font-display text-sm font-bold uppercase tracking-tight text-foreground">
+                <span className="font-display text-sm font-bold tracking-tight text-foreground">
                   Neon
                 </span>{" "}
                 &mdash; All structured data (accounts, content, scores) is
@@ -161,7 +161,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 4. Cookies and Tracking */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               4. Cookies and Tracking
             </h2>
             <p>
@@ -174,7 +174,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 5. Data Retention */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               5. Data Retention
             </h2>
             <p>
@@ -188,7 +188,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 6. Your Rights */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               6. Your Rights
             </h2>
             <p>You have the right to:</p>
@@ -217,7 +217,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 7. Security */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               7. Security
             </h2>
             <p>
@@ -231,7 +231,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 8. Children */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               8. Children&apos;s Privacy
             </h2>
             <p>
@@ -244,7 +244,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 9. Changes */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               9. Changes to This Policy
             </h2>
             <p>
@@ -257,7 +257,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 10. Contact */}
           <section>
-            <h2 className="font-display text-xl font-bold uppercase tracking-tight text-foreground mb-4">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground mb-4">
               10. Contact
             </h2>
             <p>

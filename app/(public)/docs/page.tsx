@@ -26,7 +26,7 @@ export default function DocsPage() {
       <Nav />
       <main className="mx-auto max-w-[1000px] px-6 pt-28 pb-24">
         <MonoLabel className="mb-3 block text-primary">DOCUMENTATION</MonoLabel>
-        <h1 className="font-display text-3xl md:text-4xl font-bold uppercase tracking-tight mb-4">
+        <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight mb-4">
           MCP Integration Docs
         </h1>
         <p className="font-body text-base text-muted max-w-[700px] mb-10">

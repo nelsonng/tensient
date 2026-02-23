@@ -7,8 +7,14 @@ export default function DocsAuthPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-[900px] px-6 pt-28 pb-24">
+        <a
+          href="/docs"
+          className="mb-4 inline-block font-mono text-xs text-muted transition-colors hover:text-primary"
+        >
+          ← BACK TO DOCS
+        </a>
         <MonoLabel className="mb-3 block text-primary">DOCS / AUTH</MonoLabel>
-        <h1 className="font-display text-3xl font-bold uppercase tracking-tight mb-6">
+        <h1 className="font-display text-3xl font-bold tracking-tight mb-6">
           Authentication Guide
         </h1>
 

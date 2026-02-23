@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h1 className="font-display text-2xl font-bold uppercase tracking-tight mb-4">
+        <h1 className="font-display text-2xl font-bold tracking-tight mb-4">
           NO WORKSPACE
         </h1>
         <p className="font-body text-base text-muted mb-6">

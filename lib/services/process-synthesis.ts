@@ -93,6 +93,9 @@ const SYNTHESIS_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+const SYNTHESIS_BATCH_SIZE = 15;
+const SYNTHESIS_MAX_TOKENS = 16384;
+
 export async function processSynthesis(input: {
   workspaceId: string;
   userId: string;
@@ -167,41 +170,6 @@ export async function processSynthesis(input: {
     .orderBy(desc(synthesisCommits.createdAt))
     .limit(1);
 
-  const prompt = [
-    "Current synthesis documents:",
-    currentDocs.length
-      ? JSON.stringify(
-          currentDocs.map((doc) => ({
-            id: doc.id,
-            title: doc.title,
-            content: doc.content ?? "",
-          })),
-          null,
-          2
-        )
-      : "[]",
-    "",
-    "New signals to process:",
-    JSON.stringify(
-      pendingSignals.map((signal) => ({
-        id: signal.id,
-        content: signal.content,
-        aiPriority: signal.aiPriority,
-      })),
-      null,
-      2
-    ),
-  ].join("\n");
-
-  const { result, inputTokens, outputTokens } =
-    await generateStructuredJSON<SynthesisOutput>({
-      system:
-        "You maintain a workspace synthesis document set. Update documents based on new signals. Keep output concise and actionable.",
-      prompt,
-      schema: SYNTHESIS_SCHEMA,
-      maxTokens: 4096,
-    });
-
   const documentMap = new Map(currentDocs.map((doc) => [doc.id, doc]));
   const changedDocumentVersions: Array<{
     documentId: string;
@@ -209,101 +177,157 @@ export async function processSynthesis(input: {
     content: string;
     changeType: "created" | "modified" | "deleted";
   }> = [];
+  const allOperations: SynthesisResult["operations"] = [];
+  const allPriorityRecommendations: SynthesisOutput["priorityRecommendations"] = [];
+  const batchSummaries: string[] = [];
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
 
-  for (const op of result.operations) {
-    if (op.action === "create") {
-      const embedding = op.content
-        ? await generateEmbedding(op.content.slice(0, 8000))
-        : null;
-      const [created] = await db
-        .insert(brainDocuments)
-        .values({
-          workspaceId,
-          userId: null,
-          scope: "synthesis",
-          title: op.title,
-          content: op.content,
-          embedding,
-        })
-        .returning({ id: brainDocuments.id, title: brainDocuments.title, content: brainDocuments.content });
+  for (let i = 0; i < pendingSignals.length; i += SYNTHESIS_BATCH_SIZE) {
+    const signalBatch = pendingSignals.slice(i, i + SYNTHESIS_BATCH_SIZE);
+    const docsForPrompt = Array.from(documentMap.values()).map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      content: doc.content ?? "",
+    }));
+    const prompt = [
+      "Current synthesis documents:",
+      docsForPrompt.length ? JSON.stringify(docsForPrompt, null, 2) : "[]",
+      "",
+      "New signals to process:",
+      JSON.stringify(
+        signalBatch.map((signal) => ({
+          id: signal.id,
+          content: signal.content,
+          aiPriority: signal.aiPriority,
+        })),
+        null,
+        2
+      ),
+    ].join("\n");
 
-      changedDocumentVersions.push({
-        documentId: created.id,
-        title: created.title,
-        content: created.content ?? "",
-        changeType: "created",
+    const { result: batchResult, inputTokens, outputTokens } =
+      await generateStructuredJSON<SynthesisOutput>({
+        system:
+          "You maintain a workspace synthesis document set. Update documents based on new signals. Keep output concise and actionable.",
+        prompt,
+        schema: SYNTHESIS_SCHEMA,
+        maxTokens: SYNTHESIS_MAX_TOKENS,
       });
-      continue;
-    }
 
-    if (op.action === "modify" && op.documentId && documentMap.has(op.documentId)) {
-      const embedding = op.content
-        ? await generateEmbedding(op.content.slice(0, 8000))
-        : null;
-      const [updated] = await db
-        .update(brainDocuments)
-        .set({
-          title: op.title,
-          content: op.content,
-          embedding,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(brainDocuments.id, op.documentId),
-            eq(brainDocuments.workspaceId, workspaceId),
-            eq(brainDocuments.scope, "synthesis"),
-            isNull(brainDocuments.userId)
-          )
-        )
-        .returning({
-          id: brainDocuments.id,
-          title: brainDocuments.title,
-          content: brainDocuments.content,
-        });
+    totalInputTokens += inputTokens;
+    totalOutputTokens += outputTokens;
+    batchSummaries.push(batchResult.commitSummary);
+    allOperations.push(...batchResult.operations);
+    allPriorityRecommendations.push(...batchResult.priorityRecommendations);
 
-      if (updated) {
+    for (const op of batchResult.operations) {
+      if (op.action === "create") {
+        const embedding = op.content
+          ? await generateEmbedding(op.content.slice(0, 8000))
+          : null;
+        const [created] = await db
+          .insert(brainDocuments)
+          .values({
+            workspaceId,
+            userId: null,
+            scope: "synthesis",
+            title: op.title,
+            content: op.content,
+            embedding,
+          })
+          .returning({
+            id: brainDocuments.id,
+            title: brainDocuments.title,
+            content: brainDocuments.content,
+          });
+
         changedDocumentVersions.push({
-          documentId: updated.id,
-          title: updated.title,
-          content: updated.content ?? "",
-          changeType: "modified",
+          documentId: created.id,
+          title: created.title,
+          content: created.content ?? "",
+          changeType: "created",
         });
+        documentMap.set(created.id, created);
+        continue;
       }
-      continue;
-    }
 
-    if (op.action === "delete" && op.documentId && documentMap.has(op.documentId)) {
-      const existing = documentMap.get(op.documentId);
-      const [deleted] = await db
-        .delete(brainDocuments)
-        .where(
-          and(
-            eq(brainDocuments.id, op.documentId),
-            eq(brainDocuments.workspaceId, workspaceId),
-            eq(brainDocuments.scope, "synthesis"),
-            isNull(brainDocuments.userId)
+      if (op.action === "modify" && op.documentId && documentMap.has(op.documentId)) {
+        const embedding = op.content
+          ? await generateEmbedding(op.content.slice(0, 8000))
+          : null;
+        const [updated] = await db
+          .update(brainDocuments)
+          .set({
+            title: op.title,
+            content: op.content,
+            embedding,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(brainDocuments.id, op.documentId),
+              eq(brainDocuments.workspaceId, workspaceId),
+              eq(brainDocuments.scope, "synthesis"),
+              isNull(brainDocuments.userId)
+            )
           )
-        )
-        .returning({ id: brainDocuments.id });
+          .returning({
+            id: brainDocuments.id,
+            title: brainDocuments.title,
+            content: brainDocuments.content,
+          });
 
-      if (deleted && existing) {
-        changedDocumentVersions.push({
-          documentId: existing.id,
-          title: existing.title,
-          content: existing.content ?? "",
-          changeType: "deleted",
-        });
+        if (updated) {
+          changedDocumentVersions.push({
+            documentId: updated.id,
+            title: updated.title,
+            content: updated.content ?? "",
+            changeType: "modified",
+          });
+          documentMap.set(updated.id, updated);
+        }
+        continue;
+      }
+
+      if (op.action === "delete" && op.documentId && documentMap.has(op.documentId)) {
+        const existing = documentMap.get(op.documentId);
+        const [deleted] = await db
+          .delete(brainDocuments)
+          .where(
+            and(
+              eq(brainDocuments.id, op.documentId),
+              eq(brainDocuments.workspaceId, workspaceId),
+              eq(brainDocuments.scope, "synthesis"),
+              isNull(brainDocuments.userId)
+            )
+          )
+          .returning({ id: brainDocuments.id });
+
+        if (deleted && existing) {
+          changedDocumentVersions.push({
+            documentId: existing.id,
+            title: existing.title,
+            content: existing.content ?? "",
+            changeType: "deleted",
+          });
+          documentMap.delete(existing.id);
+        }
       }
     }
   }
+
+  const synthesisSummary =
+    batchSummaries.length === 1
+      ? batchSummaries[0]
+      : `Processed ${pendingSignals.length} signals across ${batchSummaries.length} batches.`;
 
   const [commit] = await db
     .insert(synthesisCommits)
     .values({
       workspaceId,
       parentId: headCommit?.id ?? null,
-      summary: result.commitSummary,
+      summary: synthesisSummary,
       trigger,
       signalCount: pendingSignals.length,
     })
@@ -329,7 +353,7 @@ export async function processSynthesis(input: {
   );
 
   const validSignalIds = new Set(pendingSignals.map((signal) => signal.id));
-  const updates = result.priorityRecommendations.filter((rec) =>
+  const updates = allPriorityRecommendations.filter((rec) =>
     validSignalIds.has(rec.signalId)
   );
   for (const rec of updates) {
@@ -345,20 +369,20 @@ export async function processSynthesis(input: {
     metadata: {
       commitId: commit.id,
       signalCount: pendingSignals.length,
-      operationCount: result.operations.length,
+      operationCount: allOperations.length,
     },
   });
 
   return {
     commitId: commit.id,
     summary: commit.summary,
-    operations: result.operations,
+    operations: allOperations,
     priorityRecommendations: updates,
     processedSignalCount: pendingSignals.length,
     usage: {
-      inputTokens,
-      outputTokens,
-      estimatedCostCents: calculateCostCents(inputTokens, outputTokens),
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens,
+      estimatedCostCents: calculateCostCents(totalInputTokens, totalOutputTokens),
     },
   };
 }

@@ -70,7 +70,7 @@ export default async function IntegrationsPage({
     <div className="mx-auto max-w-[1000px] px-6 pb-24">
       <div className="mb-8">
         <MonoLabel className="mb-2 block text-primary">INTEGRATIONS</MonoLabel>
-        <h1 className="font-display text-2xl font-bold uppercase tracking-tight">
+        <h1 className="font-display text-2xl font-bold tracking-tight">
           Agent Activity
         </h1>
       </div>

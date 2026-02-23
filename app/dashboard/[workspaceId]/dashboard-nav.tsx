@@ -6,11 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
-  { label: "CONVERSATIONS", path: "" },
-  { label: "CONTEXT", path: "context" },
-  { label: "SYNTHESIS", path: "synthesis" },
-  { label: "INTEGRATIONS", path: "integrations" },
-  { label: "SETTINGS", path: "settings" },
+  { label: "CONVERSATIONS", path: "", absolute: false },
+  { label: "CONTEXT", path: "context", absolute: false },
+  { label: "SYNTHESIS", path: "synthesis", absolute: false },
+  { label: "INTEGRATIONS", path: "integrations", absolute: false },
+  { label: "SETTINGS", path: "settings", absolute: false },
+  { label: "DOCS", path: "/docs", absolute: true },
 ] as const;
 
 interface WorkspaceInfo {
@@ -56,7 +57,7 @@ export function DashboardNav({
         <div className="flex items-center gap-3">
           <Link
             href={basePath}
-            className="font-display text-base font-bold uppercase tracking-wider text-foreground"
+            className="font-display text-base font-bold tracking-wider text-foreground"
           >
             TENSIENT
           </Link>
@@ -197,9 +198,15 @@ export function DashboardNav({
       {/* Navigation */}
       <nav className="flex items-center gap-1 mb-6 border-b border-border pb-3">
         {NAV_ITEMS.map((item) => {
-          const href = item.path ? `${basePath}/${item.path}` : basePath;
+          const href = item.absolute
+            ? item.path
+            : item.path
+              ? `${basePath}/${item.path}`
+              : basePath;
           const isActive = item.path
-            ? pathname?.startsWith(href)
+            ? item.absolute
+              ? pathname === item.path || pathname?.startsWith(`${item.path}/`)
+              : pathname?.startsWith(href)
             : pathname === basePath || pathname === `${basePath}/`;
           return (
             <Link
