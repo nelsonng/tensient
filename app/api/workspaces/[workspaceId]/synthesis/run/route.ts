@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { processSynthesis } from "@/lib/services/process-synthesis";
+import { trackEvent } from "@/lib/platform-events";
 
 type Params = { params: Promise<{ workspaceId: string }> };
 
@@ -28,6 +29,11 @@ export async function POST(_request: Request, { params }: Params) {
 
   const usageCheck = await checkUsageAllowed(session.user.id);
   if (!usageCheck.allowed) {
+    trackEvent("usage_blocked", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { operation: "synthesis", reason: usageCheck.reason },
+    });
     return NextResponse.json({ error: usageCheck.reason }, { status: 429 });
   }
 

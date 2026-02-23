@@ -9,6 +9,7 @@ const ERROR_TYPES = [
   "sign_up_failed",
   "sign_in_failed",
   "transcription_failed",
+  "usage_blocked",
 ] as const;
 
 async function getErrorEvents(filter: string, days: number) {
@@ -25,6 +26,7 @@ async function getErrorEvents(filter: string, days: number) {
         eq(platformEvents.type, "sign_up_failed"),
         eq(platformEvents.type, "sign_in_failed"),
         eq(platformEvents.type, "transcription_failed"),
+        eq(platformEvents.type, "usage_blocked"),
       )!
     );
   }
@@ -65,6 +67,7 @@ async function getErrorCounts() {
           eq(platformEvents.type, "api_error"),
           eq(platformEvents.type, "client_error"),
           eq(platformEvents.type, "transcription_failed"),
+          eq(platformEvents.type, "usage_blocked"),
         )
       )
     );
@@ -79,6 +82,7 @@ async function getErrorCounts() {
           eq(platformEvents.type, "api_error"),
           eq(platformEvents.type, "client_error"),
           eq(platformEvents.type, "transcription_failed"),
+          eq(platformEvents.type, "usage_blocked"),
         )
       )
     );
@@ -101,6 +105,7 @@ function isErrorType(type: string): boolean {
 function getEventColor(type: string): string {
   if (type === "api_error" || type === "client_error") return "text-destructive";
   if (type === "transcription_failed") return "text-destructive";
+  if (type === "usage_blocked") return "text-destructive";
   if (type === "sign_up_failed" || type === "sign_in_failed") return "text-warning";
   if (type.includes("completed") || type.includes("success")) return "text-success";
   if (type.includes("started")) return "text-info";

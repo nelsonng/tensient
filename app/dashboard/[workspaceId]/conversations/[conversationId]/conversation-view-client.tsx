@@ -464,6 +464,7 @@ export function ConversationViewClient({
               onTranscription={handleTranscription}
               onError={(err) => {
                 console.error("Voice error:", err);
+                setSendError(err);
                 setShowVoice(false);
               }}
             />

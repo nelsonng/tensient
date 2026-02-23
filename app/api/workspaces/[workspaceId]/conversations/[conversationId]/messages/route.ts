@@ -50,6 +50,11 @@ export async function POST(request: Request, { params }: Params) {
   // Usage guard
   const usageCheck = await checkUsageAllowed(session.user.id);
   if (!usageCheck.allowed) {
+    trackEvent("usage_blocked", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { operation: "conversation", reason: usageCheck.reason },
+    });
     return NextResponse.json({ error: usageCheck.reason }, { status: 429 });
   }
 

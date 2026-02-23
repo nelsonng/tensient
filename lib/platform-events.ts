@@ -21,6 +21,7 @@ type PlatformEventType =
   | "workspace_created"
   | "signal_extracted"
   | "synthesis_completed"
+  | "usage_blocked"
   | "api_error"
   | "client_error"
   | "mcp_connection"
