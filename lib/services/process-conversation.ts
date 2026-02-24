@@ -348,6 +348,8 @@ function composeSystemPrompt(
     "You are Tensient, an AI assistant for enterprise leaders. You help users think clearly, make decisions, and take action.",
     "Respond conversationally but substantively. Be direct, insightful, and actionable.",
     "When relevant, extract action items, ask reflective coaching questions, and note alignment with the user's stated goals.",
+    "You can reference the user's personal context library (My Context) and shared workspace knowledge (Workspace Context).",
+    "If no relevant context was retrieved for this message, do not claim these systems do not exist. Instead, acknowledge that no relevant documents were matched and suggest checking whether uploaded files have extractable text content.",
   ];
 
   if (brainDocs.length > 0) {
@@ -355,6 +357,8 @@ function composeSystemPrompt(
     for (const doc of brainDocs) {
       parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
     }
+  } else {
+    parts.push("\n## My Context (user's private context)\nNo relevant documents matched this message.");
   }
 
   if (canonDocs.length > 0) {
@@ -362,6 +366,8 @@ function composeSystemPrompt(
     for (const doc of canonDocs) {
       parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
     }
+  } else {
+    parts.push("\n## Workspace Context (shared workspace knowledge)\nNo relevant documents matched this message.");
   }
 
   if (synthesisDocs.length > 0) {

@@ -21,6 +21,13 @@ export function registerTools(
   const WORKSPACE_ID = workspaceId;
   const USER_ID = userId;
 
+  function getRegisteredToolCount(): number {
+    const registeredTools = (
+      server as unknown as { _registeredTools?: Record<string, unknown> }
+    )._registeredTools;
+    return registeredTools ? Object.keys(registeredTools).length : 0;
+  }
+
 // ── Sensors (Read) ──────────────────────────────────────────────────────
 
 server.tool(
@@ -478,6 +485,7 @@ server.tool(
                 signalCounts,
                 totalDocuments: Number(totalDocRows[0]?.count ?? 0),
                 lastSynthesisAt: lastSynthesisRow[0]?.createdAt ?? null,
+                registeredToolCount: getRegisteredToolCount(),
               },
               synthesisDocuments,
               openSignals,
@@ -627,27 +635,41 @@ server.tool(
       }
     }
 
-    const embedding = await generateEmbedding(content.slice(0, 2000));
+    try {
+      const embedding = await generateEmbedding(content.slice(0, 2000));
 
-    const [row] = await db
-      .insert(signals)
-      .values({
-        workspaceId: WORKSPACE_ID,
-        userId: USER_ID,
-        conversationId: conversationId ?? null,
-        messageId: messageId ?? null,
-        content: content.trim(),
-        embedding,
-        aiPriority: aiPriority ?? null,
-        humanPriority: null,
-        reviewedAt: null,
-        source: "mcp",
-      })
-      .returning();
+      const [row] = await db
+        .insert(signals)
+        .values({
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          conversationId: conversationId ?? null,
+          messageId: messageId ?? null,
+          content: content.trim(),
+          embedding,
+          aiPriority: aiPriority ?? null,
+          humanPriority: null,
+          reviewedAt: null,
+          source: "mcp",
+        })
+        .returning();
 
-    return {
-      content: [{ type: "text" as const, text: JSON.stringify(row, null, 2) }],
-    };
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(row, null, 2) }],
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const cause = err instanceof Error && err.cause ? String(err.cause) : undefined;
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Signal insert failed: ${cause ?? message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
   }
 );
 
@@ -714,63 +736,85 @@ server.tool(
         : ["- None provided"]),
     ].join("\n");
 
-    const sessionEmbedding = await generateEmbedding(sessionBody.slice(0, 8000));
-    const [sessionDoc] = await db
-      .insert(brainDocuments)
-      .values({
-        workspaceId: WORKSPACE_ID,
-        userId: null,
-        scope: "workspace",
-        title: sessionTitle,
-        content: sessionBody,
-        fileUrl: null,
-        fileType: null,
-        fileName: null,
-        embedding: sessionEmbedding,
-      })
-      .returning({ id: brainDocuments.id, title: brainDocuments.title });
+    try {
+      const sessionEmbedding = await generateEmbedding(sessionBody.slice(0, 8000));
+      const [sessionDoc] = await db
+        .insert(brainDocuments)
+        .values({
+          workspaceId: WORKSPACE_ID,
+          userId: null,
+          scope: "workspace",
+          title: sessionTitle,
+          content: sessionBody,
+          fileUrl: null,
+          fileType: null,
+          fileName: null,
+          embedding: sessionEmbedding,
+        })
+        .returning({ id: brainDocuments.id, title: brainDocuments.title });
 
-    const signalPayloads = [
-      ...decisions.map((content) => ({ content, aiPriority: "medium" as const })),
-      ...debtAdded.map((content) => ({ content, aiPriority: "high" as const })),
-      ...debtResolved.map((content) => ({ content, aiPriority: "low" as const })),
-      ...observations.map((content) => ({ content, aiPriority: null })),
-    ].filter((item) => item.content.trim().length > 0);
+      const signalPayloads = [
+        ...decisions.map((content) => ({ content, aiPriority: "medium" as const })),
+        ...debtAdded.map((content) => ({ content, aiPriority: "high" as const })),
+        ...debtResolved.map((content) => ({ content, aiPriority: "low" as const })),
+        ...observations.map((content) => ({ content, aiPriority: null })),
+      ].filter((item) => item.content.trim().length > 0);
 
-    let createdSignals = 0;
-    for (const signalPayload of signalPayloads) {
-      const embedding = await generateEmbedding(signalPayload.content.slice(0, 2000));
-      await db.insert(signals).values({
-        workspaceId: WORKSPACE_ID,
-        userId: USER_ID,
-        conversationId: null,
-        messageId: null,
-        content: signalPayload.content.trim(),
-        embedding,
-        aiPriority: signalPayload.aiPriority,
-        humanPriority: null,
-        reviewedAt: null,
-        source: "mcp",
-      });
-      createdSignals += 1;
+      let createdSignals = 0;
+      const signalErrors: string[] = [];
+      for (const signalPayload of signalPayloads) {
+        try {
+          const embedding = await generateEmbedding(signalPayload.content.slice(0, 2000));
+          await db.insert(signals).values({
+            workspaceId: WORKSPACE_ID,
+            userId: USER_ID,
+            conversationId: null,
+            messageId: null,
+            content: signalPayload.content.trim(),
+            embedding,
+            aiPriority: signalPayload.aiPriority,
+            humanPriority: null,
+            reviewedAt: null,
+            source: "mcp",
+          });
+          createdSignals += 1;
+        } catch (signalErr) {
+          const msg = signalErr instanceof Error ? signalErr.message : String(signalErr);
+          const cause = signalErr instanceof Error && signalErr.cause ? String(signalErr.cause) : undefined;
+          signalErrors.push(cause ?? msg);
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                sessionDocumentId: sessionDoc.id,
+                sessionDocumentTitle: sessionDoc.title,
+                createdSignals,
+                ...(signalErrors.length > 0 && { signalErrors }),
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const cause = err instanceof Error && err.cause ? String(err.cause) : undefined;
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `end_session failed: ${cause ?? message}`,
+          },
+        ],
+        isError: true,
+      };
     }
-
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(
-            {
-              sessionDocumentId: sessionDoc.id,
-              sessionDocumentTitle: sessionDoc.title,
-              createdSignals,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
   }
 );
 

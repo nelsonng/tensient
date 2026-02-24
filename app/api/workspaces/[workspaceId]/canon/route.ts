@@ -72,9 +72,11 @@ export async function POST(request: Request, { params }: Params) {
   try {
     // If a file was uploaded, extract text content
     let resolvedContent = content || "";
+    let extractionFailed = false;
     if (fileUrl && fileType && !content) {
       const extracted = await extractTextFromFile(fileUrl, fileType);
       resolvedContent = extracted || "";
+      extractionFailed = !extracted?.trim();
     }
 
     // Generate embedding from content
@@ -100,10 +102,19 @@ export async function POST(request: Request, { params }: Params) {
     trackEvent("canon_document_created", {
       userId: session.user.id,
       workspaceId,
-      metadata: { documentId: doc.id, hasFile: !!fileUrl },
+      metadata: { documentId: doc.id, hasFile: !!fileUrl, extractionFailed },
     });
 
-    return NextResponse.json(doc, { status: 201 });
+    return NextResponse.json(
+      {
+        ...doc,
+        extractionFailed,
+        extractionWarning: extractionFailed
+          ? "File uploaded, but text extraction failed. This document may not be retrievable in conversations until content is added."
+          : null,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     logger.error("Canon document creation failed", { error: String(error) });
     return NextResponse.json(

@@ -19,6 +19,11 @@ interface Document {
   updatedAt: string;
 }
 
+interface CreateDocumentResponse extends Document {
+  extractionFailed?: boolean;
+  extractionWarning?: string | null;
+}
+
 interface DocumentListClientProps {
   workspaceId: string;
   documents: Document[];
@@ -77,7 +82,13 @@ export function DocumentListClient({
         }),
       });
       if (!res.ok) throw new Error("Failed to create document");
-      const doc = await res.json();
+      const doc = (await res.json()) as CreateDocumentResponse;
+      if (doc.extractionFailed) {
+        window.alert(
+          doc.extractionWarning ||
+            "File uploaded, but text extraction failed. Open the document and paste/add text so it can be used in conversations."
+        );
+      }
       router.push(`${pagePath}/${doc.id}`);
     } catch (error) {
       console.error("Upload failed:", error);

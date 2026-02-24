@@ -11,7 +11,7 @@ function getAnthropic(): Anthropic {
 
 /**
  * Extract text content from a file URL based on its content type.
- * - PDFs: uses pdf-parse to extract text
+ * - PDFs: uses Claude document understanding to extract text
  * - Images: uses Claude vision API to describe/transcribe
  * - Text/Markdown: fetches raw content
  * Returns extracted text or null on failure.
@@ -47,14 +47,43 @@ export async function extractTextFromFile(
 }
 
 async function extractPdfText(fileUrl: string): Promise<string | null> {
+  const anthropic = getAnthropic();
   const res = await fetch(fileUrl);
   if (!res.ok) return null;
   const buffer = Buffer.from(await res.arrayBuffer());
+  const base64 = buffer.toString("base64");
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
-  const data = await pdfParse(buffer);
-  return data.text?.trim() || null;
+  const response = await anthropic.messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 4096,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: {
+              type: "base64",
+              media_type: "application/pdf",
+              data: base64,
+            },
+          },
+          {
+            type: "text",
+            text: "Extract all text content from this PDF document. Preserve key section structure where possible. Return only the extracted content, no preamble.",
+          },
+        ],
+      },
+    ],
+  });
+
+  const text = response.content
+    .filter((block) => block.type === "text")
+    .map((block) => (block.type === "text" ? block.text : ""))
+    .join("\n")
+    .trim();
+
+  return text || null;
 }
 
 async function extractImageText(
