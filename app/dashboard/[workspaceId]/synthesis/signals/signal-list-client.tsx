@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { formatAbsoluteDateTime } from "@/lib/utils";
 
 interface SignalRow {
   id: string;
@@ -38,21 +39,6 @@ const STATUSES: Array<"open" | "resolved" | "dismissed"> = [
 function priorityBadge(priority: string | null) {
   if (!priority) return "--";
   return priority.toUpperCase();
-}
-
-function formatRelativeTime(dateStr: string) {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function SignalListClient({
@@ -250,7 +236,7 @@ export function SignalListClient({
       sortValue: (row) => new Date(row.createdAt).getTime(),
       render: (row) => (
         <span className="font-mono text-[11px] text-muted">
-          {formatRelativeTime(row.createdAt)}
+          {formatAbsoluteDateTime(row.createdAt)}
         </span>
       ),
     },

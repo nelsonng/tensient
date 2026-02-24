@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { SlantedButton } from "@/components/slanted-button";
+import { formatAbsoluteDateTime } from "@/lib/utils";
 
 interface Document {
   id: string;
@@ -84,16 +85,6 @@ export function DocumentListClient({
     }
   }
 
-  function formatRelativeTime(dateStr: string) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / 86400000);
-    if (diffDays < 1) return "Today";
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-
   async function handleDelete(documentId: string) {
     const confirmed = window.confirm("Delete this document?");
     if (!confirmed) return;
@@ -144,7 +135,7 @@ export function DocumentListClient({
       sortValue: (doc) => new Date(doc.updatedAt).getTime(),
       render: (doc) => (
         <span className="font-mono text-[11px] text-muted">
-          {formatRelativeTime(doc.updatedAt)}
+          {formatAbsoluteDateTime(doc.updatedAt)}
         </span>
       ),
     },

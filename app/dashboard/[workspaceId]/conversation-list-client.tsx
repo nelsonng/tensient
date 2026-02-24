@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { SlantedButton } from "@/components/slanted-button";
+import { formatAbsoluteDateTime } from "@/lib/utils";
 
 interface Conversation {
   id: string;
@@ -54,21 +55,6 @@ export function ConversationListClient({
     router.refresh();
   }
 
-  function formatRelativeTime(dateStr: string) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-
   const columns: Array<DataTableColumn<Conversation>> = [
     {
       key: "title",
@@ -96,7 +82,7 @@ export function ConversationListClient({
       sortValue: (convo) => new Date(convo.updatedAt).getTime(),
       render: (convo) => (
         <span className="font-mono text-[11px] text-muted">
-          {formatRelativeTime(convo.updatedAt)}
+          {formatAbsoluteDateTime(convo.updatedAt)}
         </span>
       ),
     },

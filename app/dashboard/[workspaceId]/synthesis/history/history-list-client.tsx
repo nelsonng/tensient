@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
+import { formatAbsoluteDateTime } from "@/lib/utils";
 
 interface CommitRow {
   id: string;
@@ -9,18 +10,6 @@ interface CommitRow {
   trigger: "conversation_end" | "manual" | "scheduled";
   signalCount: number;
   createdAt: string;
-}
-
-function formatRelativeTime(dateStr: string) {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffHours < 1) return "Just now";
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function HistoryListClient({
@@ -69,7 +58,7 @@ export function HistoryListClient({
       sortValue: (row) => new Date(row.createdAt).getTime(),
       render: (row) => (
         <span className="font-mono text-[11px] text-muted">
-          {formatRelativeTime(row.createdAt)}
+          {formatAbsoluteDateTime(row.createdAt)}
         </span>
       ),
     },

@@ -31,3 +31,14 @@ export function formatShortDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+/**
+ * Format a date string as absolute date + time in the browser's locale.
+ */
+export function formatAbsoluteDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}

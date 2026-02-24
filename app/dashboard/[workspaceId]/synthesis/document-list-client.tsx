@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { SlantedButton } from "@/components/slanted-button";
+import { formatAbsoluteDateTime } from "@/lib/utils";
 
 interface SynthesisDocumentRow {
   id: string;
@@ -96,18 +97,6 @@ export function SynthesisDocumentListClient({
     }
   }
 
-  function formatRelativeTime(dateStr: string) {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    if (diffHours < 1) return "Just now";
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-
   const columns: Array<DataTableColumn<SynthesisDocumentRow>> = [
     {
       key: "title",
@@ -144,7 +133,7 @@ export function SynthesisDocumentListClient({
       sortValue: (row) => new Date(row.updatedAt).getTime(),
       render: (row) => (
         <span className="font-mono text-[11px] text-muted">
-          {formatRelativeTime(row.updatedAt)}
+          {formatAbsoluteDateTime(row.updatedAt)}
         </span>
       ),
     },
