@@ -18,11 +18,18 @@ const toolGroups = [
   {
     name: "Actuators",
     tools: [
-      "create_signal(content, conversationId, messageId, aiPriority)",
+      "create_signal(content, conversationId?, messageId?, aiPriority)",
       "update_signal(signalId, humanPriority, status)",
       "create_brain_document(title, content)",
       "create_canon_document(title, content)",
       "update_brain_document(documentId, title, content)",
+    ],
+  },
+  {
+    name: "Session",
+    tools: [
+      "start_session(include_signals, include_synthesis, include_history, max_signals)",
+      "end_session(summary, filesChanged, decisions, debtAdded, debtResolved, observations)",
     ],
   },
   {
@@ -51,7 +58,7 @@ export default function DocsToolsPage() {
           Tool Reference
         </h1>
         <p className="font-body text-base text-muted mb-8">
-          Tensient MCP exposes 16 tools grouped by read, write, search, synthesis,
+          Tensient MCP exposes 18 tools grouped by read, write, session, search, synthesis,
           and delete operations.
         </p>
 

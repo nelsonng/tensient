@@ -41,7 +41,7 @@ export default async function SignalDetailPage({
       conversationTitle: conversations.title,
     })
     .from(signals)
-    .innerJoin(conversations, eq(conversations.id, signals.conversationId))
+    .leftJoin(conversations, eq(conversations.id, signals.conversationId))
     .where(and(eq(signals.id, signalId), eq(signals.workspaceId, workspaceId)))
     .limit(1);
 
@@ -84,12 +84,16 @@ export default async function SignalDetailPage({
             <p className="mt-1 font-mono text-xs text-primary">
               {signal.source.toUpperCase()}
             </p>
-            <Link
-              href={`/dashboard/${workspaceId}/conversations/${signal.conversationId}`}
-              className="mt-1 block text-sm text-primary hover:text-primary/80"
-            >
-              {signal.conversationTitle || "Untitled conversation"}
-            </Link>
+            {signal.conversationId ? (
+              <Link
+                href={`/dashboard/${workspaceId}/conversations/${signal.conversationId}`}
+                className="mt-1 block text-sm text-primary hover:text-primary/80"
+              >
+                {signal.conversationTitle || "Untitled conversation"}
+              </Link>
+            ) : (
+              <p className="mt-1 text-sm text-muted">Unlinked session signal</p>
+            )}
           </div>
 
           <div>

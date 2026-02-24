@@ -387,12 +387,12 @@ export const signals = pgTable(
     userId: uuid("user_id")
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
-    conversationId: uuid("conversation_id")
-      .references(() => conversations.id, { onDelete: "cascade" })
-      .notNull(),
-    messageId: uuid("message_id")
-      .references(() => messages.id, { onDelete: "cascade" })
-      .notNull(),
+    conversationId: uuid("conversation_id").references(() => conversations.id, {
+      onDelete: "cascade",
+    }),
+    messageId: uuid("message_id").references(() => messages.id, {
+      onDelete: "cascade",
+    }),
     content: text("content").notNull(),
     embedding: vector("embedding", { dimensions: 1536 }),
     aiPriority: signalPriorityEnum("ai_priority"),

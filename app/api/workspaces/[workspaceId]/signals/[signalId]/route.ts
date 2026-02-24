@@ -37,7 +37,7 @@ export async function GET(_request: Request, { params }: Params) {
       conversationTitle: conversations.title,
     })
     .from(signals)
-    .innerJoin(conversations, eq(conversations.id, signals.conversationId))
+    .leftJoin(conversations, eq(conversations.id, signals.conversationId))
     .where(and(eq(signals.id, signalId), eq(signals.workspaceId, workspaceId)))
     .limit(1);
 

@@ -101,7 +101,7 @@ server.tool(
         conversationTitle: conversations.title,
       })
       .from(signals)
-      .innerJoin(conversations, eq(conversations.id, signals.conversationId))
+      .leftJoin(conversations, eq(conversations.id, signals.conversationId))
       .where(and(...conditions))
       .orderBy(desc(signals.createdAt))
       .limit(limit);
@@ -336,6 +336,163 @@ server.tool(
 );
 
 server.tool(
+  "start_session",
+  "Get full orientation for an agent session. Returns synthesis docs, open signals, recent session logs, and world-model counts in a single response.",
+  {
+    include_signals: z
+      .boolean()
+      .default(true)
+      .optional()
+      .describe("Include open signal summaries"),
+    include_synthesis: z
+      .boolean()
+      .default(true)
+      .optional()
+      .describe("Include synthesis document contents"),
+    include_history: z
+      .boolean()
+      .default(true)
+      .optional()
+      .describe("Include recent session log entries"),
+    max_signals: z
+      .number()
+      .int()
+      .min(0)
+      .max(50)
+      .default(20)
+      .optional()
+      .describe("Maximum open signals to include"),
+  },
+  async ({
+    include_signals = true,
+    include_synthesis = true,
+    include_history = true,
+    max_signals = 20,
+  }) => {
+    const [signalStatsRows, lastSynthesisRow, totalDocRows] = await Promise.all([
+      db
+        .select({
+          status: signals.status,
+          count: sql<number>`count(*)`,
+        })
+        .from(signals)
+        .where(eq(signals.workspaceId, WORKSPACE_ID))
+        .groupBy(signals.status),
+      db
+        .select({
+          createdAt: synthesisCommits.createdAt,
+        })
+        .from(synthesisCommits)
+        .where(eq(synthesisCommits.workspaceId, WORKSPACE_ID))
+        .orderBy(desc(synthesisCommits.createdAt))
+        .limit(1),
+      db
+        .select({
+          count: sql<number>`count(*)`,
+        })
+        .from(brainDocuments)
+        .where(eq(brainDocuments.workspaceId, WORKSPACE_ID)),
+    ]);
+
+    const signalCounts = signalStatsRows.reduce(
+      (acc, row) => {
+        acc[row.status] = Number(row.count);
+        return acc;
+      },
+      { open: 0, resolved: 0, dismissed: 0 } as Record<
+        "open" | "resolved" | "dismissed",
+        number
+      >
+    );
+
+    const [synthesisDocuments, openSignals, recentSessionLogs] = await Promise.all([
+      include_synthesis
+        ? db
+            .select({
+              id: brainDocuments.id,
+              title: brainDocuments.title,
+              content: brainDocuments.content,
+              updatedAt: brainDocuments.updatedAt,
+            })
+            .from(brainDocuments)
+            .where(
+              and(
+                eq(brainDocuments.workspaceId, WORKSPACE_ID),
+                eq(brainDocuments.scope, "synthesis"),
+                isNull(brainDocuments.userId)
+              )
+            )
+            .orderBy(desc(brainDocuments.updatedAt))
+        : Promise.resolve([]),
+      include_signals && max_signals > 0
+        ? db
+            .select({
+              id: signals.id,
+              content: signals.content,
+              aiPriority: signals.aiPriority,
+              humanPriority: signals.humanPriority,
+              createdAt: signals.createdAt,
+              conversationId: signals.conversationId,
+              conversationTitle: conversations.title,
+            })
+            .from(signals)
+            .leftJoin(conversations, eq(conversations.id, signals.conversationId))
+            .where(
+              and(
+                eq(signals.workspaceId, WORKSPACE_ID),
+                eq(signals.status, "open")
+              )
+            )
+            .orderBy(desc(signals.createdAt))
+            .limit(max_signals)
+        : Promise.resolve([]),
+      include_history
+        ? db
+            .select({
+              id: brainDocuments.id,
+              title: brainDocuments.title,
+              content: brainDocuments.content,
+              updatedAt: brainDocuments.updatedAt,
+            })
+            .from(brainDocuments)
+            .where(
+              and(
+                eq(brainDocuments.workspaceId, WORKSPACE_ID),
+                eq(brainDocuments.scope, "workspace"),
+                isNull(brainDocuments.userId),
+                ilike(brainDocuments.title, "Session Log:%")
+              )
+            )
+            .orderBy(desc(brainDocuments.updatedAt))
+            .limit(5)
+        : Promise.resolve([]),
+    ]);
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              snapshot: {
+                signalCounts,
+                totalDocuments: Number(totalDocRows[0]?.count ?? 0),
+                lastSynthesisAt: lastSynthesisRow[0]?.createdAt ?? null,
+              },
+              synthesisDocuments,
+              openSignals,
+              recentSessionLogs,
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
   "get_conversation_messages",
   "Get all messages in a specific conversation, including AI metadata (sentiment, actions, coaching questions).",
   {
@@ -391,16 +548,18 @@ server.tool(
 
 server.tool(
   "create_signal",
-  "Create a new signal (e.g., an insight from codebase analysis). Must link to an existing conversation and message.",
+  "Create a new signal (e.g., an insight from codebase analysis). Conversation/message linkage is optional.",
   {
     content: z.string().min(1).describe("Signal content text"),
     conversationId: z
       .string()
       .uuid()
+      .optional()
       .describe("Conversation this signal relates to"),
     messageId: z
       .string()
       .uuid()
+      .optional()
       .describe("Message this signal was extracted from"),
     aiPriority: z
       .enum(["critical", "high", "medium", "low"])
@@ -408,50 +567,64 @@ server.tool(
       .describe("Priority level"),
   },
   async ({ content, conversationId, messageId, aiPriority }) => {
-    const [conversation] = await db
-      .select({ id: conversations.id })
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.id, conversationId),
-          eq(conversations.workspaceId, WORKSPACE_ID)
-        )
-      )
-      .limit(1);
-
-    if (!conversation) {
+    if ((conversationId && !messageId) || (!conversationId && messageId)) {
       return {
         content: [
           {
             type: "text" as const,
-            text: "Conversation not found in this workspace",
+            text: "conversationId and messageId must both be provided together",
           },
         ],
         isError: true,
       };
     }
 
-    const [message] = await db
-      .select({ id: messages.id })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.id, messageId),
-          eq(messages.conversationId, conversationId)
+    if (conversationId && messageId) {
+      const [conversation] = await db
+        .select({ id: conversations.id })
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.id, conversationId),
+            eq(conversations.workspaceId, WORKSPACE_ID)
+          )
         )
-      )
-      .limit(1);
+        .limit(1);
 
-    if (!message) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: "Message not found in the specified conversation",
-          },
-        ],
-        isError: true,
-      };
+      if (!conversation) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Conversation not found in this workspace",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const [message] = await db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.id, messageId),
+            eq(messages.conversationId, conversationId)
+          )
+        )
+        .limit(1);
+
+      if (!message) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Message not found in the specified conversation",
+            },
+          ],
+          isError: true,
+        };
+      }
     }
 
     const embedding = await generateEmbedding(content.slice(0, 2000));
@@ -461,8 +634,8 @@ server.tool(
       .values({
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
-        conversationId,
-        messageId,
+        conversationId: conversationId ?? null,
+        messageId: messageId ?? null,
         content: content.trim(),
         embedding,
         aiPriority: aiPriority ?? null,
@@ -474,6 +647,129 @@ server.tool(
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(row, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "end_session",
+  "Record what happened in an agent session. Creates a session log and optional signals for decisions, debt, and observations.",
+  {
+    summary: z.string().min(1).describe("What was built or changed"),
+    filesChanged: z
+      .array(z.string())
+      .optional()
+      .describe("Key files modified in the session"),
+    decisions: z
+      .array(z.string())
+      .optional()
+      .describe("Architectural decisions made"),
+    debtAdded: z
+      .array(z.string())
+      .optional()
+      .describe("New technical debt introduced"),
+    debtResolved: z
+      .array(z.string())
+      .optional()
+      .describe("Technical debt items resolved"),
+    observations: z
+      .array(z.string())
+      .optional()
+      .describe("Additional insights or observations"),
+  },
+  async ({
+    summary,
+    filesChanged = [],
+    decisions = [],
+    debtAdded = [],
+    debtResolved = [],
+    observations = [],
+  }) => {
+    const now = new Date();
+    const dateLabel = now.toISOString().slice(0, 10);
+    const titleSnippet = summary.trim().slice(0, 80);
+    const sessionTitle = `Session Log: ${dateLabel} -- ${titleSnippet}`;
+
+    const sessionBody = [
+      `# Session Log -- ${dateLabel}`,
+      "",
+      "## Summary",
+      summary.trim(),
+      "",
+      "## Files Changed",
+      ...(filesChanged.length > 0 ? filesChanged.map((f) => `- ${f}`) : ["- None provided"]),
+      "",
+      "## Decisions",
+      ...(decisions.length > 0 ? decisions.map((d) => `- ${d}`) : ["- None provided"]),
+      "",
+      "## Technical Debt Added",
+      ...(debtAdded.length > 0 ? debtAdded.map((d) => `- ${d}`) : ["- None provided"]),
+      "",
+      "## Technical Debt Resolved",
+      ...(debtResolved.length > 0 ? debtResolved.map((d) => `- ${d}`) : ["- None provided"]),
+      "",
+      "## Observations",
+      ...(observations.length > 0
+        ? observations.map((o) => `- ${o}`)
+        : ["- None provided"]),
+    ].join("\n");
+
+    const sessionEmbedding = await generateEmbedding(sessionBody.slice(0, 8000));
+    const [sessionDoc] = await db
+      .insert(brainDocuments)
+      .values({
+        workspaceId: WORKSPACE_ID,
+        userId: null,
+        scope: "workspace",
+        title: sessionTitle,
+        content: sessionBody,
+        fileUrl: null,
+        fileType: null,
+        fileName: null,
+        embedding: sessionEmbedding,
+      })
+      .returning({ id: brainDocuments.id, title: brainDocuments.title });
+
+    const signalPayloads = [
+      ...decisions.map((content) => ({ content, aiPriority: "medium" as const })),
+      ...debtAdded.map((content) => ({ content, aiPriority: "high" as const })),
+      ...debtResolved.map((content) => ({ content, aiPriority: "low" as const })),
+      ...observations.map((content) => ({ content, aiPriority: null })),
+    ].filter((item) => item.content.trim().length > 0);
+
+    let createdSignals = 0;
+    for (const signalPayload of signalPayloads) {
+      const embedding = await generateEmbedding(signalPayload.content.slice(0, 2000));
+      await db.insert(signals).values({
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        conversationId: null,
+        messageId: null,
+        content: signalPayload.content.trim(),
+        embedding,
+        aiPriority: signalPayload.aiPriority,
+        humanPriority: null,
+        reviewedAt: null,
+        source: "mcp",
+      });
+      createdSignals += 1;
+    }
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify(
+            {
+              sessionDocumentId: sessionDoc.id,
+              sessionDocumentTitle: sessionDoc.title,
+              createdSignals,
+            },
+            null,
+            2
+          ),
+        },
+      ],
     };
   }
 );

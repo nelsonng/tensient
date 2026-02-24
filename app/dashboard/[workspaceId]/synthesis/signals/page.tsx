@@ -45,7 +45,7 @@ export default async function SynthesisSignalsPage({
       createdAt: signals.createdAt,
     })
     .from(signals)
-    .innerJoin(conversations, eq(conversations.id, signals.conversationId))
+    .leftJoin(conversations, eq(conversations.id, signals.conversationId))
     .where(
       and(
         eq(signals.workspaceId, workspaceId),

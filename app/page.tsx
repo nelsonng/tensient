@@ -56,6 +56,40 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Context Layer */}
+        <section className="mb-32 max-w-[900px]">
+          <MonoLabel className="mb-10 block text-foreground">
+            CONTEXT LAYER
+          </MonoLabel>
+          <p className="font-body text-xl leading-relaxed text-foreground mb-6">
+            Tensient sits between you and your agents. Every session writes signals.
+            Synthesis turns those signals into durable knowledge. The next agent starts
+            with the full picture.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-lg border border-border bg-panel p-5">
+              <p className="font-mono text-xs tracking-widest text-primary uppercase mb-2">
+                Solo Builder
+              </p>
+              <p className="font-body text-sm text-muted">
+                Run one agent in Cursor or Claude Code. Call <code>start_session</code> at
+                the beginning and <code>end_session</code> at the end to compound context
+                daily.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border bg-panel p-5">
+              <p className="font-mono text-xs tracking-widest text-primary uppercase mb-2">
+                Agent Swarm
+              </p>
+              <p className="font-body text-sm text-muted">
+                Orchestrate many agents in parallel. Query shared synthesis docs and open
+                signals before each task so every spawned agent inherits real business
+                context.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* The Gap */}
         <section className="mb-32 max-w-[800px]">
           <MonoLabel className="mb-10 block text-foreground">
@@ -82,7 +116,7 @@ export default function Home() {
             AGENT-NATIVE
           </MonoLabel>
           <p className="font-body text-lg leading-relaxed text-muted mb-4">
-            Connect any AI agent in 30 seconds. Your agent gets 16 tools: read
+            Connect any AI agent in 30 seconds. Your agent gets 18 tools: read
             signals, query context, run synthesis, and write insights back.
           </p>
           <pre className="rounded-lg border border-border bg-panel p-4 overflow-x-auto font-mono text-xs text-foreground mb-5">
@@ -103,7 +137,7 @@ export default function Home() {
         {/* For Developers */}
         <section className="mb-32 max-w-[900px]">
           <MonoLabel className="mb-6 block text-foreground">FOR DEVELOPERS</MonoLabel>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="border border-border rounded-lg bg-panel p-4">
               <p className="font-mono text-xs text-primary tracking-widest mb-2">01</p>
               <p className="font-body text-sm text-muted">Sign up and open your workspace.</p>
@@ -118,6 +152,13 @@ export default function Home() {
               <p className="font-mono text-xs text-primary tracking-widest mb-2">03</p>
               <p className="font-body text-sm text-muted">
                 Paste the config into your MCP client and call tools.
+              </p>
+            </div>
+            <div className="border border-border rounded-lg bg-panel p-4">
+              <p className="font-mono text-xs text-primary tracking-widest mb-2">04</p>
+              <p className="font-body text-sm text-muted">
+                Add session rules so agents call <code>start_session</code> and{" "}
+                <code>end_session</code> automatically.
               </p>
             </div>
           </div>

@@ -8,7 +8,7 @@ import { formatAbsoluteDateTime } from "@/lib/utils";
 interface SignalRow {
   id: string;
   content: string;
-  conversationId: string;
+  conversationId: string | null;
   conversationTitle: string | null;
   status: "open" | "resolved" | "dismissed";
   aiPriority: "critical" | "high" | "medium" | "low" | null;
@@ -181,7 +181,7 @@ export function SignalListClient({
             {row.source.toUpperCase()}
           </span>
           <span className="font-mono text-[11px] text-muted">
-            {row.conversationTitle || "Untitled conversation"}
+            {row.conversationTitle || "Unlinked session signal"}
           </span>
         </div>
       ),

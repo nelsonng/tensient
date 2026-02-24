@@ -11,12 +11,17 @@ const sections = [
   {
     href: "/docs/tools",
     title: "Tool Reference",
-    description: "All 16 MCP tools with categories and key parameters.",
+    description: "All 18 MCP tools with categories and key parameters.",
   },
   {
     href: "/docs/auth",
     title: "Authentication Guide",
     description: "How API keys are generated, scoped, and revoked.",
+  },
+  {
+    href: "/docs/context-layer",
+    title: "Context Layer",
+    description: "How to give single agents or swarms shared organizational memory.",
   },
 ];
 

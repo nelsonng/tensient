@@ -41,7 +41,7 @@ export async function GET(request: Request, { params }: Params) {
       conversationTitle: conversations.title,
     })
     .from(signals)
-    .innerJoin(conversations, eq(conversations.id, signals.conversationId))
+    .leftJoin(conversations, eq(conversations.id, signals.conversationId))
     .where(
       and(
         eq(signals.workspaceId, workspaceId),
@@ -81,9 +81,19 @@ export async function POST(request: Request, { params }: Params) {
     humanPriority?: "critical" | "high" | "medium" | "low";
   } = body ?? {};
 
-  if (!content?.trim() || !conversationId || !messageId) {
+  if (!content?.trim()) {
     return NextResponse.json(
-      { error: "content, conversationId, and messageId are required" },
+      { error: "content is required" },
+      { status: 400 }
+    );
+  }
+
+  if ((conversationId && !messageId) || (!conversationId && messageId)) {
+    return NextResponse.json(
+      {
+        error:
+          "conversationId and messageId must both be provided together",
+      },
       { status: 400 }
     );
   }
@@ -95,8 +105,8 @@ export async function POST(request: Request, { params }: Params) {
     .values({
       workspaceId,
       userId: session.user.id,
-      conversationId,
-      messageId,
+      conversationId: conversationId ?? null,
+      messageId: messageId ?? null,
       content: content.trim(),
       embedding,
       aiPriority: aiPriority ?? null,
