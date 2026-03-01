@@ -23,6 +23,12 @@ interface MessageRow {
   createdAt: Date;
 }
 
+interface RetrievalSource {
+  title: string;
+  scope: "personal" | "workspace" | "synthesis";
+  method: "vector" | "keyword";
+}
+
 interface ProcessResult {
   assistantMessage: MessageRow;
   usage: {
@@ -30,6 +36,7 @@ interface ProcessResult {
     outputTokens: number;
     estimatedCostCents: number;
   };
+  sources: RetrievalSource[];
 }
 
 interface ProcessInput {
@@ -111,40 +118,45 @@ export async function processConversationMessage(
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.createdAt));
 
-  // 2. Fetch relevant Brain documents (personal, by embedding similarity)
-  const brainContext = await fetchRelevantDocuments(
+  // 2. Fetch relevant documents with sources tracking
+  const brainMerged = await fetchAndMergeDocuments(
     workspaceId,
     userId,
     "personal",
     userMessage.content
   );
 
-  // 3. Fetch relevant Canon documents (workspace-shared, by embedding similarity)
-  const canonContext = await fetchRelevantDocuments(
+  const canonMerged = await fetchAndMergeDocuments(
     workspaceId,
     null,
     "workspace",
     userMessage.content
   );
 
-  // 4. Extract text from any attachments on the current message
-  const synthesisContext = await fetchRelevantDocuments(
+  const synthesisMerged = await fetchAndMergeDocuments(
     workspaceId,
     null,
     "synthesis",
     userMessage.content
   );
 
-  // 4. Extract text from any attachments on the current message
+  // Collect all sources
+  const allSources: RetrievalSource[] = [
+    ...brainMerged.sources,
+    ...canonMerged.sources,
+    ...synthesisMerged.sources,
+  ];
+
+  // 3. Extract text from any attachments on the current message
   const attachmentTexts = await extractAttachmentTexts(
     userMessage.attachments as Attachment[] | null
   );
 
-  // 5. Compose the system prompt
+  // 4. Compose the system prompt
   const systemPrompt = composeSystemPrompt(
-    brainContext,
-    canonContext,
-    synthesisContext,
+    brainMerged.docs,
+    canonMerged.docs,
+    synthesisMerged.docs,
     attachmentTexts
   );
 
@@ -173,6 +185,7 @@ export async function processConversationMessage(
   if (result.actions?.length) metadata.actions = result.actions;
   if (result.coachingQuestions?.length) metadata.coachingQuestions = result.coachingQuestions;
   if (result.alignmentNote) metadata.alignmentNote = result.alignmentNote;
+  if (allSources.length > 0) metadata.sources = allSources;
 
   const [assistantMessage] = await db
     .insert(messages)
@@ -209,6 +222,7 @@ export async function processConversationMessage(
       outputTokens,
       estimatedCostCents: calculateCostCents(inputTokens, outputTokens),
     },
+    sources: allSources,
   };
 }
 
@@ -303,18 +317,30 @@ async function fetchRelevantDocuments(
       .from(brainDocuments)
       .where(and(...conditions))
       .orderBy(desc(sql`1 - (${brainDocuments.embedding} <=> ${embeddingStr}::vector)`))
-      .limit(Math.max(limit * 5, limit));
+      .limit(Math.max(limit * 10, limit));
 
-    const deduped: Array<{ title: string; content: string }> = [];
-    const seenParentIds = new Set<string>();
+    const deduped: Array<{ title: string; content: string; similarity?: number }> = [];
+    const parentCounts = new Map<string, number>();
+    const MAX_CHUNKS_PER_PARENT = 3;
+    
     for (const doc of docs) {
       if (!doc.content || doc.similarity <= 0.3) continue;
       const parentId = doc.parentDocumentId ?? doc.id;
-      if (seenParentIds.has(parentId)) continue;
-      seenParentIds.add(parentId);
-      deduped.push({ title: doc.title, content: doc.content });
+      const count = parentCounts.get(parentId) ?? 0;
+      if (count >= MAX_CHUNKS_PER_PARENT) continue;
+      parentCounts.set(parentId, count + 1);
+      deduped.push({ title: doc.title, content: doc.content, similarity: doc.similarity });
       if (deduped.length >= limit) break;
     }
+
+    logger.info("retrieval_complete", {
+      scope,
+      method: "vector",
+      query: queryText.slice(0, 100),
+      candidateCount: docs.length,
+      resultCount: deduped.length,
+      results: deduped.map(d => ({ title: d.title, similarity: d.similarity })),
+    });
 
     return deduped;
   } catch (error) {
@@ -322,6 +348,131 @@ async function fetchRelevantDocuments(
     return [];
   }
 }
+
+// ── Helper: Fetch documents by keyword/substring search ───────────────────
+
+async function fetchDocumentsByKeyword(
+  workspaceId: string,
+  userId: string | null,
+  scope: "personal" | "workspace" | "synthesis",
+  queryText: string,
+  limit = 5
+): Promise<Array<{ title: string; content: string }>> {
+  try {
+    // Extract searchable tokens: URLs, emails, quoted phrases
+    const urlMatches = queryText.match(/https?:\/\/\S+/g) || [];
+    const emailMatches = queryText.match(/\S+@\S+\.\S+/g) || [];
+    const quotedMatches = queryText.match(/["']([^"']+)["']/g)?.map(m => m.slice(1, -1)) || [];
+    
+    const tokens = [...urlMatches, ...emailMatches, ...quotedMatches].filter(Boolean);
+    
+    if (!tokens.length) return [];
+    
+    const conditions = [
+      eq(brainDocuments.workspaceId, workspaceId),
+      eq(brainDocuments.scope, scope),
+    ];
+
+    if (userId) {
+      conditions.push(eq(brainDocuments.userId, userId));
+    } else {
+      conditions.push(isNull(brainDocuments.userId));
+    }
+
+    const results: Array<{ id: string; title: string; content: string }> = [];
+    const seenIds = new Set<string>();
+
+    // Search for each token
+    for (const token of tokens.slice(0, 5)) {
+      const matches = await db
+        .select({
+          id: brainDocuments.id,
+          title: brainDocuments.title,
+          content: brainDocuments.content,
+        })
+        .from(brainDocuments)
+        .where(
+          and(
+            and(...conditions),
+            sql`${brainDocuments.content} ILIKE ${'%' + token + '%'}`
+          )
+        )
+        .limit(10);
+
+      for (const match of matches) {
+        if (!seenIds.has(match.id)) {
+          seenIds.add(match.id);
+          results.push(match);
+          if (results.length >= limit) break;
+        }
+      }
+
+      if (results.length >= limit) break;
+    }
+
+    logger.info("retrieval_complete", {
+      scope,
+      method: "keyword",
+      query: queryText.slice(0, 100),
+      tokensExtracted: tokens.length,
+      resultCount: results.length,
+      results: results.map(d => ({ title: d.title, id: d.id })),
+    });
+
+    return results.map(({ title, content }) => ({ title, content }));
+  } catch (error) {
+    logger.error("Failed to fetch documents by keyword", { error: String(error), scope });
+    return [];
+  }
+}
+
+// ── Helper: Merge vector and keyword results ──────────────────────────────
+
+interface MergedResults {
+  docs: Array<{ title: string; content: string }>;
+  sources: RetrievalSource[];
+}
+
+async function fetchAndMergeDocuments(
+  workspaceId: string,
+  userId: string | null,
+  scope: "personal" | "workspace" | "synthesis",
+  queryText: string,
+  limit = 5
+): Promise<MergedResults> {
+  // Fetch both in parallel
+  const [vectorResults, keywordResults] = await Promise.all([
+    fetchRelevantDocuments(workspaceId, userId, scope, queryText, limit),
+    fetchDocumentsByKeyword(workspaceId, userId, scope, queryText, limit),
+  ]);
+
+  const docs: Array<{ title: string; content: string }> = [];
+  const sources: RetrievalSource[] = [];
+  const seenTitles = new Set<string>();
+
+  // Add keyword matches first (higher confidence)
+  for (const result of keywordResults) {
+    if (!seenTitles.has(result.title)) {
+      docs.push(result);
+      sources.push({ title: result.title, scope, method: "keyword" });
+      seenTitles.add(result.title);
+      if (docs.length >= limit) break;
+    }
+  }
+
+  // Then add vector matches
+  for (const result of vectorResults) {
+    if (!seenTitles.has(result.title)) {
+      docs.push(result);
+      sources.push({ title: result.title, scope, method: "vector" });
+      seenTitles.add(result.title);
+      if (docs.length >= limit) break;
+    }
+  }
+
+  return { docs, sources };
+}
+
 
 // ── Helper: Extract text from attachments ──────────────────────────────
 
@@ -355,12 +506,21 @@ function composeSystemPrompt(
   synthesisDocs: Array<{ title: string; content: string }>,
   attachmentTexts: string[]
 ): string {
-  const MAX_CONTEXT_DOC_CHARS = 4_000;
   const MAX_TOTAL_CONTEXT_CHARS = 40_000;
+  const totalDocs = brainDocs.length + canonDocs.length + synthesisDocs.length;
+  
+  // Dynamic per-doc cap: allocate total budget across matched docs
+  let perDocCap = MAX_TOTAL_CONTEXT_CHARS;
+  if (totalDocs > 0) {
+    perDocCap = Math.floor(MAX_TOTAL_CONTEXT_CHARS / totalDocs);
+    // Ensure minimum 4KB per doc if possible
+    perDocCap = Math.max(perDocCap, 4_000);
+  }
+  
   let totalContextChars = 0;
   const truncateContextDoc = (content: string) => {
     const remaining = MAX_TOTAL_CONTEXT_CHARS - totalContextChars;
-    const cap = Math.min(MAX_CONTEXT_DOC_CHARS, remaining);
+    const cap = Math.min(perDocCap, remaining);
     if (cap <= 0) return "[Omitted: context budget exhausted]";
     const truncated = content.length <= cap ? content : content.slice(0, cap) +
       `\n\n[Truncated: showing ${(cap / 1024).toFixed(1)}KB of ${(content.length / 1024).toFixed(1)}KB]`;
@@ -373,7 +533,8 @@ function composeSystemPrompt(
     "Respond conversationally but substantively. Be direct, insightful, and actionable.",
     "When relevant, extract action items, ask reflective coaching questions, and note alignment with the user's stated goals.",
     "You can reference the user's personal context library (My Context) and shared workspace knowledge (Workspace Context).",
-    "If no relevant context was retrieved for this message, do not claim these systems do not exist. Instead, acknowledge that no relevant documents were matched and suggest checking whether uploaded files have extractable text content.",
+    "When citing information from context documents, mention the source document title.",
+    "If no relevant context was retrieved for this message, say so explicitly. Suggest the user try including specific identifiers like URLs, email addresses, or exact names in their question to improve matching.",
   ];
 
   if (brainDocs.length > 0) {

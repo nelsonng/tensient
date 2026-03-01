@@ -173,6 +173,11 @@ export const POST = withErrorTracking("Upload workspace context document", async
       extractionWarning: extractionFailed
         ? "File uploaded, but text extraction failed. This document may not be retrievable in conversations until content is added."
         : null,
+      processingDetails: {
+        chunked: shouldChunk,
+        sectionsCreated: chunks.length || 1,
+        totalCharsProcessed: resolvedContent.length,
+      },
     },
     { status: 201 }
   );

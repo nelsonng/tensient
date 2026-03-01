@@ -18,6 +18,11 @@ interface Document {
   scope: string;
   createdAt: string;
   updatedAt: string;
+  processingDetails?: {
+    chunked: boolean;
+    sectionsCreated: number;
+    totalCharsProcessed: number;
+  };
 }
 
 interface CreateDocumentResponse extends Document {
@@ -39,6 +44,7 @@ export function DocumentListClient({
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const label = kind === "brain" ? "My Context" : "Workspace Context";
   const apiPath = `/api/workspaces/${workspaceId}/${kind}`;
@@ -84,12 +90,20 @@ export function DocumentListClient({
       });
       if (!res.ok) throw new Error("Failed to create document");
       const doc = (await res.json()) as CreateDocumentResponse;
+      
       if (doc.extractionFailed) {
         window.alert(
           doc.extractionWarning ||
             "File uploaded, but text extraction failed. Open the document and paste/add text so it can be used in conversations."
         );
+      } else if (doc.processingDetails) {
+        const sizeMB = (doc.processingDetails.totalCharsProcessed / 1024 / 1024).toFixed(1);
+        setToastMessage(
+          `File indexed successfully: ${doc.processingDetails.sectionsCreated} searchable section${doc.processingDetails.sectionsCreated !== 1 ? 's' : ''}, ${sizeMB} MB processed`
+        );
+        setTimeout(() => setToastMessage(null), 4000);
       }
+      
       router.push(`${pagePath}/${doc.id}`);
     } catch (error) {
       console.error("Upload failed:", error);
@@ -118,16 +132,27 @@ export function DocumentListClient({
       key: "title",
       label: "Title",
       sortable: true,
-      render: (doc) => (
-        <div className="min-w-0 flex items-center gap-2">
-          <p className="truncate font-body text-sm text-foreground">{doc.title}</p>
-          {doc.chunkCount ? (
-            <span className="shrink-0 rounded border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">
-              {doc.chunkCount} chunks
-            </span>
-          ) : null}
-        </div>
-      ),
+      render: (doc) => {
+        const tooltip = doc.processingDetails
+          ? `${doc.processingDetails.sectionsCreated} searchable section${doc.processingDetails.sectionsCreated !== 1 ? 's' : ''}, ${(doc.processingDetails.totalCharsProcessed / 1024 / 1024).toFixed(1)} MB`
+          : doc.chunkCount
+          ? `${doc.chunkCount} searchable sections`
+          : undefined;
+        
+        return (
+          <div className="min-w-0 flex items-center gap-2">
+            <p className="truncate font-body text-sm text-foreground">{doc.title}</p>
+            {doc.chunkCount ? (
+              <span
+                className="shrink-0 rounded border border-positive/30 bg-positive/5 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-positive"
+                title={tooltip}
+              >
+                Indexed
+              </span>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       key: "fileType",
@@ -159,7 +184,13 @@ export function DocumentListClient({
   ];
 
   return (
-    <DataTable
+    <div className="relative">
+      {toastMessage && (
+        <div className="mb-4 rounded border border-positive/30 bg-positive/5 px-4 py-3">
+          <p className="font-mono text-sm text-positive">{toastMessage}</p>
+        </div>
+      )}
+      <DataTable
       title={label}
       subtitle={`${kind === "brain" ? "Your personal context" : "Shared workspace knowledge"} · ${
         documents.length
@@ -204,5 +235,6 @@ export function DocumentListClient({
           : "Add shared knowledge that everyone in the workspace can reference."
       }
     />
+    </div>
   );
 }

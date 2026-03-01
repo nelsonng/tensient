@@ -347,9 +347,13 @@ export function ConversationViewClient({
                 </div>
               )}
 
-              {/* Metadata: actions, coaching questions */}
+              {/* Metadata: actions, coaching questions, sources */}
               {msg.metadata && msg.role === "assistant" && (() => {
-                const meta = msg.metadata as { actions?: Array<{ task: string }>; coachingQuestions?: string[] };
+                const meta = msg.metadata as {
+                  actions?: Array<{ task: string }>;
+                  coachingQuestions?: string[];
+                  sources?: Array<{ title: string; scope: string; method: string }>;
+                };
                 const signalCount = meta.actions?.length ?? 0;
                 return (
                   <div className="mt-3 space-y-2">
@@ -376,6 +380,29 @@ export function ConversationViewClient({
                           ))}
                         </ul>
                       </div>
+                    )}
+                    {meta.sources && meta.sources.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer">
+                          <MonoLabel className="text-[9px] text-muted inline">
+                            {meta.sources.length} SOURCE{meta.sources.length !== 1 ? "S" : ""} USED
+                          </MonoLabel>
+                        </summary>
+                        <ul className="text-xs text-muted mt-1 space-y-0.5">
+                          {meta.sources.map((s, i) => (
+                            <li key={i} className="flex items-start gap-1">
+                              <span className="text-muted">~</span>
+                              {s.title}
+                              <span className="text-muted/50">({s.scope}, {s.method})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                    {meta.sources && meta.sources.length === 0 && (
+                      <MonoLabel className="text-[9px] text-muted mt-2 block">
+                        NO SOURCES MATCHED
+                      </MonoLabel>
                     )}
                     {signalCount > 0 && (
                       <div>

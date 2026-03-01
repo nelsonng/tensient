@@ -98,7 +98,7 @@ async function postHandler(request: Request, { params }: Params) {
     }
 
     // 2. Process via AI and get assistant response
-    const { assistantMessage, usage } = await processConversationMessage({
+    const { assistantMessage, usage, sources } = await processConversationMessage({
       conversationId,
       workspaceId,
       userId: session.user.id,
@@ -134,6 +134,7 @@ async function postHandler(request: Request, { params }: Params) {
     return NextResponse.json({
       userMessage,
       assistantMessage,
+      sources,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Message processing failed";
