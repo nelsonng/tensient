@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { brainDocuments, memberships } from "@/lib/db/schema";
 import { DocumentListClient } from "@/components/document-list-client";
@@ -50,15 +50,31 @@ export default async function ContextPage({
         ? and(
             eq(brainDocuments.workspaceId, workspaceId),
             eq(brainDocuments.userId, session.user.id),
-            eq(brainDocuments.scope, "personal")
+            eq(brainDocuments.scope, "personal"),
+            isNull(brainDocuments.parentDocumentId)
           )
         : and(
             eq(brainDocuments.workspaceId, workspaceId),
             eq(brainDocuments.scope, "workspace"),
-            isNull(brainDocuments.userId)
+            isNull(brainDocuments.userId),
+            isNull(brainDocuments.parentDocumentId)
           )
     )
     .orderBy(desc(brainDocuments.updatedAt));
+
+  const chunkRows = docs.length
+    ? await db
+        .select({
+          parentDocumentId: brainDocuments.parentDocumentId,
+          count: sql<number>`count(*)`,
+        })
+        .from(brainDocuments)
+        .where(inArray(brainDocuments.parentDocumentId, docs.map((doc) => doc.id)))
+        .groupBy(brainDocuments.parentDocumentId)
+    : [];
+  const chunkCountByParentId = new Map(
+    chunkRows.map((row) => [row.parentDocumentId, Number(row.count)])
+  );
 
   return (
     <div className="space-y-4">
@@ -94,6 +110,7 @@ export default async function ContextPage({
         kind={activeTab === "personal" ? "brain" : "canon"}
         documents={docs.map((d) => ({
           ...d,
+          chunkCount: chunkCountByParentId.get(d.id) ?? 0,
           createdAt: d.createdAt.toISOString(),
           updatedAt: d.updatedAt.toISOString(),
         }))}

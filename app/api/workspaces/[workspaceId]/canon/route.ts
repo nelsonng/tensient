@@ -2,12 +2,17 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { brainDocuments } from "@/lib/db/schema";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, inArray, sql } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { generateEmbedding } from "@/lib/ai";
 import { extractTextFromFile } from "@/lib/extract-text";
 import { trackEvent } from "@/lib/platform-events";
 import { logger } from "@/lib/logger";
+import {
+  shouldChunkDocument,
+  buildDocumentChunks,
+  buildChunkEmbeddingText,
+} from "@/lib/services/chunk-document";
 
 type Params = { params: Promise<{ workspaceId: string }> };
 
@@ -41,12 +46,32 @@ export async function GET(_request: Request, { params }: Params) {
       and(
         eq(brainDocuments.workspaceId, workspaceId),
         eq(brainDocuments.scope, "workspace"),
-        isNull(brainDocuments.userId)
+        isNull(brainDocuments.userId),
+        isNull(brainDocuments.parentDocumentId)
       )
     )
     .orderBy(desc(brainDocuments.updatedAt));
 
-  return NextResponse.json(docs);
+  const chunkRows = docs.length
+    ? await db
+        .select({
+          parentDocumentId: brainDocuments.parentDocumentId,
+          count: sql<number>`count(*)`,
+        })
+        .from(brainDocuments)
+        .where(inArray(brainDocuments.parentDocumentId, docs.map((doc) => doc.id)))
+        .groupBy(brainDocuments.parentDocumentId)
+    : [];
+  const chunkCountByParentId = new Map(
+    chunkRows.map((row) => [row.parentDocumentId, Number(row.count)])
+  );
+
+  return NextResponse.json(
+    docs.map((doc) => ({
+      ...doc,
+      chunkCount: chunkCountByParentId.get(doc.id) ?? 0,
+    }))
+  );
 }
 
 // POST /api/workspaces/[id]/canon -- Create Canon document
@@ -79,25 +104,57 @@ export async function POST(request: Request, { params }: Params) {
       extractionFailed = !extracted?.trim();
     }
 
-    // Generate embedding from content
-    const embedding = resolvedContent
-      ? await generateEmbedding(resolvedContent.slice(0, 8000))
-      : null;
+    const shouldChunk = shouldChunkDocument(resolvedContent);
+    const chunkCount = shouldChunk ? buildDocumentChunks(title, resolvedContent).length : 0;
+    const [doc] = await db.transaction(async (tx) => {
+      const embedding =
+        resolvedContent && !shouldChunk
+          ? await generateEmbedding(resolvedContent.slice(0, 8000))
+          : null;
 
-    const [doc] = await db
-      .insert(brainDocuments)
-      .values({
-        workspaceId,
-        userId: null, // Canon = shared, no user
-        scope: "workspace",
-        title,
-        content: resolvedContent || null,
-        fileUrl: fileUrl || null,
-        fileType: fileType || null,
-        fileName: fileName || null,
-        embedding,
-      })
-      .returning();
+      const [createdDoc] = await tx
+        .insert(brainDocuments)
+        .values({
+          workspaceId,
+          userId: null, // Canon = shared, no user
+          scope: "workspace",
+          title,
+          content: resolvedContent || null,
+          fileUrl: fileUrl || null,
+          fileType: fileType || null,
+          fileName: fileName || null,
+          embedding,
+          parentDocumentId: null,
+          chunkIndex: null,
+        })
+        .returning();
+
+      if (resolvedContent && shouldChunk) {
+        const chunks = buildDocumentChunks(title, resolvedContent);
+        const chunkRows: typeof brainDocuments.$inferInsert[] = [];
+        for (const chunk of chunks) {
+          const chunkEmbedding = await generateEmbedding(buildChunkEmbeddingText(chunk.content));
+          chunkRows.push({
+            workspaceId,
+            userId: null,
+            scope: "workspace",
+            title: chunk.title,
+            content: chunk.content,
+            embedding: chunkEmbedding,
+            parentDocumentId: createdDoc.id,
+            chunkIndex: chunk.chunkIndex,
+            fileUrl: null,
+            fileType: null,
+            fileName: null,
+          });
+        }
+        if (chunkRows.length > 0) {
+          await tx.insert(brainDocuments).values(chunkRows);
+        }
+      }
+
+      return [createdDoc];
+    });
 
     trackEvent("canon_document_created", {
       userId: session.user.id,
@@ -108,6 +165,7 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json(
       {
         ...doc,
+        chunkCount,
         extractionFailed,
         extractionWarning: extractionFailed
           ? "File uploaded, but text extraction failed. This document may not be retrievable in conversations until content is added."

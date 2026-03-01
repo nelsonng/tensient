@@ -38,7 +38,8 @@ export async function GET(_request: Request, { params }: Params) {
       and(
         eq(brainDocuments.workspaceId, workspaceId),
         eq(brainDocuments.scope, "synthesis"),
-        isNull(brainDocuments.userId)
+        isNull(brainDocuments.userId),
+        isNull(brainDocuments.parentDocumentId)
       )
     )
     .orderBy(desc(brainDocuments.updatedAt));

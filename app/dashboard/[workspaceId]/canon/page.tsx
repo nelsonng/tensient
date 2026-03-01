@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { memberships, brainDocuments } from "@/lib/db/schema";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, inArray, sql } from "drizzle-orm";
 import { DocumentListClient } from "@/components/document-list-client";
 
 export default async function CanonPage({
@@ -45,16 +45,32 @@ export default async function CanonPage({
       and(
         eq(brainDocuments.workspaceId, workspaceId),
         eq(brainDocuments.scope, "workspace"),
-        isNull(brainDocuments.userId)
+        isNull(brainDocuments.userId),
+        isNull(brainDocuments.parentDocumentId)
       )
     )
     .orderBy(desc(brainDocuments.updatedAt));
+
+  const chunkRows = docs.length
+    ? await db
+        .select({
+          parentDocumentId: brainDocuments.parentDocumentId,
+          count: sql<number>`count(*)`,
+        })
+        .from(brainDocuments)
+        .where(inArray(brainDocuments.parentDocumentId, docs.map((doc) => doc.id)))
+        .groupBy(brainDocuments.parentDocumentId)
+    : [];
+  const chunkCountByParentId = new Map(
+    chunkRows.map((row) => [row.parentDocumentId, Number(row.count)])
+  );
 
   return (
     <DocumentListClient
       workspaceId={workspaceId}
       documents={docs.map((d) => ({
         ...d,
+        chunkCount: chunkCountByParentId.get(d.id) ?? 0,
         createdAt: d.createdAt.toISOString(),
         updatedAt: d.updatedAt.toISOString(),
       }))}

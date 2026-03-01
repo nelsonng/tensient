@@ -14,6 +14,7 @@ interface Document {
   fileUrl: string | null;
   fileType: string | null;
   fileName: string | null;
+  chunkCount?: number;
   scope: string;
   createdAt: string;
   updatedAt: string;
@@ -118,8 +119,13 @@ export function DocumentListClient({
       label: "Title",
       sortable: true,
       render: (doc) => (
-        <div className="min-w-0">
+        <div className="min-w-0 flex items-center gap-2">
           <p className="truncate font-body text-sm text-foreground">{doc.title}</p>
+          {doc.chunkCount ? (
+            <span className="shrink-0 rounded border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">
+              {doc.chunkCount} chunks
+            </span>
+          ) : null}
         </div>
       ),
     },

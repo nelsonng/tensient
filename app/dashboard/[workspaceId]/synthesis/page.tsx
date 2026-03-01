@@ -46,7 +46,8 @@ export default async function SynthesisPage({
         and(
           eq(brainDocuments.workspaceId, workspaceId),
           eq(brainDocuments.scope, "synthesis"),
-          isNull(brainDocuments.userId)
+          isNull(brainDocuments.userId),
+          isNull(brainDocuments.parentDocumentId)
         )
       );
 

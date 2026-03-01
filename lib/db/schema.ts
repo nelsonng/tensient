@@ -267,14 +267,23 @@ export const brainDocuments = pgTable(
     fileUrl: text("file_url"), // Vercel Blob URL for uploaded files
     fileType: text("file_type"), // pdf, image, etc.
     fileName: text("file_name"), // original filename
+    parentDocumentId: uuid("parent_document_id"),
+    chunkIndex: integer("chunk_index"),
     embedding: vector("embedding", { dimensions: 1536 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    foreignKey({
+      columns: [table.parentDocumentId],
+      foreignColumns: [table.id],
+      name: "fk_brain_documents_parent",
+    }).onDelete("cascade"),
     index("idx_brain_documents_workspace").on(table.workspaceId),
     index("idx_brain_documents_user").on(table.userId),
     index("idx_brain_documents_scope").on(table.scope),
+    index("idx_brain_documents_parent_document").on(table.parentDocumentId),
+    index("idx_brain_documents_parent_chunk").on(table.parentDocumentId, table.chunkIndex),
   ]
 );
 

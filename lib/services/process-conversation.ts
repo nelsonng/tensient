@@ -294,6 +294,8 @@ async function fetchRelevantDocuments(
 
     const docs = await db
       .select({
+        id: brainDocuments.id,
+        parentDocumentId: brainDocuments.parentDocumentId,
         title: brainDocuments.title,
         content: brainDocuments.content,
         similarity: sql<number>`1 - (${brainDocuments.embedding} <=> ${embeddingStr}::vector)`,
@@ -301,11 +303,20 @@ async function fetchRelevantDocuments(
       .from(brainDocuments)
       .where(and(...conditions))
       .orderBy(desc(sql`1 - (${brainDocuments.embedding} <=> ${embeddingStr}::vector)`))
-      .limit(limit);
+      .limit(Math.max(limit * 5, limit));
 
-    return docs
-      .filter((d) => d.content && d.similarity > 0.3)
-      .map((d) => ({ title: d.title, content: d.content! }));
+    const deduped: Array<{ title: string; content: string }> = [];
+    const seenParentIds = new Set<string>();
+    for (const doc of docs) {
+      if (!doc.content || doc.similarity <= 0.3) continue;
+      const parentId = doc.parentDocumentId ?? doc.id;
+      if (seenParentIds.has(parentId)) continue;
+      seenParentIds.add(parentId);
+      deduped.push({ title: doc.title, content: doc.content });
+      if (deduped.length >= limit) break;
+    }
+
+    return deduped;
   } catch (error) {
     logger.error("Failed to fetch relevant documents", { error: String(error), scope });
     return [];
@@ -344,6 +355,15 @@ function composeSystemPrompt(
   synthesisDocs: Array<{ title: string; content: string }>,
   attachmentTexts: string[]
 ): string {
+  const MAX_CONTEXT_DOC_CHARS = 200_000;
+  const truncateContextDoc = (content: string) => {
+    if (content.length <= MAX_CONTEXT_DOC_CHARS) return content;
+    return (
+      content.slice(0, MAX_CONTEXT_DOC_CHARS) +
+      `\n\n[Document truncated: showing first ${(MAX_CONTEXT_DOC_CHARS / 1024).toFixed(0)}KB of ${(content.length / 1024).toFixed(0)}KB]`
+    );
+  };
+
   const parts: string[] = [
     "You are Tensient, an AI assistant for enterprise leaders. You help users think clearly, make decisions, and take action.",
     "Respond conversationally but substantively. Be direct, insightful, and actionable.",
@@ -355,7 +375,7 @@ function composeSystemPrompt(
   if (brainDocs.length > 0) {
     parts.push("\n## My Context (user's private context)");
     for (const doc of brainDocs) {
-      parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
+      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content)}`);
     }
   } else {
     parts.push("\n## My Context (user's private context)\nNo relevant documents matched this message.");
@@ -364,7 +384,7 @@ function composeSystemPrompt(
   if (canonDocs.length > 0) {
     parts.push("\n## Workspace Context (shared workspace knowledge)");
     for (const doc of canonDocs) {
-      parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
+      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content)}`);
     }
   } else {
     parts.push("\n## Workspace Context (shared workspace knowledge)\nNo relevant documents matched this message.");
@@ -373,7 +393,7 @@ function composeSystemPrompt(
   if (synthesisDocs.length > 0) {
     parts.push("\n## Synthesis (workspace world model)");
     for (const doc of synthesisDocs) {
-      parts.push(`### ${doc.title}\n${doc.content.slice(0, 2000)}`);
+      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content)}`);
     }
   }
 

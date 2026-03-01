@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "@/lib/logger";
 
-const MAX_TEXT_BYTES = 100_000; // 100KB cap for text/plain and text/markdown
+const MAX_TEXT_BYTES = 5_000_000; // 5MB cap for text/plain and text/markdown
 
 let _anthropic: Anthropic | null = null;
 function getAnthropic(): Anthropic {
