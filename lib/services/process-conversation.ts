@@ -357,14 +357,18 @@ async function fetchDocumentsByKeyword(
   scope: "personal" | "workspace" | "synthesis",
   queryText: string,
   limit = 5
-): Promise<Array<{ title: string; content: string }>> {
+): Promise<Array<{ title: string; content: string; matchedToken?: string }>> {
   try {
-    // Extract searchable tokens: URLs, emails, quoted phrases
-    const urlMatches = queryText.match(/https?:\/\/\S+/g) || [];
+    // Extract searchable tokens: URLs, emails, quoted phrases, and bare numeric IDs
+    const urlMatches = (queryText.match(/https?:\/\/\S+/g) || [])
+      .map(u => u.replace(/["')\],;.]+$/, ''));
     const emailMatches = queryText.match(/\S+@\S+\.\S+/g) || [];
-    const quotedMatches = queryText.match(/["']([^"']+)["']/g)?.map(m => m.slice(1, -1)) || [];
+    const quotedMatches = queryText.match(/["']([^"']+)["']/g)
+      ?.map(m => m.slice(1, -1)) || [];
+    const numericIds = queryText.match(/\b\d{10,}\b/g) || [];
     
-    const tokens = [...urlMatches, ...emailMatches, ...quotedMatches].filter(Boolean);
+    const tokens = [...urlMatches, ...emailMatches, ...quotedMatches, ...numericIds]
+      .filter(Boolean);
     
     if (!tokens.length) return [];
     
@@ -379,7 +383,7 @@ async function fetchDocumentsByKeyword(
       conditions.push(isNull(brainDocuments.userId));
     }
 
-    const results: Array<{ id: string; title: string; content: string }> = [];
+    const results: Array<{ id: string; title: string; content: string; matchedToken?: string }> = [];
     const seenIds = new Set<string>();
 
     // Search for each token
@@ -394,7 +398,8 @@ async function fetchDocumentsByKeyword(
         .where(
           and(
             and(...conditions),
-            sql`${brainDocuments.content} ILIKE ${'%' + token + '%'}`
+            sql`${brainDocuments.content} ILIKE ${'%' + token + '%'}`,
+            sql`${brainDocuments.embedding} IS NOT NULL`
           )
         )
         .limit(10);
@@ -402,7 +407,7 @@ async function fetchDocumentsByKeyword(
       for (const match of matches) {
         if (!seenIds.has(match.id) && match.content) {
           seenIds.add(match.id);
-          results.push(match as { id: string; title: string; content: string });
+          results.push({ ...match, matchedToken: token } as { id: string; title: string; content: string; matchedToken?: string });
           if (results.length >= limit) break;
         }
       }
@@ -419,7 +424,7 @@ async function fetchDocumentsByKeyword(
       results: results.map(d => ({ title: d.title, id: d.id })),
     });
 
-    return results.map(({ title, content }) => ({ title, content }));
+    return results.map(({ title, content, matchedToken }) => ({ title, content, matchedToken }));
   } catch (error) {
     logger.error("Failed to fetch documents by keyword", { error: String(error), scope });
     return [];
@@ -429,7 +434,7 @@ async function fetchDocumentsByKeyword(
 // ── Helper: Merge vector and keyword results ──────────────────────────────
 
 interface MergedResults {
-  docs: Array<{ title: string; content: string }>;
+  docs: Array<{ title: string; content: string; matchedToken?: string }>;
   sources: RetrievalSource[];
 }
 
@@ -446,7 +451,7 @@ async function fetchAndMergeDocuments(
     fetchDocumentsByKeyword(workspaceId, userId, scope, queryText, limit),
   ]);
 
-  const docs: Array<{ title: string; content: string }> = [];
+  const docs: Array<{ title: string; content: string; matchedToken?: string }> = [];
   const sources: RetrievalSource[] = [];
   const seenTitles = new Set<string>();
 
@@ -501,9 +506,9 @@ async function extractAttachmentTexts(
 // ── Helper: Compose system prompt ──────────────────────────────────────
 
 function composeSystemPrompt(
-  brainDocs: Array<{ title: string; content: string }>,
-  canonDocs: Array<{ title: string; content: string }>,
-  synthesisDocs: Array<{ title: string; content: string }>,
+  brainDocs: Array<{ title: string; content: string; matchedToken?: string }>,
+  canonDocs: Array<{ title: string; content: string; matchedToken?: string }>,
+  synthesisDocs: Array<{ title: string; content: string; matchedToken?: string }>,
   attachmentTexts: string[]
 ): string {
   const MAX_TOTAL_CONTEXT_CHARS = 40_000;
@@ -518,14 +523,30 @@ function composeSystemPrompt(
   }
   
   let totalContextChars = 0;
-  const truncateContextDoc = (content: string) => {
+  const truncateContextDoc = (content: string, matchedToken?: string) => {
     const remaining = MAX_TOTAL_CONTEXT_CHARS - totalContextChars;
     const cap = Math.min(perDocCap, remaining);
     if (cap <= 0) return "[Omitted: context budget exhausted]";
-    const truncated = content.length <= cap ? content : content.slice(0, cap) +
-      `\n\n[Truncated: showing ${(cap / 1024).toFixed(1)}KB of ${(content.length / 1024).toFixed(1)}KB]`;
-    totalContextChars += truncated.length;
-    return truncated;
+    if (content.length <= cap) {
+      totalContextChars += content.length;
+      return content;
+    }
+
+    // If we have a matched token, center the window on it
+    let start = 0;
+    if (matchedToken) {
+      const idx = content.indexOf(matchedToken);
+      if (idx >= 0) {
+        start = Math.max(0, idx - Math.floor(cap / 2));
+      }
+    }
+    const snippet = content.slice(start, start + cap);
+    totalContextChars += snippet.length;
+    const prefix = start > 0 ? `[...${(start/1024).toFixed(1)}KB skipped...]\n` : "";
+    const suffix = (start + cap) < content.length
+      ? `\n[...truncated, showing ${(cap/1024).toFixed(1)}KB around match]`
+      : "";
+    return prefix + snippet + suffix;
   };
 
   const parts: string[] = [
@@ -540,7 +561,7 @@ function composeSystemPrompt(
   if (brainDocs.length > 0) {
     parts.push("\n## My Context (user's private context)");
     for (const doc of brainDocs) {
-      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content)}`);
+      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content, doc.matchedToken)}`);
     }
   } else {
     parts.push("\n## My Context (user's private context)\nNo relevant documents matched this message.");
@@ -549,7 +570,7 @@ function composeSystemPrompt(
   if (canonDocs.length > 0) {
     parts.push("\n## Workspace Context (shared workspace knowledge)");
     for (const doc of canonDocs) {
-      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content)}`);
+      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content, doc.matchedToken)}`);
     }
   } else {
     parts.push("\n## Workspace Context (shared workspace knowledge)\nNo relevant documents matched this message.");
@@ -558,7 +579,7 @@ function composeSystemPrompt(
   if (synthesisDocs.length > 0) {
     parts.push("\n## Synthesis (workspace world model)");
     for (const doc of synthesisDocs) {
-      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content)}`);
+      parts.push(`### ${doc.title}\n${truncateContextDoc(doc.content, doc.matchedToken)}`);
     }
   }
 
