@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { logger } from "@/lib/logger";
 
+const MAX_TEXT_BYTES = 100_000; // 100KB cap for text/plain and text/markdown
+
 let _anthropic: Anthropic | null = null;
 function getAnthropic(): Anthropic {
   if (!_anthropic) {
@@ -35,7 +37,17 @@ export async function extractTextFromFile(
     ) {
       const res = await fetch(fileUrl);
       if (!res.ok) return null;
-      return await res.text();
+      const text = await res.text();
+      if (text.length <= MAX_TEXT_BYTES) return text;
+      logger.warn("Text file truncated", {
+        fileUrl,
+        originalSize: text.length,
+        truncatedTo: MAX_TEXT_BYTES,
+      });
+      return (
+        text.slice(0, MAX_TEXT_BYTES) +
+        `\n\n[Truncated: file was ${(text.length / 1024).toFixed(0)}KB, showing first ${(MAX_TEXT_BYTES / 1024).toFixed(0)}KB]`
+      );
     }
 
     logger.warn("Unsupported content type for text extraction", { contentType });

@@ -46,5 +46,8 @@ next-env.d.ts
 # promptfood - local AI session context, never commit
 promptfood/*
 
+# IK12-specific scripts - not part of Tensient product
+scripts/parse-ik12-asana.py
+
 # MCP server config (contains secrets)
 .mcp.json

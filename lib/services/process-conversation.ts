@@ -378,8 +378,26 @@ function composeSystemPrompt(
   }
 
   if (attachmentTexts.length > 0) {
+    const MAX_ATTACHMENT_CHARS = 100_000;
     parts.push("\n## Attached Files");
-    parts.push(attachmentTexts.join("\n\n"));
+    let totalChars = 0;
+    for (const text of attachmentTexts) {
+      const remaining = MAX_ATTACHMENT_CHARS - totalChars;
+      if (remaining <= 0) {
+        parts.push("[Additional attachments omitted due to size limits]");
+        break;
+      }
+      if (text.length <= remaining) {
+        parts.push(text);
+        totalChars += text.length;
+      } else {
+        parts.push(
+          text.slice(0, remaining) +
+            `\n\n[Attachment truncated: showing first ${(remaining / 1024).toFixed(0)}KB of ${(text.length / 1024).toFixed(0)}KB]`
+        );
+        totalChars += remaining;
+      }
+    }
   }
 
   return parts.join("\n\n");
