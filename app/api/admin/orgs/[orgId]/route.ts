@@ -16,12 +16,14 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireSuperAdminAPI } from "@/lib/auth/require-super-admin";
+import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
 // DELETE /api/admin/orgs/[orgId] -- nuke an entire org and all its data
 // Note: neon-http driver does not support transactions, so we run deletes
 // sequentially in FK-safe order. If a step fails midway, the org row still
 // exists and the operation can be retried safely.
-export async function DELETE(
+async function deleteHandler(
   _request: Request,
   { params }: { params: Promise<{ orgId: string }> }
 ) {
@@ -183,7 +185,7 @@ export async function DELETE(
     // 14. Delete the organization
     await db.delete(organizations).where(eq(organizations.id, orgId));
   } catch (e) {
-    console.error("Org nuke failed:", e);
+    logger.error("Org nuke failed", { error: e instanceof Error ? e.message : String(e) });
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Failed to delete organization" },
       { status: 500 }
@@ -197,3 +199,5 @@ export async function DELETE(
     deleted,
   });
 }
+
+export const DELETE = withErrorTracking("Delete organization", deleteHandler);

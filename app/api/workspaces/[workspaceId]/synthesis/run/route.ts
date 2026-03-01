@@ -5,11 +5,12 @@ import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { processSynthesis } from "@/lib/services/process-synthesis";
 import { trackEvent } from "@/lib/platform-events";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
 type Params = { params: Promise<{ workspaceId: string }> };
 
 // POST /api/workspaces/[workspaceId]/synthesis/run
-export async function POST(_request: Request, { params }: Params) {
+async function postHandler(_request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -68,3 +69,5 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withErrorTracking("Run synthesis", postHandler);

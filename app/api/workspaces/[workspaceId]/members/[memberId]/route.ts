@@ -5,8 +5,9 @@ import { eq, and } from "drizzle-orm";
 import { memberships } from "@/lib/db/schema";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function PATCH(
+async function patchHandler(
   request: Request,
   { params }: { params: Promise<{ workspaceId: string; memberId: string }> }
 ) {
@@ -107,7 +108,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+async function deleteHandler(
   _request: Request,
   { params }: { params: Promise<{ workspaceId: string; memberId: string }> }
 ) {
@@ -179,3 +180,6 @@ export async function DELETE(
     );
   }
 }
+
+export const PATCH = withErrorTracking("Update member role", patchHandler);
+export const DELETE = withErrorTracking("Remove workspace member", deleteHandler);

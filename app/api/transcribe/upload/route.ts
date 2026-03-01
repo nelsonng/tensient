@@ -2,8 +2,9 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -52,3 +53,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withErrorTracking("Upload recording", postHandler);

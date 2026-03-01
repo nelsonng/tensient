@@ -5,8 +5,9 @@ import { eq } from "drizzle-orm";
 import { users } from "@/lib/db/schema";
 import { compare, hash } from "bcryptjs";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function PATCH(request: Request) {
+async function patchHandler(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -68,3 +69,5 @@ export async function PATCH(request: Request) {
     );
   }
 }
+
+export const PATCH = withErrorTracking("Change password", patchHandler);

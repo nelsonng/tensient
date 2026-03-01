@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { trackEvent } from "@/lib/platform-events";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
 /**
  * Client-side error ingestion endpoint.
@@ -11,7 +12,7 @@ import { logger } from "@/lib/logger";
  * Does not require auth -- errors can happen pre-login.
  * Always returns 200 to avoid cascading failures on the client.
  */
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const body = await request.json();
     const { message, stack, digest, route, componentStack, source } = body as {
@@ -61,3 +62,5 @@ export async function POST(request: Request) {
   // Always 200 -- never fail the client
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withErrorTracking("Report client error", postHandler);

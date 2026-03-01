@@ -6,8 +6,9 @@ import { eq } from "drizzle-orm";
 import { nanoid } from "@/lib/utils";
 import { trackEvent } from "@/lib/platform-events";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -74,12 +75,11 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
     logger.error("Create workspace failed", { error: message });
-    trackEvent("api_error", {
-      metadata: { route: "/api/workspaces", error: message },
-    });
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }
 }
+
+export const POST = withErrorTracking("Create workspace", postHandler);

@@ -7,10 +7,12 @@ import { createEmailVerificationToken } from "@/lib/auth-tokens";
 import { sendEmail } from "@/lib/email";
 import { verifyEmailHtml } from "@/lib/emails/verify-email";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
 const RATE_LIMIT_MS = 60 * 1000; // 1 minute between resend requests
 
-export async function POST() {
+async function postHandler(request: Request) {
+  void request;
   try {
     const session = await auth();
 
@@ -103,3 +105,5 @@ export async function POST() {
     );
   }
 }
+
+export const POST = withErrorTracking("Resend verification email", postHandler);

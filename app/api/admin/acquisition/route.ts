@@ -3,8 +3,9 @@ import { db } from "@/lib/db";
 import { users, platformEvents } from "@/lib/db/schema";
 import { sql, count, eq, and, gte, isNotNull, inArray } from "drizzle-orm";
 import { requireSuperAdminAPI } from "@/lib/auth/require-super-admin";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function GET(request: Request) {
+async function getHandler(request: Request) {
   const session = await requireSuperAdminAPI();
   if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -123,3 +124,5 @@ export async function GET(request: Request) {
     users: userMilestones,
   });
 }
+
+export const GET = withErrorTracking("View acquisition analytics", getHandler);

@@ -8,6 +8,7 @@ import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { processConversationMessage } from "@/lib/services/process-conversation";
 import { trackEvent } from "@/lib/platform-events";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
 type Params = { params: Promise<{ workspaceId: string; conversationId: string }> };
 
@@ -18,7 +19,7 @@ function buildFallbackTitle(content: string): string {
 }
 
 // POST /api/workspaces/[id]/conversations/[cid]/messages -- Send message (triggers AI)
-export async function POST(request: Request, { params }: Params) {
+async function postHandler(request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -135,14 +136,11 @@ export async function POST(request: Request, { params }: Params) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Message processing failed";
     logger.error("Message processing failed", { error: message, conversationId });
-    trackEvent("api_error", {
-      userId: session.user.id,
-      workspaceId,
-      metadata: { route: "/api/workspaces/*/conversations/*/messages", error: message },
-    });
     return NextResponse.json(
       { error: "Message processing failed" },
       { status: 500 }
     );
   }
 }
+
+export const POST = withErrorTracking("Send message", postHandler);

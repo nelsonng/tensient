@@ -4,11 +4,12 @@ import { db } from "@/lib/db";
 import { conversations, messages } from "@/lib/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
+import { withErrorTracking } from "@/lib/api-handler";
 
 type Params = { params: Promise<{ workspaceId: string; conversationId: string }> };
 
 // GET /api/workspaces/[id]/conversations/[cid] -- Get conversation + messages
-export async function GET(_request: Request, { params }: Params) {
+async function getHandler(_request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,7 +47,7 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 // PATCH /api/workspaces/[id]/conversations/[cid] -- Rename conversation
-export async function PATCH(request: Request, { params }: Params) {
+async function patchHandler(request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -83,7 +84,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 // DELETE /api/workspaces/[id]/conversations/[cid] -- Delete conversation + messages
-export async function DELETE(_request: Request, { params }: Params) {
+async function deleteHandler(_request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -113,3 +114,7 @@ export async function DELETE(_request: Request, { params }: Params) {
 
   return NextResponse.json({ success: true });
 }
+
+export const GET = withErrorTracking("View conversation", getHandler);
+export const PATCH = withErrorTracking("Rename conversation", patchHandler);
+export const DELETE = withErrorTracking("Delete conversation", deleteHandler);

@@ -4,9 +4,10 @@ import { db } from "@/lib/db";
 import { conversations } from "@/lib/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
+import { withErrorTracking } from "@/lib/api-handler";
 
 // GET /api/workspaces/[id]/conversations -- List conversations
-export async function GET(
+async function getHandler(
   _request: Request,
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
@@ -36,7 +37,7 @@ export async function GET(
 }
 
 // POST /api/workspaces/[id]/conversations -- Create conversation
-export async function POST(
+async function postHandler(
   request: Request,
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
@@ -65,3 +66,6 @@ export async function POST(
 
   return NextResponse.json(conversation, { status: 201 });
 }
+
+export const GET = withErrorTracking("List conversations", getHandler);
+export const POST = withErrorTracking("Create conversation", postHandler);

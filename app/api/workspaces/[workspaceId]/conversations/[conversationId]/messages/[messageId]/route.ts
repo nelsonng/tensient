@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { conversations, messages } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
+import { withErrorTracking } from "@/lib/api-handler";
 
 type Params = {
   params: Promise<{
@@ -14,7 +15,7 @@ type Params = {
 };
 
 // DELETE /api/workspaces/[id]/conversations/[cid]/messages/[mid] -- Delete message
-export async function DELETE(_request: Request, { params }: Params) {
+async function deleteHandler(_request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -59,3 +60,5 @@ export async function DELETE(_request: Request, { params }: Params) {
 
   return NextResponse.json({ success: true });
 }
+
+export const DELETE = withErrorTracking("Delete message", deleteHandler);

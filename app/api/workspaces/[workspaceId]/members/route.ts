@@ -5,8 +5,9 @@ import { eq } from "drizzle-orm";
 import { memberships, users } from "@/lib/db/schema";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function GET(
+async function getHandler(
   _request: Request,
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
@@ -52,3 +53,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withErrorTracking("List workspace members", getHandler);

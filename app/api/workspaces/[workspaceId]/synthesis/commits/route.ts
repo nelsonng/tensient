@@ -7,11 +7,12 @@ import {
 } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
+import { withErrorTracking } from "@/lib/api-handler";
 
 type Params = { params: Promise<{ workspaceId: string }> };
 
 // GET /api/workspaces/[workspaceId]/synthesis/commits
-export async function GET(_request: Request, { params }: Params) {
+async function getHandler(_request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -45,3 +46,5 @@ export async function GET(_request: Request, { params }: Params) {
 
   return NextResponse.json(rows);
 }
+
+export const GET = withErrorTracking("List synthesis commits", getHandler);

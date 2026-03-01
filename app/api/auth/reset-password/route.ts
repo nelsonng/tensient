@@ -8,8 +8,9 @@ import {
   deletePasswordResetTokens,
 } from "@/lib/auth-tokens";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const { token, password } = await request.json();
 
@@ -63,3 +64,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withErrorTracking("Reset password", postHandler);

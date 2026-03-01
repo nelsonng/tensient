@@ -6,6 +6,7 @@ import { eq, and, isNull, asc } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { generateEmbedding } from "@/lib/ai";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 import {
   shouldChunkDocument,
   buildDocumentChunks,
@@ -15,7 +16,10 @@ import {
 type Params = { params: Promise<{ workspaceId: string; documentId: string }> };
 
 // GET /api/workspaces/[id]/brain/[did] -- Get Brain document
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withErrorTracking("View personal context document", async (
+  _request: Request,
+  { params }: Params
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,10 +50,13 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json(doc);
-}
+});
 
 // PATCH /api/workspaces/[id]/brain/[did] -- Update Brain document
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withErrorTracking("Update personal context document", async (
+  request: Request,
+  { params }: Params
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -67,6 +74,16 @@ export async function PATCH(request: Request, { params }: Params) {
   const hasContentUpdate = body.content !== undefined;
   const nextContent = hasContentUpdate ? String(body.content ?? "") : undefined;
   const shouldChunk = hasContentUpdate && shouldChunkDocument(nextContent);
+  const chunkBaseTitle = (nextTitle ?? "").trim();
+  const chunks =
+    hasContentUpdate && nextContent && shouldChunk
+      ? buildDocumentChunks(chunkBaseTitle || "Untitled", nextContent)
+      : [];
+  const chunkEmbeddings = chunks.length
+    ? await Promise.all(
+        chunks.map((chunk) => generateEmbedding(buildChunkEmbeddingText(chunk.content)))
+      )
+    : [];
 
   if (nextTitle !== undefined) updates.title = nextTitle;
   if (hasContentUpdate) {
@@ -105,29 +122,21 @@ export async function PATCH(request: Request, { params }: Params) {
         .delete(brainDocuments)
         .where(eq(brainDocuments.parentDocumentId, documentId));
 
-      if (nextContent && shouldChunk) {
-        const chunkBaseTitle = nextTitle ?? parentDoc.title;
-        const chunks = buildDocumentChunks(chunkBaseTitle, nextContent);
-        const chunkRows: typeof brainDocuments.$inferInsert[] = [];
-        for (const chunk of chunks) {
-          const chunkEmbedding = await generateEmbedding(buildChunkEmbeddingText(chunk.content));
-          chunkRows.push({
-            workspaceId,
-            userId: session.user.id,
-            scope: "personal",
-            title: chunk.title,
-            content: chunk.content,
-            embedding: chunkEmbedding,
-            parentDocumentId: parentDoc.id,
-            chunkIndex: chunk.chunkIndex,
-            fileUrl: null,
-            fileType: null,
-            fileName: null,
-          });
-        }
-        if (chunkRows.length > 0) {
-          await tx.insert(brainDocuments).values(chunkRows);
-        }
+      if (chunks.length > 0) {
+        const chunkRows: typeof brainDocuments.$inferInsert[] = chunks.map((chunk, index) => ({
+          workspaceId,
+          userId: session.user.id,
+          scope: "personal",
+          title: `${nextTitle ?? parentDoc.title} (Chunk ${chunk.chunkIndex + 1})`,
+          content: chunk.content,
+          embedding: chunkEmbeddings[index],
+          parentDocumentId: parentDoc.id,
+          chunkIndex: chunk.chunkIndex,
+          fileUrl: null,
+          fileType: null,
+          fileName: null,
+        }));
+        await tx.insert(brainDocuments).values(chunkRows);
       }
     } else if (nextTitle !== undefined) {
       const chunks = await tx
@@ -156,10 +165,13 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   return NextResponse.json(updated);
-}
+});
 
 // DELETE /api/workspaces/[id]/brain/[did] -- Delete Brain document
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withErrorTracking("Delete personal context document", async (
+  _request: Request,
+  { params }: Params
+) => {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -189,4 +201,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ success: true });
-}
+});

@@ -4,11 +4,12 @@ import { getGroq } from "@/lib/groq";
 import { checkUsageAllowed, logUsage } from "@/lib/usage-guard";
 import { logger } from "@/lib/logger";
 import { trackEvent } from "@/lib/platform-events";
+import { withErrorTracking } from "@/lib/api-handler";
 
 // Allow up to 60s for long audio transcriptions
 export const maxDuration = 60;
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   // ── Env validation (fail fast with clear logs) ────────────────────
 
   if (!process.env.GROQ_API_KEY) {
@@ -171,3 +172,5 @@ export async function POST(request: Request) {
     });
   }
 }
+
+export const POST = withErrorTracking("Transcribe audio", postHandler);

@@ -6,8 +6,9 @@ import { createPasswordResetToken } from "@/lib/auth-tokens";
 import { sendEmail } from "@/lib/email";
 import { resetPasswordEmailHtml } from "@/lib/emails/reset-password";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const { email } = await request.json();
 
@@ -65,3 +66,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withErrorTracking("Request password reset", postHandler);

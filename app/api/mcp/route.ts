@@ -4,6 +4,7 @@ import { registerTools } from "@/mcp/tools";
 import { resolveApiKey } from "@/lib/auth/mcp-auth";
 import { isApiKeyRateLimited } from "@/lib/auth/mcp-rate-limit";
 import { trackEvent } from "@/lib/platform-events";
+import { withErrorTracking } from "@/lib/api-handler";
 
 const MCP_ALLOWED_ORIGINS = (process.env.MCP_ALLOWED_ORIGINS ?? "")
   .split(",")
@@ -40,7 +41,7 @@ function getCalledToolName(parsedBody: unknown): string | null {
   return typeof params?.name === "string" ? params.name : null;
 }
 
-export async function OPTIONS(request: Request) {
+async function optionsHandler(request: Request) {
   const origin = request.headers.get("origin");
   return new Response(null, {
     status: 204,
@@ -48,7 +49,7 @@ export async function OPTIONS(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   const origin = request.headers.get("origin");
   if (
     origin &&
@@ -151,3 +152,6 @@ export async function POST(request: Request) {
     headers,
   });
 }
+
+export const OPTIONS = withErrorTracking("Handle MCP preflight", optionsHandler);
+export const POST = withErrorTracking("Serve MCP request", postHandler);

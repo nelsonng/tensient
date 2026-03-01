@@ -14,9 +14,10 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireSuperAdminAPI } from "@/lib/auth/require-super-admin";
+import { withErrorTracking } from "@/lib/api-handler";
 
 // PATCH /api/admin/users/[userId] -- update user fields
-export async function PATCH(
+async function patchHandler(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
@@ -83,7 +84,7 @@ export async function PATCH(
 // DELETE /api/admin/users/[userId]
 // ?action=suspend (default) -- sets tier to "suspended"
 // ?action=delete -- hard delete with full cascade
-export async function DELETE(
+async function deleteHandler(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
@@ -173,3 +174,6 @@ export async function DELETE(
 
   return NextResponse.json({ success: true, action: "suspended" });
 }
+
+export const PATCH = withErrorTracking("Update user account", patchHandler);
+export const DELETE = withErrorTracking("Suspend or delete user account", deleteHandler);

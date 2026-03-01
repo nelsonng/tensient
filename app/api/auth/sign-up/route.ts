@@ -10,8 +10,9 @@ import { verifyEmailHtml } from "@/lib/emails/verify-email";
 import { logger } from "@/lib/logger";
 import { trackEvent } from "@/lib/platform-events";
 import { getRequestGeo } from "@/lib/request-geo";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const geo = getRequestGeo(request);
 
@@ -127,12 +128,11 @@ export async function POST(request: Request) {
       );
     }
     logger.error("Sign-up failed", { error: message });
-    trackEvent("api_error", {
-      metadata: { route: "/api/auth/sign-up", error: message },
-    });
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }
 }
+
+export const POST = withErrorTracking("Sign up", postHandler);

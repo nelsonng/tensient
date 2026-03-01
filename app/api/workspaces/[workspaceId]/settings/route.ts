@@ -5,8 +5,9 @@ import { eq } from "drizzle-orm";
 import { workspaces } from "@/lib/db/schema";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function PATCH(
+async function patchHandler(
   request: Request,
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
@@ -75,3 +76,5 @@ export async function PATCH(
     );
   }
 }
+
+export const PATCH = withErrorTracking("Update workspace settings", patchHandler);

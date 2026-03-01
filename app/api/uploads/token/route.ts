@@ -2,6 +2,7 @@ import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
 const ALLOWED_CONTENT_TYPES = [
   // Documents
@@ -26,7 +27,7 @@ const ALLOWED_CONTENT_TYPES = [
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB for documents/images
 const MAX_AUDIO_SIZE = 100 * 1024 * 1024; // 100 MB for audio
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -71,3 +72,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withErrorTracking("Generate upload token", postHandler);

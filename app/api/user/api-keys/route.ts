@@ -8,9 +8,10 @@ import {
   userCanAccessWorkspace,
 } from "@/lib/auth/mcp-auth";
 import { trackEvent } from "@/lib/platform-events";
+import { withErrorTracking } from "@/lib/api-handler";
 
 // GET /api/user/api-keys?workspaceId=...
-export async function GET(request: Request) {
+async function getHandler(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
 }
 
 // POST /api/user/api-keys
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
 }
 
 // DELETE /api/user/api-keys
-export async function DELETE(request: Request) {
+async function deleteHandler(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -155,3 +156,7 @@ export async function DELETE(request: Request) {
 
   return NextResponse.json(updated);
 }
+
+export const GET = withErrorTracking("List API keys", getHandler);
+export const POST = withErrorTracking("Create API key", postHandler);
+export const DELETE = withErrorTracking("Revoke API key", deleteHandler);

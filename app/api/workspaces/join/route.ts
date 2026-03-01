@@ -5,8 +5,9 @@ import { workspaces, memberships } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { trackEvent } from "@/lib/platform-events";
 import { logger } from "@/lib/logger";
+import { withErrorTracking } from "@/lib/api-handler";
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -75,12 +76,11 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error ? error.message : "Internal server error";
     logger.error("Join workspace failed", { error: message });
-    trackEvent("api_error", {
-      metadata: { route: "/api/workspaces/join", error: message },
-    });
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }
 }
+
+export const POST = withErrorTracking("Join workspace", postHandler);

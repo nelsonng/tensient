@@ -5,11 +5,12 @@ import { brainDocuments, synthesisCommits, synthesisDocumentVersions } from "@/l
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { generateEmbedding } from "@/lib/ai";
+import { withErrorTracking } from "@/lib/api-handler";
 
 type Params = { params: Promise<{ workspaceId: string }> };
 
 // GET /api/workspaces/[workspaceId]/synthesis/documents
-export async function GET(_request: Request, { params }: Params) {
+async function getHandler(_request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,7 +49,7 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 // POST /api/workspaces/[workspaceId]/synthesis/documents
-export async function POST(request: Request, { params }: Params) {
+async function postHandler(request: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -110,3 +111,6 @@ export async function POST(request: Request, { params }: Params) {
 
   return NextResponse.json(doc, { status: 201 });
 }
+
+export const GET = withErrorTracking("List synthesis documents", getHandler);
+export const POST = withErrorTracking("Create synthesis document", postHandler);
