@@ -10,6 +10,8 @@ import { trackEvent } from "@/lib/platform-events";
 import { logger } from "@/lib/logger";
 import { withErrorTracking } from "@/lib/api-handler";
 
+export const maxDuration = 60;
+
 type Params = { params: Promise<{ workspaceId: string; conversationId: string }> };
 
 function buildFallbackTitle(content: string): string {

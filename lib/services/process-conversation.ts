@@ -355,13 +355,17 @@ function composeSystemPrompt(
   synthesisDocs: Array<{ title: string; content: string }>,
   attachmentTexts: string[]
 ): string {
-  const MAX_CONTEXT_DOC_CHARS = 200_000;
+  const MAX_CONTEXT_DOC_CHARS = 4_000;
+  const MAX_TOTAL_CONTEXT_CHARS = 40_000;
+  let totalContextChars = 0;
   const truncateContextDoc = (content: string) => {
-    if (content.length <= MAX_CONTEXT_DOC_CHARS) return content;
-    return (
-      content.slice(0, MAX_CONTEXT_DOC_CHARS) +
-      `\n\n[Document truncated: showing first ${(MAX_CONTEXT_DOC_CHARS / 1024).toFixed(0)}KB of ${(content.length / 1024).toFixed(0)}KB]`
-    );
+    const remaining = MAX_TOTAL_CONTEXT_CHARS - totalContextChars;
+    const cap = Math.min(MAX_CONTEXT_DOC_CHARS, remaining);
+    if (cap <= 0) return "[Omitted: context budget exhausted]";
+    const truncated = content.length <= cap ? content : content.slice(0, cap) +
+      `\n\n[Truncated: showing ${(cap / 1024).toFixed(1)}KB of ${(content.length / 1024).toFixed(1)}KB]`;
+    totalContextChars += truncated.length;
+    return truncated;
   };
 
   const parts: string[] = [

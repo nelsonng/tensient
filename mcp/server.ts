@@ -897,52 +897,49 @@ server.tool(
   },
   async ({ title, content }) => {
     const shouldChunk = shouldChunkDocument(content);
-    const [doc] = await db.transaction(async (tx) => {
-      const embedding =
-        content && !shouldChunk ? await generateEmbedding(content.slice(0, 8000)) : null;
-      const [createdDoc] = await tx
-        .insert(brainDocuments)
-        .values({
+    const embedding =
+      content && !shouldChunk ? await generateEmbedding(content.slice(0, 8000)) : null;
+
+    const [doc] = await db
+      .insert(brainDocuments)
+      .values({
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        scope: "personal",
+        title,
+        content: content || null,
+        fileUrl: null,
+        fileType: null,
+        fileName: null,
+        embedding,
+        parentDocumentId: null,
+        chunkIndex: null,
+      })
+      .returning();
+
+    if (content && shouldChunk) {
+      const chunks = buildDocumentChunks(title, content);
+      const chunkRows: typeof brainDocuments.$inferInsert[] = [];
+      for (const chunk of chunks) {
+        const chunkEmbedding = await generateEmbedding(buildChunkEmbeddingText(chunk.content));
+        chunkRows.push({
           workspaceId: WORKSPACE_ID,
           userId: USER_ID,
           scope: "personal",
-          title,
-          content: content || null,
+          title: chunk.title,
+          content: chunk.content,
+          embedding: chunkEmbedding,
+          parentDocumentId: doc.id,
+          chunkIndex: chunk.chunkIndex,
           fileUrl: null,
           fileType: null,
           fileName: null,
-          embedding,
-          parentDocumentId: null,
-          chunkIndex: null,
-        })
-        .returning();
-
-      if (content && shouldChunk) {
-        const chunks = buildDocumentChunks(title, content);
-        const chunkRows: typeof brainDocuments.$inferInsert[] = [];
-        for (const chunk of chunks) {
-          const chunkEmbedding = await generateEmbedding(buildChunkEmbeddingText(chunk.content));
-          chunkRows.push({
-            workspaceId: WORKSPACE_ID,
-            userId: USER_ID,
-            scope: "personal",
-            title: chunk.title,
-            content: chunk.content,
-            embedding: chunkEmbedding,
-            parentDocumentId: createdDoc.id,
-            chunkIndex: chunk.chunkIndex,
-            fileUrl: null,
-            fileType: null,
-            fileName: null,
-          });
-        }
-        if (chunkRows.length > 0) {
-          await tx.insert(brainDocuments).values(chunkRows);
-        }
+        });
       }
-
-      return [createdDoc];
-    });
+      if (chunkRows.length > 0) {
+        await db.insert(brainDocuments).values(chunkRows);
+      }
+    }
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(doc, null, 2) }],
@@ -959,52 +956,49 @@ server.tool(
   },
   async ({ title, content }) => {
     const shouldChunk = shouldChunkDocument(content);
-    const [doc] = await db.transaction(async (tx) => {
-      const embedding =
-        content && !shouldChunk ? await generateEmbedding(content.slice(0, 8000)) : null;
-      const [createdDoc] = await tx
-        .insert(brainDocuments)
-        .values({
+    const embedding =
+      content && !shouldChunk ? await generateEmbedding(content.slice(0, 8000)) : null;
+
+    const [doc] = await db
+      .insert(brainDocuments)
+      .values({
+        workspaceId: WORKSPACE_ID,
+        userId: null,
+        scope: "workspace",
+        title,
+        content: content || null,
+        fileUrl: null,
+        fileType: null,
+        fileName: null,
+        embedding,
+        parentDocumentId: null,
+        chunkIndex: null,
+      })
+      .returning();
+
+    if (content && shouldChunk) {
+      const chunks = buildDocumentChunks(title, content);
+      const chunkRows: typeof brainDocuments.$inferInsert[] = [];
+      for (const chunk of chunks) {
+        const chunkEmbedding = await generateEmbedding(buildChunkEmbeddingText(chunk.content));
+        chunkRows.push({
           workspaceId: WORKSPACE_ID,
           userId: null,
           scope: "workspace",
-          title,
-          content: content || null,
+          title: chunk.title,
+          content: chunk.content,
+          embedding: chunkEmbedding,
+          parentDocumentId: doc.id,
+          chunkIndex: chunk.chunkIndex,
           fileUrl: null,
           fileType: null,
           fileName: null,
-          embedding,
-          parentDocumentId: null,
-          chunkIndex: null,
-        })
-        .returning();
-
-      if (content && shouldChunk) {
-        const chunks = buildDocumentChunks(title, content);
-        const chunkRows: typeof brainDocuments.$inferInsert[] = [];
-        for (const chunk of chunks) {
-          const chunkEmbedding = await generateEmbedding(buildChunkEmbeddingText(chunk.content));
-          chunkRows.push({
-            workspaceId: WORKSPACE_ID,
-            userId: null,
-            scope: "workspace",
-            title: chunk.title,
-            content: chunk.content,
-            embedding: chunkEmbedding,
-            parentDocumentId: createdDoc.id,
-            chunkIndex: chunk.chunkIndex,
-            fileUrl: null,
-            fileType: null,
-            fileName: null,
-          });
-        }
-        if (chunkRows.length > 0) {
-          await tx.insert(brainDocuments).values(chunkRows);
-        }
+        });
       }
-
-      return [createdDoc];
-    });
+      if (chunkRows.length > 0) {
+        await db.insert(brainDocuments).values(chunkRows);
+      }
+    }
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(doc, null, 2) }],
@@ -1033,23 +1027,23 @@ server.tool(
           : null;
     }
 
-    const [updated] = await db.transaction(async (tx) => {
-      const [parentDoc] = await tx
-        .update(brainDocuments)
-        .set(updates)
-        .where(
-          and(
-            eq(brainDocuments.id, documentId),
-            eq(brainDocuments.workspaceId, WORKSPACE_ID),
-            isNull(brainDocuments.parentDocumentId)
-          )
+    const [parentDoc] = await db
+      .update(brainDocuments)
+      .set(updates)
+      .where(
+        and(
+          eq(brainDocuments.id, documentId),
+          eq(brainDocuments.workspaceId, WORKSPACE_ID),
+          isNull(brainDocuments.parentDocumentId)
         )
-        .returning();
+      )
+      .returning();
 
-      if (!parentDoc) return [null];
+    const updated = parentDoc ?? null;
 
+    if (parentDoc) {
       if (hasContentUpdate) {
-        await tx
+        await db
           .delete(brainDocuments)
           .where(eq(brainDocuments.parentDocumentId, documentId));
 
@@ -1074,11 +1068,11 @@ server.tool(
             });
           }
           if (chunkRows.length > 0) {
-            await tx.insert(brainDocuments).values(chunkRows);
+            await db.insert(brainDocuments).values(chunkRows);
           }
         }
       } else if (title !== undefined) {
-        const chunks = await tx
+        const chunks = await db
           .select({
             id: brainDocuments.id,
             chunkIndex: brainDocuments.chunkIndex,
@@ -1089,15 +1083,13 @@ server.tool(
 
         for (const chunk of chunks) {
           const chunkIndex = chunk.chunkIndex ?? 0;
-          await tx
+          await db
             .update(brainDocuments)
             .set({ title: `${title} (Chunk ${chunkIndex + 1})`, updatedAt: new Date() })
             .where(eq(brainDocuments.id, chunk.id));
         }
       }
-
-      return [parentDoc];
-    });
+    }
 
     if (!updated) {
       return {
