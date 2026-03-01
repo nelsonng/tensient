@@ -400,9 +400,9 @@ async function fetchDocumentsByKeyword(
         .limit(10);
 
       for (const match of matches) {
-        if (!seenIds.has(match.id)) {
+        if (!seenIds.has(match.id) && match.content) {
           seenIds.add(match.id);
-          results.push(match);
+          results.push(match as { id: string; title: string; content: string });
           if (results.length >= limit) break;
         }
       }
