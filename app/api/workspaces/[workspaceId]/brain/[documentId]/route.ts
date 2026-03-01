@@ -100,65 +100,59 @@ export const PATCH = withErrorTracking("Update personal context document", async
     }
   }
 
-  const [updated] = await db.transaction(async (tx) => {
-    const [parentDoc] = await tx
-      .update(brainDocuments)
-      .set(updates)
-      .where(
-        and(
-          eq(brainDocuments.id, documentId),
-          eq(brainDocuments.workspaceId, workspaceId),
-          eq(brainDocuments.userId, session.user.id),
-          eq(brainDocuments.scope, "personal"),
-          isNull(brainDocuments.parentDocumentId)
-        )
+  const [updated] = await db
+    .update(brainDocuments)
+    .set(updates)
+    .where(
+      and(
+        eq(brainDocuments.id, documentId),
+        eq(brainDocuments.workspaceId, workspaceId),
+        eq(brainDocuments.userId, session.user.id),
+        eq(brainDocuments.scope, "personal"),
+        isNull(brainDocuments.parentDocumentId)
       )
-      .returning();
+    )
+    .returning();
 
-    if (!parentDoc) return [null];
+  if (updated && hasContentUpdate) {
+    await db
+      .delete(brainDocuments)
+      .where(eq(brainDocuments.parentDocumentId, documentId));
 
-    if (hasContentUpdate) {
-      await tx
-        .delete(brainDocuments)
-        .where(eq(brainDocuments.parentDocumentId, documentId));
-
-      if (chunks.length > 0) {
-        const chunkRows: typeof brainDocuments.$inferInsert[] = chunks.map((chunk, index) => ({
-          workspaceId,
-          userId: session.user.id,
-          scope: "personal",
-          title: `${nextTitle ?? parentDoc.title} (Chunk ${chunk.chunkIndex + 1})`,
-          content: chunk.content,
-          embedding: chunkEmbeddings[index],
-          parentDocumentId: parentDoc.id,
-          chunkIndex: chunk.chunkIndex,
-          fileUrl: null,
-          fileType: null,
-          fileName: null,
-        }));
-        await tx.insert(brainDocuments).values(chunkRows);
-      }
-    } else if (nextTitle !== undefined) {
-      const chunks = await tx
-        .select({
-          id: brainDocuments.id,
-          chunkIndex: brainDocuments.chunkIndex,
-        })
-        .from(brainDocuments)
-        .where(eq(brainDocuments.parentDocumentId, documentId))
-        .orderBy(asc(brainDocuments.chunkIndex));
-
-      for (const chunk of chunks) {
-        const chunkIndex = chunk.chunkIndex ?? 0;
-        await tx
-          .update(brainDocuments)
-          .set({ title: `${nextTitle} (Chunk ${chunkIndex + 1})`, updatedAt: new Date() })
-          .where(eq(brainDocuments.id, chunk.id));
-      }
+    if (chunks.length > 0) {
+      const chunkRows: typeof brainDocuments.$inferInsert[] = chunks.map((chunk, index) => ({
+        workspaceId,
+        userId: session.user.id,
+        scope: "personal",
+        title: `${nextTitle ?? updated.title} (Chunk ${chunk.chunkIndex + 1})`,
+        content: chunk.content,
+        embedding: chunkEmbeddings[index],
+        parentDocumentId: updated.id,
+        chunkIndex: chunk.chunkIndex,
+        fileUrl: null,
+        fileType: null,
+        fileName: null,
+      }));
+      await db.insert(brainDocuments).values(chunkRows);
     }
+  } else if (updated && nextTitle !== undefined) {
+    const chunks = await db
+      .select({
+        id: brainDocuments.id,
+        chunkIndex: brainDocuments.chunkIndex,
+      })
+      .from(brainDocuments)
+      .where(eq(brainDocuments.parentDocumentId, documentId))
+      .orderBy(asc(brainDocuments.chunkIndex));
 
-    return [parentDoc];
-  });
+    for (const chunk of chunks) {
+      const chunkIndex = chunk.chunkIndex ?? 0;
+      await db
+        .update(brainDocuments)
+        .set({ title: `${nextTitle} (Chunk ${chunkIndex + 1})`, updatedAt: new Date() })
+        .where(eq(brainDocuments.id, chunk.id));
+    }
+  }
 
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

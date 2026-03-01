@@ -124,44 +124,40 @@ export const POST = withErrorTracking("Upload personal context document", async 
       )
     : [];
 
-  const [doc] = await db.transaction(async (tx) => {
-    const [createdDoc] = await tx
-      .insert(brainDocuments)
-      .values({
-        workspaceId,
-        userId: session.user.id,
-        scope: "personal",
-        title,
-        content: resolvedContent || null,
-        fileUrl: fileUrl || null,
-        fileType: fileType || null,
-        fileName: fileName || null,
-        embedding,
-        parentDocumentId: null,
-        chunkIndex: null,
-      })
-      .returning();
+  const [doc] = await db
+    .insert(brainDocuments)
+    .values({
+      workspaceId,
+      userId: session.user.id,
+      scope: "personal",
+      title,
+      content: resolvedContent || null,
+      fileUrl: fileUrl || null,
+      fileType: fileType || null,
+      fileName: fileName || null,
+      embedding,
+      parentDocumentId: null,
+      chunkIndex: null,
+    })
+    .returning();
 
-    if (chunks.length > 0) {
-      const chunkRows: typeof brainDocuments.$inferInsert[] = chunks.map((chunk, index) => ({
-        workspaceId,
-        userId: session.user.id,
-        scope: "personal",
-        title: chunk.title,
-        content: chunk.content,
-        embedding: chunkEmbeddings[index],
-        parentDocumentId: createdDoc.id,
-        chunkIndex: chunk.chunkIndex,
-        fileUrl: null,
-        fileType: null,
-        fileName: null,
-      }));
+  if (chunks.length > 0) {
+    const chunkRows: typeof brainDocuments.$inferInsert[] = chunks.map((chunk, index) => ({
+      workspaceId,
+      userId: session.user.id,
+      scope: "personal",
+      title: chunk.title,
+      content: chunk.content,
+      embedding: chunkEmbeddings[index],
+      parentDocumentId: doc.id,
+      chunkIndex: chunk.chunkIndex,
+      fileUrl: null,
+      fileType: null,
+      fileName: null,
+    }));
 
-      await tx.insert(brainDocuments).values(chunkRows);
-    }
-
-    return [createdDoc];
-  });
+    await db.insert(brainDocuments).values(chunkRows);
+  }
 
   trackEvent("brain_document_created", {
     userId: session.user.id,
