@@ -33,6 +33,7 @@ interface ConversationViewProps {
 }
 
 const UNTITLED_CONVERSATION = "Untitled conversation";
+const MAX_ATTACHMENTS = 10;
 
 function isUntitledTitle(value: string | null | undefined): boolean {
   return !value || value.trim().toLowerCase() === UNTITLED_CONVERSATION.toLowerCase();
@@ -232,26 +233,41 @@ export function ConversationViewClient({
     const files = e.target.files;
     if (!files?.length) return;
 
+    const remaining = MAX_ATTACHMENTS - pendingAttachments.length;
+    if (remaining <= 0) {
+      setSendError(`Maximum ${MAX_ATTACHMENTS} attachments per message`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remaining);
+    if (filesToUpload.length < files.length) {
+      setSendError(`Maximum ${MAX_ATTACHMENTS} attachments per message — ${files.length - filesToUpload.length} file(s) skipped`);
+    }
+
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        const path = `files/${workspaceId}/${conversation.id}/${Date.now()}-${file.name}`;
-        const result = await upload(path, file, {
-          access: "public",
-          handleUploadUrl: "/api/uploads/token",
-        });
-        setPendingAttachments((prev) => [
-          ...prev,
-          {
-            url: result.url,
-            filename: file.name,
-            contentType: file.type,
-            sizeBytes: file.size,
-          },
-        ]);
-      }
+      const results = await Promise.all(
+        filesToUpload.map((file) => {
+          const path = `files/${workspaceId}/${conversation.id}/${Date.now()}-${file.name}`;
+          return upload(path, file, {
+            access: "public",
+            handleUploadUrl: "/api/uploads/token",
+          });
+        })
+      );
+      setPendingAttachments((prev) => [
+        ...prev,
+        ...results.map((result, i) => ({
+          url: result.url,
+          filename: filesToUpload[i].name,
+          contentType: filesToUpload[i].type,
+          sizeBytes: filesToUpload[i].size,
+        })),
+      ]);
     } catch (error) {
       console.error("File upload failed:", error);
+      setSendError("One or more files failed to upload. Please try again.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

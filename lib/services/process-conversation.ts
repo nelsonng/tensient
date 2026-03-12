@@ -486,21 +486,21 @@ async function extractAttachmentTexts(
 ): Promise<string[]> {
   if (!attachments?.length) return [];
 
-  const texts: string[] = [];
-  for (const att of attachments) {
-    try {
-      const text = await extractTextFromFile(att.url, att.contentType);
-      if (text) {
-        texts.push(`[File: ${att.filename}]\n${text}`);
+  const results = await Promise.all(
+    attachments.map(async (att) => {
+      try {
+        const text = await extractTextFromFile(att.url, att.contentType);
+        return text ? `[File: ${att.filename}]\n${text}` : null;
+      } catch (error) {
+        logger.error("Attachment text extraction failed", {
+          filename: att.filename,
+          error: String(error),
+        });
+        return null;
       }
-    } catch (error) {
-      logger.error("Attachment text extraction failed", {
-        filename: att.filename,
-        error: String(error),
-      });
-    }
-  }
-  return texts;
+    })
+  );
+  return results.filter((t): t is string => t !== null);
 }
 
 // ── Helper: Compose system prompt ──────────────────────────────────────

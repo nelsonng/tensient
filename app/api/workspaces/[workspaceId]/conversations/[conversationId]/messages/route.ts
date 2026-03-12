@@ -71,6 +71,13 @@ async function postHandler(request: Request, { params }: Params) {
     );
   }
 
+  if (attachments && Array.isArray(attachments) && attachments.length > 10) {
+    return NextResponse.json(
+      { error: "Maximum 10 attachments per message" },
+      { status: 400 }
+    );
+  }
+
   const trimmedContent = content.trim();
 
   try {
