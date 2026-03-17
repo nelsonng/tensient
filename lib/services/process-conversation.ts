@@ -118,27 +118,12 @@ export async function processConversationMessage(
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.createdAt));
 
-  // 2. Fetch relevant documents with sources tracking
-  const brainMerged = await fetchAndMergeDocuments(
-    workspaceId,
-    userId,
-    "personal",
-    userMessage.content
-  );
-
-  const canonMerged = await fetchAndMergeDocuments(
-    workspaceId,
-    null,
-    "workspace",
-    userMessage.content
-  );
-
-  const synthesisMerged = await fetchAndMergeDocuments(
-    workspaceId,
-    null,
-    "synthesis",
-    userMessage.content
-  );
+  // 2. Fetch relevant documents with sources tracking (all three scopes in parallel)
+  const [brainMerged, canonMerged, synthesisMerged] = await Promise.all([
+    fetchAndMergeDocuments(workspaceId, userId, "personal", userMessage.content),
+    fetchAndMergeDocuments(workspaceId, null, "workspace", userMessage.content),
+    fetchAndMergeDocuments(workspaceId, null, "synthesis", userMessage.content),
+  ]);
 
   // Collect all sources
   const allSources: RetrievalSource[] = [
