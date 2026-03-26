@@ -31,6 +31,8 @@ type RecorderState =
 const BAR_COUNT = 48;
 const MIN_BAR_HEIGHT = 4;
 const MAX_BAR_HEIGHT = 120;
+const MAX_RECORDING_MS = 100 * 60 * 1000;  // 100 min — auto-stop
+const WARN_RECORDING_MS = 90 * 60 * 1000;  // 90 min — warning starts (10 min remaining)
 
 // ── Duration formatter ─────────────────────────────────────────────────
 
@@ -177,6 +179,14 @@ export function VoiceRecorder({
     void handleTapToRecord();
   }, [autoStart, state, handleTapToRecord]);
 
+  // Auto-stop when recording hits the 100-minute limit
+  useEffect(() => {
+    if (state !== "recording" && state !== "paused") return;
+    if (durationMs >= MAX_RECORDING_MS) {
+      void handleStop();
+    }
+  }, [durationMs, state, handleStop]);
+
   const handlePause = useCallback(() => {
     pauseCapture();
     setState("paused");
@@ -309,6 +319,8 @@ export function VoiceRecorder({
   // ── Render: main component ─────────────────────────────────────────
 
   const isProcessing = state === "uploading" || state === "audio_saved" || state === "transcribing";
+  const isNearLimit = durationMs >= WARN_RECORDING_MS && durationMs < MAX_RECORDING_MS;
+  const remainingMs = MAX_RECORDING_MS - durationMs;
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -411,13 +423,20 @@ export function VoiceRecorder({
       {/* Duration + status (only during recording) */}
       {(state === "recording" || state === "paused") && (
         <div className="flex items-center justify-between">
-          <span className="font-mono text-sm text-foreground tabular-nums">
-            {formatDuration(durationMs)}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`font-mono text-sm tabular-nums ${isNearLimit ? "text-warning" : "text-foreground"}`}>
+              {formatDuration(durationMs)}
+            </span>
+            {isNearLimit && (
+              <span className="font-mono text-xs text-warning">
+                {Math.ceil(remainingMs / 60000)} min left
+              </span>
+            )}
+          </div>
           <span className="font-mono text-xs uppercase tracking-wider">
             {state === "recording" && (
-              <span className="text-primary flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <span className={`flex items-center gap-2 ${isNearLimit ? "text-warning" : "text-primary"}`}>
+                <span className={`h-2 w-2 rounded-full animate-pulse ${isNearLimit ? "bg-warning" : "bg-primary"}`} />
                 Recording
               </span>
             )}
@@ -462,7 +481,7 @@ export function VoiceRecorder({
       {/* Assurance text (idle state) */}
       {state === "idle" && !processingError && (
         <p className="font-body text-xs text-muted text-center leading-relaxed">
-          Super accurate transcription. Ramble as long as you want.
+          Super accurate transcription. Up to 100 minutes per session.
         </p>
       )}
 

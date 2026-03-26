@@ -186,7 +186,7 @@ export function useAudioCapture(): UseAudioCapture {
 
       const recorder = new MediaRecorder(stream, {
         mimeType,
-        audioBitsPerSecond: 128000,
+        audioBitsPerSecond: 32000,
       });
 
       chunksRef.current = [];

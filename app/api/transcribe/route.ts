@@ -92,13 +92,38 @@ async function postHandler(request: Request) {
       );
     }
     audioBuffer = await audioResponse.arrayBuffer();
-    contentType = audioResponse.headers.get("content-type") || "audio/webm;codecs=opus";
+    // Strip codec parameters -- Groq only accepts base MIME types (e.g. audio/webm not audio/webm;codecs=opus)
+    // Normalize video/webm → audio/webm since browsers sometimes classify WebM audio as video
+    const rawContentType = audioResponse.headers.get("content-type") || "audio/webm";
+    const baseContentType = rawContentType.split(";")[0].trim();
+    contentType = baseContentType.startsWith("video/") ? "audio/webm" : baseContentType;
   } catch (fetchError) {
     logger.error("Audio fetch failed", { error: String(fetchError), url: audioUrl });
     return NextResponse.json(
       { error: "Failed to retrieve audio file.", text: null, audioUrl },
       { status: 500 }
     );
+  }
+
+  // ── File size guard (Groq Whisper hard limit: 25 MB) ─────────────
+
+  const GROQ_MAX_BYTES = 25 * 1024 * 1024;
+  if (audioBuffer.byteLength > GROQ_MAX_BYTES) {
+    logger.error("Audio file too large for transcription", {
+      bytes: audioBuffer.byteLength,
+      limitBytes: GROQ_MAX_BYTES,
+      audioUrl,
+    });
+    trackEvent("transcription_failed", {
+      userId: session.user.id,
+      workspaceId,
+      metadata: { error: "file_too_large", bytes: audioBuffer.byteLength, audioUrl },
+    });
+    return NextResponse.json({
+      text: null,
+      audioUrl,
+      error: "Recording is too long to transcribe (max ~100 minutes). Your audio has been saved.",
+    });
   }
 
   // ── Transcribe with Groq Whisper ──────────────────────────────────
