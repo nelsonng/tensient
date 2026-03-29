@@ -145,6 +145,8 @@ async function postHandler(request: Request) {
     context,
     customContext,
     tags,
+    rating,
+    responses,
   } = body as Record<string, unknown>;
 
   // Validate required fields
@@ -183,6 +185,75 @@ async function postHandler(request: Request) {
   // Extract submitter fields
   const sub = (submitter && typeof submitter === "object" ? submitter : {}) as Record<string, unknown>;
   const ctx = (context && typeof context === "object" ? context : {}) as Record<string, unknown>;
+
+  // Validate and build rating / responses
+  type ResponseEntry = {
+    questionId: string;
+    type: string;
+    value: number | string | boolean | string[];
+    scale?: number;
+    label?: string;
+    options?: string[];
+  };
+
+  const ratingObj = rating && typeof rating === "object" ? (rating as Record<string, unknown>) : null;
+  const responsesRaw = Array.isArray(responses) ? responses : null;
+
+  if (ratingObj) {
+    if (typeof ratingObj.value !== "number") {
+      return NextResponse.json(
+        { error: "rating.value must be a number." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    if (ratingObj.scale !== undefined && (typeof ratingObj.scale !== "number" || ratingObj.scale <= 0)) {
+      return NextResponse.json(
+        { error: "rating.scale must be a positive number." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+  }
+
+  // Build final responsesArray: start with provided responses, prepend rating if needed
+  let responsesArray: ResponseEntry[] | null = null;
+  if (responsesRaw || ratingObj) {
+    const base: ResponseEntry[] = (responsesRaw ?? []) as ResponseEntry[];
+    if (ratingObj) {
+      const alreadyFirst =
+        base.length > 0 &&
+        typeof (base[0] as ResponseEntry).value === "number" &&
+        (base[0] as ResponseEntry).questionId === "primary";
+      if (!alreadyFirst) {
+        const primaryEntry: ResponseEntry = {
+          questionId: "primary",
+          type: typeof ratingObj.type === "string" ? ratingObj.type : "rating",
+          value: ratingObj.value as number,
+          ...(typeof ratingObj.scale === "number" ? { scale: ratingObj.scale } : {}),
+          ...(typeof ratingObj.label === "string" ? { label: ratingObj.label } : {}),
+        };
+        base.unshift(primaryEntry);
+      }
+    }
+    responsesArray = base;
+  }
+
+  // Derive flat rating columns — from rating shorthand, or from first numeric entry in responsesArray
+  let ratingValue: number | null = null;
+  let ratingScale: number | null = null;
+  let ratingType: string | null = null;
+
+  if (ratingObj && typeof ratingObj.value === "number") {
+    ratingValue = ratingObj.value;
+    ratingScale = typeof ratingObj.scale === "number" ? ratingObj.scale : null;
+    ratingType = typeof ratingObj.type === "string" ? ratingObj.type : null;
+  } else if (responsesArray) {
+    const firstNumeric = responsesArray.find((r) => typeof r.value === "number");
+    if (firstNumeric) {
+      ratingValue = firstNumeric.value as number;
+      ratingScale = firstNumeric.scale ?? null;
+      ratingType = firstNumeric.type ?? null;
+    }
+  }
 
   const trackingId = `fb_${nanoid(12)}`;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://tensient.com";
@@ -239,6 +310,12 @@ async function postHandler(request: Request) {
       deviceFingerprint: ctx.fingerprint ?? null,
       customContext: customContext && typeof customContext === "object" ? customContext : null,
       tags: Array.isArray(tags) ? (tags as string[]).filter((t) => typeof t === "string") : null,
+
+      // Rating
+      ratingValue,
+      ratingScale,
+      ratingType,
+      responses: responsesArray,
     })
     .returning({
       id: feedbackSubmissions.id,

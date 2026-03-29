@@ -136,6 +136,43 @@ const errorResponses = `// 400 — Validation error
 // 429 — Rate limit
 { "error": "Rate limit exceeded. Max 60 submissions per minute per API key." }`;
 
+const npsExample = `{
+  "category": "help_request",
+  "subject": "Post-session NPS",
+  "description": "Automated NPS capture after game session",
+  "submitter": { "externalId": "usr_123", "isAuthenticated": true },
+  "rating": {
+    "value": 8,
+    "scale": 10,
+    "type": "nps",
+    "label": "How likely are you to recommend us?"
+  }
+}`;
+
+const starsExample = `{
+  "category": "help_request",
+  "subject": "Support ticket rating",
+  "description": "Post-resolution CSAT",
+  "submitter": { "externalId": "usr_456", "isAuthenticated": true },
+  "rating": { "value": 4, "scale": 5, "type": "stars" }
+}`;
+
+const multiQuestionExample = `{
+  "category": "help_request",
+  "subject": "Post-session survey",
+  "description": "Automated capture after game session ends",
+  "submitter": { "externalId": "usr_789", "isAuthenticated": true },
+  "rating": { "value": 8, "scale": 10, "type": "nps" },
+  "responses": [
+    { "questionId": "nps",    "type": "nps",    "value": 8, "scale": 10 },
+    { "questionId": "nps_reason", "type": "text",
+      "value": "Love the game variety but withdrawals are slow" },
+    { "questionId": "primary_issue", "type": "choice",
+      "value": "withdrawal_speed",
+      "options": ["game_selection", "withdrawal_speed", "customer_support", "bonuses"] }
+  ]
+}`;
+
 const categories = [
   {
     value: "bug_report",
@@ -330,6 +367,100 @@ export default function FeedbackApiDocsPage() {
                     <p className="font-body text-xs text-muted">{note}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Ratings and Responses */}
+        <section className="mb-10">
+          <h2 className="font-mono text-xs tracking-widest text-primary uppercase mb-3">
+            Ratings &amp; Responses
+          </h2>
+          <div className="rounded-lg border border-border bg-panel p-4 space-y-5">
+            <p className="font-body text-sm text-muted">
+              Any submission can optionally include a rating and/or a structured set of
+              multi-question responses. These fields are never required — they augment the core
+              ticket model rather than replacing it.
+            </p>
+
+            <div>
+              <p className="font-mono text-xs text-foreground mb-2">
+                rating <span className="text-muted">(optional object — single primary rating)</span>
+              </p>
+              <div className="space-y-2 pl-4 border-l border-border">
+                {[
+                  { field: "value", type: "number", note: "The numeric rating. Required when sending a rating object." },
+                  { field: "scale", type: "number", note: "Maximum possible value (e.g. 10 for NPS, 5 for stars). Used for cross-type normalization." },
+                  { field: "type", type: "string", note: '"nps" | "stars" | "csat" | "thumbs" | "likert" or any custom string.' },
+                  { field: "label", type: "string", note: 'Human-readable question label, e.g. "Likely to recommend".' },
+                ].map(({ field, type, note }) => (
+                  <div key={field} className="flex gap-3 items-start">
+                    <code className="font-mono text-xs text-primary shrink-0 w-28">{field}</code>
+                    <code className="font-mono text-xs text-muted shrink-0 w-14">{type}</code>
+                    <p className="font-body text-xs text-muted">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="font-mono text-xs text-foreground mb-2">
+                responses <span className="text-muted">(optional array — multi-question survey payload)</span>
+              </p>
+              <div className="space-y-2 pl-4 border-l border-border">
+                {[
+                  { field: "questionId", type: "string", note: 'Stable identifier for the question, e.g. "nps", "q1", "overall_sat".' },
+                  { field: "type", type: "string", note: '"rating" | "nps" | "text" | "choice" | "multi_choice" | "boolean".' },
+                  { field: "value", type: "any", note: "The answer: number for rating/nps, string for text/choice, boolean for boolean, string[] for multi_choice." },
+                  { field: "scale", type: "number", note: "Max scale for numeric types." },
+                  { field: "label", type: "string", note: "Human-readable label for the response value." },
+                  { field: "options", type: "string[]", note: "For choice types: the full option set shown to the user." },
+                ].map(({ field, type, note }) => (
+                  <div key={field} className="flex gap-3 items-start">
+                    <code className="font-mono text-xs text-primary shrink-0 w-28">{field}</code>
+                    <code className="font-mono text-xs text-muted shrink-0 w-14">{type}</code>
+                    <p className="font-body text-xs text-muted">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-md bg-primary/5 border border-primary/20 px-4 py-3 space-y-1">
+              <p className="font-mono text-xs text-primary">Behavior</p>
+              <ul className="space-y-1 mt-1">
+                {[
+                  "If rating is sent, its value/scale/type are stored as indexed flat columns for fast SQL aggregations.",
+                  "If only responses is sent, the first numeric-typed entry is automatically promoted to the flat columns.",
+                  "Both can coexist — rating is a convenience alias for the primary response.",
+                  "category, subject, and description remain required. Rating is always additive.",
+                ].map((item) => (
+                  <li key={item} className="font-body text-xs text-muted flex gap-2">
+                    <span className="text-primary shrink-0">·</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-4 pt-1">
+              <div>
+                <p className="font-mono text-xs text-muted mb-2">NPS — single rating</p>
+                <pre className="rounded-lg border border-border bg-background/60 p-4 overflow-x-auto text-xs font-mono text-foreground leading-relaxed">
+                  {npsExample}
+                </pre>
+              </div>
+              <div>
+                <p className="font-mono text-xs text-muted mb-2">5-star CSAT rating</p>
+                <pre className="rounded-lg border border-border bg-background/60 p-4 overflow-x-auto text-xs font-mono text-foreground leading-relaxed">
+                  {starsExample}
+                </pre>
+              </div>
+              <div>
+                <p className="font-mono text-xs text-muted mb-2">Multi-question survey (NPS + follow-up text + choice)</p>
+                <pre className="rounded-lg border border-border bg-background/60 p-4 overflow-x-auto text-xs font-mono text-foreground leading-relaxed">
+                  {multiQuestionExample}
+                </pre>
               </div>
             </div>
           </div>

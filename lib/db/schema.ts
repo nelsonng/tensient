@@ -627,6 +627,14 @@ export const feedbackSubmissions = pgTable(
     duplicateOfId: uuid("duplicate_of_id"),
     aiProcessedAt: timestamp("ai_processed_at"),
 
+    // Primary rating — flat, queryable, auto-populated from rating or responses[0]
+    ratingValue: real("rating_value"),
+    ratingScale: real("rating_scale"),
+    ratingType: text("rating_type"),
+
+    // Structured multi-question responses (Qualtrics-style)
+    responses: jsonb("responses"),
+
     // Lifecycle
     status: feedbackStatusEnum("status").notNull().default("new"),
     signalId: uuid("signal_id").references(() => signals.id),
@@ -648,6 +656,7 @@ export const feedbackSubmissions = pgTable(
     index("idx_feedback_submissions_created").on(table.createdAt),
     index("idx_feedback_submissions_ip").on(table.ipAddress),
     index("idx_feedback_submissions_duplicate").on(table.duplicateOfId),
+    index("idx_feedback_submissions_rating_type").on(table.ratingType),
   ]
 );
 
