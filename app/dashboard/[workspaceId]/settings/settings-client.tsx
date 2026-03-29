@@ -133,6 +133,8 @@ interface ApiKeyRow {
   workspaceId: string;
   name: string;
   keyPrefix: string;
+  scope: string;
+  allowedOrigins: string[] | null;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
@@ -179,6 +181,8 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [newKeyName, setNewKeyName] = useState("My Cursor Key");
+  const [newKeyScope, setNewKeyScope] = useState<"secret" | "public">("secret");
+  const [newKeyOrigins, setNewKeyOrigins] = useState("");
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [endpointCopied, setEndpointCopied] = useState(false);
@@ -211,6 +215,15 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
   async function handleCreate() {
     setCreating(true);
     setMessage(null);
+
+    const allowedOrigins =
+      newKeyScope === "public"
+        ? newKeyOrigins
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : undefined;
+
     try {
       const res = await fetch("/api/user/api-keys", {
         method: "POST",
@@ -218,6 +231,8 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
         body: JSON.stringify({
           workspaceId,
           name: newKeyName,
+          scope: newKeyScope,
+          ...(allowedOrigins ? { allowedOrigins } : {}),
         }),
       });
       const data = await res.json();
@@ -228,6 +243,8 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
 
       setRevealedKey(data.key);
       setNewKeyName("My Cursor Key");
+      setNewKeyScope("secret");
+      setNewKeyOrigins("");
       await loadKeys();
     } catch {
       setMessage("Network error while creating API key");
@@ -425,20 +442,62 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
       <PanelCard>
         <MonoLabel className="text-primary mb-4 block">API KEYS</MonoLabel>
         <p className="font-body text-sm text-muted mb-4">
-          Generate keys for MCP clients. A key is shown once and then hidden forever.
+          Generate keys for MCP clients or client-side feedback collection. A key is shown once and then hidden forever.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={newKeyName}
-            onChange={(e) => setNewKeyName(e.target.value)}
-            placeholder="Key name"
-            className="w-full bg-background border border-border rounded px-3 py-2 font-body text-base text-foreground focus:border-primary focus:outline-none transition-colors"
-          />
-          <SlantedButton onClick={handleCreate} disabled={creating}>
-            {creating ? "GENERATING..." : "GENERATE NEW KEY"}
-          </SlantedButton>
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={newKeyName}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              placeholder="Key name"
+              className="w-full bg-background border border-border rounded px-3 py-2 font-body text-base text-foreground focus:border-primary focus:outline-none transition-colors"
+            />
+            <div className="flex items-center gap-1 shrink-0 bg-border/30 rounded p-1">
+              <button
+                onClick={() => setNewKeyScope("secret")}
+                className={`px-3 py-1 font-mono text-xs rounded transition-colors cursor-pointer ${
+                  newKeyScope === "secret"
+                    ? "bg-primary text-background"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                SECRET
+              </button>
+              <button
+                onClick={() => setNewKeyScope("public")}
+                className={`px-3 py-1 font-mono text-xs rounded transition-colors cursor-pointer ${
+                  newKeyScope === "public"
+                    ? "bg-primary text-background"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                PUBLIC
+              </button>
+            </div>
+          </div>
+
+          {newKeyScope === "public" && (
+            <div>
+              <input
+                type="text"
+                value={newKeyOrigins}
+                onChange={(e) => setNewKeyOrigins(e.target.value)}
+                placeholder="https://app.example.com, https://staging.example.com"
+                className="w-full bg-background border border-border rounded px-3 py-2 font-body text-sm text-foreground focus:border-primary focus:outline-none transition-colors"
+              />
+              <p className="font-mono text-xs text-muted mt-1">
+                Comma-separated list of origins allowed to use this key.
+              </p>
+            </div>
+          )}
+
+          <div>
+            <SlantedButton onClick={handleCreate} disabled={creating}>
+              {creating ? "GENERATING..." : "GENERATE NEW KEY"}
+            </SlantedButton>
+          </div>
         </div>
 
         {message && <p className="font-mono text-sm text-destructive mt-3">{message}</p>}
@@ -482,13 +541,23 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
           <div className="divide-y divide-border">
             {keys.map((key) => {
               const isRevoked = Boolean(key.revokedAt);
+              const isPublic = key.scope === "public";
               return (
                 <div key={key.id} className="py-3 flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-body text-base text-foreground">{key.name}</span>
                       <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
                         {key.keyPrefix}...
+                      </span>
+                      <span
+                        className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${
+                          isPublic
+                            ? "bg-yellow-500/10 text-yellow-500"
+                            : "bg-border/30 text-muted"
+                        }`}
+                      >
+                        {isPublic ? "PUBLIC" : "SECRET"}
                       </span>
                       {isRevoked && (
                         <span className="font-mono text-[10px] text-destructive">
@@ -513,6 +582,11 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
                           })
                         : "never"}
                     </p>
+                    {isPublic && key.allowedOrigins && key.allowedOrigins.length > 0 && (
+                      <p className="font-mono text-xs text-muted mt-0.5">
+                        Origins: {key.allowedOrigins.join(", ")}
+                      </p>
+                    )}
                   </div>
 
                   {!isRevoked && (

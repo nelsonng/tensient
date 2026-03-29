@@ -7,6 +7,8 @@ export interface ResolvedApiKey {
   apiKeyId: string;
   userId: string;
   workspaceId: string;
+  scope: string;
+  allowedOrigins: string[] | null;
 }
 
 export interface GeneratedApiKey {
@@ -28,6 +30,15 @@ export function generateApiKey(): GeneratedApiKey {
   };
 }
 
+export function generatePublicApiKey(): GeneratedApiKey {
+  const rawKey = `tns_pub_${randomBytes(24).toString("hex")}`;
+  return {
+    rawKey,
+    keyPrefix: rawKey.slice(0, 14), // "tns_pub_XXXXXX" — 6 random chars visible
+    keyHash: hashApiKey(rawKey),
+  };
+}
+
 export async function resolveApiKey(
   keyString: string
 ): Promise<ResolvedApiKey | null> {
@@ -40,6 +51,8 @@ export async function resolveApiKey(
       id: apiKeys.id,
       userId: apiKeys.userId,
       workspaceId: apiKeys.workspaceId,
+      scope: apiKeys.scope,
+      allowedOrigins: apiKeys.allowedOrigins,
     })
     .from(apiKeys)
     .where(and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt)))
@@ -56,6 +69,8 @@ export async function resolveApiKey(
     apiKeyId: row.id,
     userId: row.userId,
     workspaceId: row.workspaceId,
+    scope: row.scope,
+    allowedOrigins: row.allowedOrigins ?? null,
   };
 }
 

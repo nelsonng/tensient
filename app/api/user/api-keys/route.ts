@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
 import {
   generateApiKey,
+  generatePublicApiKey,
   userCanAccessWorkspace,
 } from "@/lib/auth/mcp-auth";
 import { trackEvent } from "@/lib/platform-events";
@@ -32,6 +33,8 @@ async function getHandler(request: Request) {
       workspaceId: apiKeys.workspaceId,
       name: apiKeys.name,
       keyPrefix: apiKeys.keyPrefix,
+      scope: apiKeys.scope,
+      allowedOrigins: apiKeys.allowedOrigins,
       lastUsedAt: apiKeys.lastUsedAt,
       createdAt: apiKeys.createdAt,
       revokedAt: apiKeys.revokedAt,
@@ -54,9 +57,35 @@ async function postHandler(request: Request) {
   const workspaceId = body?.workspaceId as string | undefined;
   const name = body?.name as string | undefined;
   const rotateFromId = body?.rotateFromId as string | undefined;
+  const scope = (body?.scope as string | undefined) ?? "secret";
+  const allowedOrigins = body?.allowedOrigins as string[] | undefined;
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+  }
+
+  if (scope !== "secret" && scope !== "public") {
+    return NextResponse.json(
+      { error: 'scope must be "secret" or "public".' },
+      { status: 400 }
+    );
+  }
+
+  if (scope === "public") {
+    if (!Array.isArray(allowedOrigins) || allowedOrigins.length === 0) {
+      return NextResponse.json(
+        { error: "Public keys require at least one allowedOrigins entry." },
+        { status: 400 }
+      );
+    }
+    for (const origin of allowedOrigins) {
+      if (typeof origin !== "string" || !origin.startsWith("http")) {
+        return NextResponse.json(
+          { error: `Invalid origin: "${origin}". Origins must be full URLs (e.g. https://app.example.com).` },
+          { status: 400 }
+        );
+      }
+    }
   }
 
   const hasAccess = await userCanAccessWorkspace(session.user.id, workspaceId);
@@ -64,8 +93,9 @@ async function postHandler(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const normalizedName = name?.trim() || "MCP Key";
-  const { rawKey, keyHash, keyPrefix } = generateApiKey();
+  const normalizedName = name?.trim() || (scope === "public" ? "Public Key" : "MCP Key");
+  const { rawKey, keyHash, keyPrefix } =
+    scope === "public" ? generatePublicApiKey() : generateApiKey();
 
   const [created] = await db
     .insert(apiKeys)
@@ -75,12 +105,16 @@ async function postHandler(request: Request) {
       name: normalizedName,
       keyPrefix,
       keyHash,
+      scope,
+      allowedOrigins: scope === "public" ? allowedOrigins : null,
     })
     .returning({
       id: apiKeys.id,
       workspaceId: apiKeys.workspaceId,
       name: apiKeys.name,
       keyPrefix: apiKeys.keyPrefix,
+      scope: apiKeys.scope,
+      allowedOrigins: apiKeys.allowedOrigins,
       createdAt: apiKeys.createdAt,
     });
 
@@ -91,6 +125,7 @@ async function postHandler(request: Request) {
       apiKeyId: created.id,
       keyPrefix: created.keyPrefix,
       name: created.name,
+      scope: created.scope,
     },
   });
 

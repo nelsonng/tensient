@@ -98,6 +98,22 @@ async function postHandler(request: Request) {
     );
   }
 
+  // Origin enforcement for public keys.
+  // Public keys (tns_pub_...) carry a per-key allowedOrigins allowlist and are
+  // safe to embed in client-side bundles — but only usable from registered origins.
+  // Secret keys skip this check entirely (server-side use).
+  // Note: the FEEDBACK_ALLOWED_ORIGINS env var CORS check runs independently;
+  // both checks must pass for a public-key request to proceed.
+  if (resolved.scope === "public") {
+    const requestOrigin = request.headers.get("origin");
+    if (!requestOrigin || !resolved.allowedOrigins?.includes(requestOrigin)) {
+      return NextResponse.json(
+        { error: "Origin not allowed." },
+        { status: 403, headers: corsHeaders }
+      );
+    }
+  }
+
   // Rate limiting — per API key
   const keyLimited = await isApiKeyRateLimited(resolved.apiKeyId);
   if (keyLimited) {

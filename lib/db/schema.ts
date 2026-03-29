@@ -701,6 +701,8 @@ export const apiKeys = pgTable(
     name: text("name").notNull(),
     keyPrefix: text("key_prefix").notNull(),
     keyHash: text("key_hash").notNull().unique(),
+    scope: text("scope").notNull().default("secret"),
+    allowedOrigins: text("allowed_origins").array(),
     lastUsedAt: timestamp("last_used_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     revokedAt: timestamp("revoked_at"),

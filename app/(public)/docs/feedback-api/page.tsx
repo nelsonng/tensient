@@ -258,9 +258,38 @@ export default function FeedbackApiDocsPage() {
             </div>
             <p className="font-body text-sm text-muted">
               API keys are workspace-scoped. All submissions go into the workspace associated with
-              the key used. Never expose your key in client-side code — call this endpoint from
-              your backend or a server-side function.
+              the key used.
             </p>
+
+            {/* Key type callout */}
+            <div className="rounded-md border border-border bg-background/60 divide-y divide-border">
+              <div className="px-4 py-3 flex gap-3 items-start">
+                <code className="font-mono text-xs text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded shrink-0 mt-0.5">
+                  tns_pub_...
+                </code>
+                <div>
+                  <p className="font-mono text-xs text-foreground mb-1">Public key — safe for client-side use</p>
+                  <p className="font-body text-sm text-muted">
+                    Can be embedded in browser JavaScript bundles or mobile apps. Requires an
+                    origin allowlist — requests are only accepted from the registered domains you
+                    configure in Settings → Developer. Configure your domains before deploying.
+                  </p>
+                </div>
+              </div>
+              <div className="px-4 py-3 flex gap-3 items-start">
+                <code className="font-mono text-xs text-primary bg-primary/10 px-2 py-0.5 rounded shrink-0 mt-0.5">
+                  tns_...
+                </code>
+                <div>
+                  <p className="font-mono text-xs text-foreground mb-1">Secret key — server-side only</p>
+                  <p className="font-body text-sm text-muted">
+                    Full access, no origin restriction. Must never be embedded in frontend code,
+                    mobile apps, or any environment where it could be extracted. Use only from
+                    your backend or server-side functions.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

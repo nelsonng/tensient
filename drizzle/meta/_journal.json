@@ -15,6 +15,13 @@
       "when": 1774763457527,
       "tag": "0001_wild_riptide",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774765300898,
+      "tag": "0002_wet_white_tiger",
+      "breakpoints": true
     }
   ]
 }
