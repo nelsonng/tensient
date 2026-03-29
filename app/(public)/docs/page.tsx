@@ -23,6 +23,12 @@ const sections = [
     title: "Context Layer",
     description: "How to give single agents or swarms shared organizational memory.",
   },
+  {
+    href: "/docs/feedback-api",
+    title: "Feedback Ingestion API",
+    description:
+      "Collect bug reports, feature requests, and urgent issues from your platform users. Captures rich browser context for fraud detection and pattern analysis.",
+  },
 ];
 
 export default function DocsPage() {

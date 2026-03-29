@@ -28,7 +28,8 @@ type PlatformEventType =
   | "mcp_tool_called"
   | "mcp_auth_failed"
   | "api_key_created"
-  | "api_key_revoked";
+  | "api_key_revoked"
+  | "feedback_submitted";
 
 interface TrackEventParams {
   userId?: string;

@@ -139,6 +139,7 @@ interface ApiKeyRow {
 }
 
 const MCP_ENDPOINT_URL = "https://tensient.com/api/mcp";
+const FEEDBACK_ENDPOINT_URL = "https://tensient.com/api/feedback/ingest";
 const QUICKSTART_CONFIG_SNIPPET = `{
   "mcpServers": {
     "tensient": {
@@ -147,6 +148,27 @@ const QUICKSTART_CONFIG_SNIPPET = `{
         "Authorization": "Bearer tns_YOUR_KEY_HERE"
       }
     }
+  }
+}`;
+const FEEDBACK_EXAMPLE_SNIPPET = `POST ${FEEDBACK_ENDPOINT_URL}
+Authorization: Bearer tns_YOUR_KEY_HERE
+Content-Type: application/json
+
+{
+  "category": "bug_report",
+  "subject": "Payment fails at checkout",
+  "description": "Clicking Pay does nothing after entering card details.",
+  "submitter": {
+    "email": "user@example.com",
+    "externalId": "usr_123",
+    "isAuthenticated": true
+  },
+  "context": {
+    "url": "https://yourapp.com/checkout",
+    "hardware": { "webdriver": false }
+  },
+  "customContext": {
+    "transactionId": "txn_xyz789"
   }
 }`;
 
@@ -161,6 +183,8 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
   const [copied, setCopied] = useState(false);
   const [endpointCopied, setEndpointCopied] = useState(false);
   const [configCopied, setConfigCopied] = useState(false);
+  const [feedbackEndpointCopied, setFeedbackEndpointCopied] = useState(false);
+  const [feedbackExampleCopied, setFeedbackExampleCopied] = useState(false);
 
   const loadKeys = useCallback(async () => {
     setLoading(true);
@@ -294,6 +318,26 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
     }
   }
 
+  async function copyFeedbackEndpoint() {
+    try {
+      await navigator.clipboard.writeText(FEEDBACK_ENDPOINT_URL);
+      setFeedbackEndpointCopied(true);
+      setTimeout(() => setFeedbackEndpointCopied(false), 1500);
+    } catch {
+      setMessage("Failed to copy feedback endpoint");
+    }
+  }
+
+  async function copyFeedbackExample() {
+    try {
+      await navigator.clipboard.writeText(FEEDBACK_EXAMPLE_SNIPPET);
+      setFeedbackExampleCopied(true);
+      setTimeout(() => setFeedbackExampleCopied(false), 1500);
+    } catch {
+      setMessage("Failed to copy feedback example");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PanelCard>
@@ -337,6 +381,44 @@ function DeveloperTab({ workspaceId }: { workspaceId: string }) {
           className="inline-block font-mono text-xs text-primary hover:text-primary/80 transition-colors"
         >
           READ MCP DOCS →
+        </a>
+      </PanelCard>
+
+      <PanelCard>
+        <MonoLabel className="text-primary mb-4 block">FEEDBACK API</MonoLabel>
+        <p className="font-body text-sm text-muted mb-4">
+          Use this endpoint to submit feedback from your platform users into this workspace.
+          Authenticate with any API key below. Captures IP, geo, and rich browser context.
+        </p>
+        <div className="mb-4">
+          <p className="font-mono text-xs text-muted mb-2">Endpoint URL</p>
+          <code className="block w-full overflow-x-auto bg-border/30 px-3 py-2 rounded font-mono text-xs text-foreground">
+            POST {FEEDBACK_ENDPOINT_URL}
+          </code>
+          <button
+            onClick={copyFeedbackEndpoint}
+            className="mt-2 font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+          >
+            {feedbackEndpointCopied ? "COPIED" : "COPY ENDPOINT"}
+          </button>
+        </div>
+        <div className="mb-4">
+          <p className="font-mono text-xs text-muted mb-2">Example request</p>
+          <pre className="w-full overflow-x-auto bg-border/30 px-3 py-2 rounded font-mono text-xs text-foreground">
+            {FEEDBACK_EXAMPLE_SNIPPET}
+          </pre>
+          <button
+            onClick={copyFeedbackExample}
+            className="mt-2 font-mono text-xs text-primary hover:text-primary/80 transition-colors cursor-pointer"
+          >
+            {feedbackExampleCopied ? "COPIED" : "COPY EXAMPLE"}
+          </button>
+        </div>
+        <a
+          href="/docs/feedback-api"
+          className="inline-block font-mono text-xs text-primary hover:text-primary/80 transition-colors"
+        >
+          READ FEEDBACK API DOCS →
         </a>
       </PanelCard>
 

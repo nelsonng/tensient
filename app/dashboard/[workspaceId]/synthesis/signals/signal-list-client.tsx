@@ -14,7 +14,7 @@ interface SignalRow {
   aiPriority: "critical" | "high" | "medium" | "low" | null;
   humanPriority: "critical" | "high" | "medium" | "low" | null;
   reviewedAt: string | null;
-  source: "web" | "mcp";
+  source: "web" | "mcp" | "feedback";
   createdAt: string;
 }
 

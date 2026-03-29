@@ -58,7 +58,37 @@ export const signalStatusEnum = pgEnum("signal_status", [
   "dismissed",
 ]);
 
-export const signalSourceEnum = pgEnum("signal_source", ["web", "mcp"]);
+export const signalSourceEnum = pgEnum("signal_source", ["web", "mcp", "feedback"]);
+
+export const feedbackCategoryEnum = pgEnum("feedback_category", [
+  "bug_report",
+  "feature_request",
+  "help_request",
+  "urgent_issue",
+]);
+
+export const feedbackStatusEnum = pgEnum("feedback_status", [
+  "new",
+  "ai_processed",
+  "escalated",
+  "auto_responded",
+  "reviewing",
+  "awaiting_response",
+  "converted",
+  "resolved",
+  "spam",
+]);
+
+export const feedbackSubmitterTypeEnum = pgEnum("feedback_submitter_type", [
+  "human",
+  "ai_agent",
+]);
+
+export const feedbackReplyAuthorTypeEnum = pgEnum("feedback_reply_author_type", [
+  "team",
+  "submitter",
+  "ai",
+]);
 
 export const synthesisTriggerEnum = pgEnum("synthesis_trigger", [
   "conversation_end",
@@ -360,6 +390,7 @@ export const platformEventTypeEnum = pgEnum("platform_event_type", [
   "mcp_auth_failed",
   "api_key_created",
   "api_key_revoked",
+  "feedback_submitted",
 ]);
 
 export const platformEvents = pgTable(
@@ -521,6 +552,126 @@ export const usageLogs = pgTable(
   (table) => [
     index("idx_usage_logs_user").on(table.userId),
     index("idx_usage_logs_created").on(table.createdAt),
+  ]
+);
+
+// ── Feedback Submissions ───────────────────────────────────────────────
+
+export const feedbackSubmissions = pgTable(
+  "feedback_submissions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
+    apiKeyId: uuid("api_key_id").references(() => apiKeys.id),
+
+    // Public tracking token
+    trackingId: text("tracking_id").notNull().unique(),
+
+    // Core
+    category: feedbackCategoryEnum("category").notNull(),
+    subject: text("subject").notNull(),
+    description: text("description").notNull(),
+
+    // Submitter identity (all optional)
+    submitterType: feedbackSubmitterTypeEnum("submitter_type")
+      .notNull()
+      .default("human"),
+    submitterEmail: text("submitter_email"),
+    submitterName: text("submitter_name"),
+    submitterExternalId: text("submitter_external_id"),
+    submitterIsAuthenticated: boolean("submitter_is_authenticated"),
+    submitterMeta: jsonb("submitter_meta"),
+
+    // Page context (flat, queryable)
+    currentUrl: text("current_url"),
+    referrerUrl: text("referrer_url"),
+    pageTitle: text("page_title"),
+    userAgent: text("user_agent"),
+    locale: text("locale"),
+    timezone: text("timezone"),
+
+    // Server-captured geo
+    ipAddress: text("ip_address"),
+    geoCity: text("geo_city"),
+    geoRegion: text("geo_region"),
+    geoCountry: text("geo_country"),
+
+    // Rich context (JSONB blobs)
+    browserInfo: jsonb("browser_info"),
+    screenInfo: jsonb("screen_info"),
+    hardwareInfo: jsonb("hardware_info"),
+    networkInfo: jsonb("network_info"),
+    performanceData: jsonb("performance_data"),
+    consoleErrors: jsonb("console_errors"),
+    deviceFingerprint: jsonb("device_fingerprint"),
+    customContext: jsonb("custom_context"),
+    tags: text("tags").array(),
+
+    // Triage fields (nullable — for future board)
+    priority: signalPriorityEnum("priority"),
+    assigneeId: uuid("assignee_id").references(() => users.id),
+    embedding: vector("embedding", { dimensions: 1536 }),
+
+    // AI fields (nullable — for future pipeline)
+    aiPriority: signalPriorityEnum("ai_priority"),
+    aiCategory: feedbackCategoryEnum("ai_category"),
+    aiSummary: text("ai_summary"),
+    aiConfidence: real("ai_confidence"),
+    aiResponseDraft: text("ai_response_draft"),
+    sentimentScore: real("sentiment_score"),
+    fraudRiskScore: real("fraud_risk_score"),
+    duplicateOfId: uuid("duplicate_of_id"),
+    aiProcessedAt: timestamp("ai_processed_at"),
+
+    // Lifecycle
+    status: feedbackStatusEnum("status").notNull().default("new"),
+    signalId: uuid("signal_id").references(() => signals.id),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.duplicateOfId],
+      foreignColumns: [table.id],
+      name: "fk_feedback_submissions_duplicate",
+    }),
+    index("idx_feedback_submissions_workspace").on(table.workspaceId),
+    index("idx_feedback_submissions_status").on(table.status),
+    index("idx_feedback_submissions_category").on(table.category),
+    index("idx_feedback_submissions_priority").on(table.priority),
+    index("idx_feedback_submissions_assignee").on(table.assigneeId),
+    index("idx_feedback_submissions_created").on(table.createdAt),
+    index("idx_feedback_submissions_ip").on(table.ipAddress),
+    index("idx_feedback_submissions_duplicate").on(table.duplicateOfId),
+  ]
+);
+
+// ── Feedback Replies ───────────────────────────────────────────────────
+
+export const feedbackReplies = pgTable(
+  "feedback_replies",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    feedbackSubmissionId: uuid("feedback_submission_id")
+      .references(() => feedbackSubmissions.id, { onDelete: "cascade" })
+      .notNull(),
+    content: text("content").notNull(),
+    authorType: feedbackReplyAuthorTypeEnum("author_type").notNull(),
+    authorName: text("author_name"),
+    authorUserId: uuid("author_user_id").references(() => users.id),
+    isInternal: boolean("is_internal").notNull().default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_feedback_replies_submission").on(table.feedbackSubmissionId),
+    index("idx_feedback_replies_created").on(table.createdAt),
   ]
 );
 

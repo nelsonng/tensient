@@ -179,14 +179,6 @@ export function VoiceRecorder({
     void handleTapToRecord();
   }, [autoStart, state, handleTapToRecord]);
 
-  // Auto-stop when recording hits the 100-minute limit
-  useEffect(() => {
-    if (state !== "recording" && state !== "paused") return;
-    if (durationMs >= MAX_RECORDING_MS) {
-      void handleStop();
-    }
-  }, [durationMs, state, handleStop]);
-
   const handlePause = useCallback(() => {
     pauseCapture();
     setState("paused");
@@ -238,6 +230,14 @@ export function VoiceRecorder({
 
     await transcribeAudio(audioUrl);
   }, [stopCapture, workspaceId, onTranscription, onError]);
+
+  // Auto-stop when recording hits the 100-minute limit
+  useEffect(() => {
+    if (state !== "recording" && state !== "paused") return;
+    if (durationMs >= MAX_RECORDING_MS) {
+      void handleStop();
+    }
+  }, [durationMs, state, handleStop]);
 
   const transcribeAudio = useCallback(async (audioUrl: string) => {
     setState("transcribing");
