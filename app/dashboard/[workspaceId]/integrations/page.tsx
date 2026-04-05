@@ -3,20 +3,36 @@ import { redirect } from "next/navigation";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
-import { apiKeys, platformEvents } from "@/lib/db/schema";
+import { apiKeys, platformEvents, slackConnections } from "@/lib/db/schema";
 import { MonoLabel } from "@/components/mono-label";
+import { SlackSection } from "./slack-section";
 
 export default async function IntegrationsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workspaceId: string }>;
+  searchParams: Promise<{ slack?: string; slack_error?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
 
   const { workspaceId } = await params;
+  const { slack: slackStatus, slack_error: slackError } = await searchParams;
   const membership = await getWorkspaceMembership(session.user.id, workspaceId);
   if (!membership) redirect("/dashboard");
+
+  // Fetch Slack connection (if any)
+  const [slackConn] = await db
+    .select({
+      slackTeamName: slackConnections.slackTeamName,
+      slackChannelId: slackConnections.slackChannelId,
+      slackChannelName: slackConnections.slackChannelName,
+      createdAt: slackConnections.createdAt,
+    })
+    .from(slackConnections)
+    .where(eq(slackConnections.workspaceId, workspaceId))
+    .limit(1);
 
   const keys = await db
     .select({
@@ -74,6 +90,31 @@ export default async function IntegrationsPage({
           Agent Activity
         </h1>
       </div>
+
+      {/* Slack connection status messages */}
+      {slackStatus === "connected" && (
+        <div className="mb-6 rounded border border-success/30 bg-success/5 px-4 py-3 font-mono text-xs text-success">
+          Slack connected successfully. New feedback will be posted to your channel.
+        </div>
+      )}
+      {slackError && (
+        <div className="mb-6 rounded border border-destructive/30 bg-destructive/5 px-4 py-3 font-mono text-xs text-destructive">
+          Slack connection failed: {slackError.replace(/_/g, " ")}
+        </div>
+      )}
+
+      {/* Slack Integration */}
+      <section className="rounded-lg border border-border bg-panel p-4 mb-6">
+        <MonoLabel className="text-primary mb-4 block">SLACK</MonoLabel>
+        <SlackSection
+          workspaceId={workspaceId}
+          connected={!!slackConn}
+          slackTeamName={slackConn?.slackTeamName}
+          slackChannelId={slackConn?.slackChannelId}
+          slackChannelName={slackConn?.slackChannelName}
+          connectedAt={slackConn?.createdAt.toISOString()}
+        />
+      </section>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Metric label="Active API Keys" value={String(activeKeys)} />

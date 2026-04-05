@@ -5,6 +5,7 @@ import { feedbackSubmissions, memberships, users } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { withErrorTracking } from "@/lib/api-handler";
+import { updateFeedbackMessage } from "@/lib/slack";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -183,6 +184,24 @@ async function patchHandler(request: Request, { params }: Params) {
   if (!row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // Fire-and-forget: update the Slack message to reflect new status/priority
+  void updateFeedbackMessage(workspaceId, {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    category: row.category,
+    subject: row.subject,
+    description: row.description,
+    status: row.status,
+    priority: row.priority ?? null,
+    submitterEmail: row.submitterEmail ?? null,
+    submitterName: row.submitterName ?? null,
+    submitterExternalId: row.submitterExternalId ?? null,
+    geoCity: row.geoCity ?? null,
+    geoCountry: row.geoCountry ?? null,
+    currentUrl: row.currentUrl ?? null,
+    slackMessageId: row.slackMessageId ?? null,
+  });
 
   return NextResponse.json({
     ...row,

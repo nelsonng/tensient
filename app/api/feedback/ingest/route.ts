@@ -7,6 +7,7 @@ import { trackEvent } from "@/lib/platform-events";
 import { withErrorTracking } from "@/lib/api-handler";
 import { nanoid } from "@/lib/utils";
 import { sql } from "drizzle-orm";
+import { notifyNewFeedback } from "@/lib/slack";
 
 const FEEDBACK_ALLOWED_ORIGINS = (process.env.FEEDBACK_ALLOWED_ORIGINS ?? "")
   .split(",")
@@ -348,6 +349,23 @@ async function postHandler(request: Request) {
       category,
       ip: geo.ip,
     },
+  });
+
+  // Fire-and-forget Slack notification — silently no-ops if no Slack connection
+  void notifyNewFeedback(resolved.workspaceId, {
+    id: row.id,
+    workspaceId: resolved.workspaceId,
+    category: category as string,
+    subject: (subject as string).trim(),
+    description: (description as string).trim(),
+    status: row.status,
+    priority: null,
+    submitterEmail: typeof sub.email === "string" ? sub.email : null,
+    submitterName: typeof sub.name === "string" ? sub.name : null,
+    submitterExternalId: typeof sub.externalId === "string" ? sub.externalId : null,
+    geoCity: geo.city ?? null,
+    geoCountry: geo.country ?? null,
+    currentUrl: typeof ctx.url === "string" ? ctx.url : null,
   });
 
   return NextResponse.json(

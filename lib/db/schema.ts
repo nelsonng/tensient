@@ -639,6 +639,9 @@ export const feedbackSubmissions = pgTable(
     status: feedbackStatusEnum("status").notNull().default("new"),
     signalId: uuid("signal_id").references(() => signals.id),
 
+    // Slack integration — ts of the posted Slack message (for threading + updates)
+    slackMessageId: text("slack_message_id"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -711,5 +714,31 @@ export const apiKeys = pgTable(
     index("idx_api_keys_user").on(table.userId),
     index("idx_api_keys_workspace").on(table.workspaceId),
     index("idx_api_keys_active").on(table.revokedAt),
+  ]
+);
+
+// ── Slack Connections ──────────────────────────────────────────────────
+
+export const slackConnections = pgTable(
+  "slack_connections",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull()
+      .unique(),
+    slackTeamId: text("slack_team_id").notNull(),
+    slackTeamName: text("slack_team_name").notNull(),
+    slackChannelId: text("slack_channel_id").notNull(),
+    slackChannelName: text("slack_channel_name").notNull(),
+    botToken: text("bot_token").notNull(),
+    installedByUserId: uuid("installed_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_slack_connections_workspace").on(table.workspaceId),
+    index("idx_slack_connections_team").on(table.slackTeamId),
   ]
 );
