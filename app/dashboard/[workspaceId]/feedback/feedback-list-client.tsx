@@ -64,7 +64,19 @@ const STATUS_COLORS: Record<FeedbackStatus, string> = {
   spam: "text-muted",
 };
 
-const PRIORITIES: FeedbackPriority[] = ["critical", "high", "medium", "low"];
+const PRIORITY_STYLES: Record<FeedbackPriority, string> = {
+  critical: "text-destructive font-bold tracking-wider",
+  high: "text-warning tracking-wide",
+  medium: "text-muted/80",
+  low: "text-muted/40",
+};
+
+const PRIORITY_LABELS: Record<FeedbackPriority, string> = {
+  critical: "CRITICAL",
+  high: "HIGH",
+  medium: "MEDIUM",
+  low: "LOW",
+};
 
 const STATUS_TABS: Array<{ label: string; value: FeedbackStatus | "all" }> = [
   { label: "ALL", value: "all" },
@@ -154,20 +166,6 @@ export function FeedbackListClient({
     }
   }
 
-  async function setPriority(id: string, priority: FeedbackPriority | null) {
-    setUpdatingId(id);
-    try {
-      await patchRow(id, { priority });
-      setRows((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, priority } : r))
-      );
-    } catch {
-      alert("Failed to update priority.");
-    } finally {
-      setUpdatingId(null);
-    }
-  }
-
   const columns: Array<DataTableColumn<FeedbackRow>> = [
     {
       key: "category",
@@ -219,37 +217,16 @@ export function FeedbackListClient({
       key: "priority",
       label: "Priority",
       sortable: true,
-      render: (row) => (
-        <div
-          className="flex items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {PRIORITIES.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => void setPriority(row.id, p)}
-              disabled={updatingId === row.id}
-              className={`font-mono text-[10px] uppercase tracking-wide ${
-                row.priority === p
-                  ? "text-primary"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {p.slice(0, 1).toUpperCase()}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => void setPriority(row.id, null)}
-            disabled={updatingId === row.id}
-            className="font-mono text-[10px] text-muted hover:text-foreground"
-            title="Clear priority"
+      render: (row) => {
+        if (!row.priority) return null;
+        return (
+          <span
+            className={`font-mono text-[10px] ${PRIORITY_STYLES[row.priority]}`}
           >
-            --
-          </button>
-        </div>
-      ),
+            {PRIORITY_LABELS[row.priority]}
+          </span>
+        );
+      },
     },
     {
       key: "assigneeFirstName",

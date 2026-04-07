@@ -123,6 +123,32 @@ const ALL_STATUSES: FeedbackStatus[] = [
 
 const ALL_PRIORITIES: FeedbackPriority[] = ["critical", "high", "medium", "low"];
 
+const PRIORITY_CONFIG: Record<
+  FeedbackPriority,
+  { label: string; active: string; inactive: string }
+> = {
+  critical: {
+    label: "CRITICAL",
+    active: "border-destructive/50 bg-destructive/15 text-destructive font-bold",
+    inactive: "border-border/40 text-muted/40 hover:text-destructive/60 hover:border-destructive/30",
+  },
+  high: {
+    label: "HIGH",
+    active: "border-warning/40 bg-warning/10 text-warning",
+    inactive: "border-border/40 text-muted/40 hover:text-warning/70 hover:border-warning/30",
+  },
+  medium: {
+    label: "MED",
+    active: "border-border bg-panel text-foreground/70",
+    inactive: "border-border/40 text-muted/30 hover:text-foreground/50 hover:border-border",
+  },
+  low: {
+    label: "LOW",
+    active: "border-border/60 bg-background text-muted/60",
+    inactive: "border-border/30 text-muted/20 hover:text-muted/50 hover:border-border/50",
+  },
+};
+
 function geoLabel(sub: FeedbackSubmission) {
   const parts = [sub.geoCity, sub.geoRegion, sub.geoCountry].filter(Boolean);
   return parts.length ? parts.join(", ") : null;
@@ -401,31 +427,35 @@ export function FeedbackDetailClient({
             <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
               Priority
             </p>
-            <div className="flex items-center gap-2">
-              {ALL_PRIORITIES.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void patchSubmission({ priority: p })}
-                  className={`flex-1 rounded border py-1 font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                    submission.priority === p
-                      ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-border text-muted hover:text-foreground"
-                  }`}
-                >
-                  {p.slice(0, 1).toUpperCase()}
-                </button>
-              ))}
+            <div className="flex items-center gap-1.5">
+              {ALL_PRIORITIES.map((p) => {
+                const cfg = PRIORITY_CONFIG[p];
+                const isActive = submission.priority === p;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void patchSubmission({ priority: p })}
+                    className={`flex-1 rounded border py-1.5 font-mono text-[10px] tracking-wider transition-colors ${
+                      isActive ? cfg.active : cfg.inactive
+                    }`}
+                  >
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+            {submission.priority && (
               <button
                 type="button"
                 disabled={saving}
                 onClick={() => void patchSubmission({ priority: null })}
-                className="rounded border border-border px-1.5 py-1 font-mono text-[10px] text-muted hover:text-foreground transition-colors"
+                className="mt-1.5 font-mono text-[10px] text-muted/40 hover:text-muted transition-colors"
               >
-                --
+                clear
               </button>
-            </div>
+            )}
             {submission.aiPriority && (
               <p className="mt-2 font-mono text-[10px] text-warning">
                 AI: {submission.aiPriority.toUpperCase()}
