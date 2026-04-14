@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { feedbackSubmissions, memberships, users } from "@/lib/db/schema";
-import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, isNull, or, SQL } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { withErrorTracking } from "@/lib/api-handler";
 
@@ -28,8 +28,12 @@ async function getHandler(request: Request) {
   const category = url.searchParams.get("category");
   const priority = url.searchParams.get("priority");
   const search = url.searchParams.get("search");
+  const archived = url.searchParams.get("archived") === "true";
 
-  const conditions: SQL[] = [eq(feedbackSubmissions.workspaceId, workspaceId)];
+  const conditions: SQL[] = [
+    eq(feedbackSubmissions.workspaceId, workspaceId),
+    archived ? isNotNull(feedbackSubmissions.archivedAt) : isNull(feedbackSubmissions.archivedAt),
+  ];
 
   const validStatuses = [
     "new",
@@ -108,6 +112,7 @@ async function getHandler(request: Request) {
       assigneeEmail: users.email,
       createdAt: feedbackSubmissions.createdAt,
       updatedAt: feedbackSubmissions.updatedAt,
+      archivedAt: feedbackSubmissions.archivedAt,
     })
     .from(feedbackSubmissions)
     .leftJoin(users, eq(users.id, feedbackSubmissions.assigneeId))
@@ -119,6 +124,7 @@ async function getHandler(request: Request) {
       ...row,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
+      archivedAt: row.archivedAt?.toISOString() ?? null,
     }))
   );
 }

@@ -83,6 +83,20 @@ interface Member {
   email: string | null;
 }
 
+type TaskStatus = "backlog" | "todo" | "in_progress" | "in_review" | "testing" | "done";
+type TaskPriority = "critical" | "high" | "medium" | "low";
+
+interface LinkedTask {
+  linkId: string;
+  relationship: "related" | "blocks";
+  taskId: string;
+  taskTitle: string;
+  taskStatus: TaskStatus;
+  taskPriority: TaskPriority | null;
+  taskAssigneeId: string | null;
+  taskCreatedAt: string;
+}
+
 const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   bug_report: "BUG",
   feature_request: "FEATURE",
@@ -107,6 +121,15 @@ const STATUS_COLORS: Record<FeedbackStatus, string> = {
   converted: "text-success",
   resolved: "text-success",
   spam: "text-muted",
+};
+
+const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  backlog: "Backlog",
+  todo: "To Do",
+  in_progress: "Doing",
+  in_review: "In Review",
+  testing: "Testing",
+  done: "Done",
 };
 
 const ALL_STATUSES: FeedbackStatus[] = [
@@ -165,11 +188,13 @@ export function FeedbackDetailClient({
   workspaceId,
   submission: initialSubmission,
   initialReplies,
+  initialLinkedTasks,
   members,
 }: {
   workspaceId: string;
   submission: FeedbackSubmission;
   initialReplies: ReplyRow[];
+  initialLinkedTasks: LinkedTask[];
   members: Member[];
 }) {
   const router = useRouter();
@@ -179,6 +204,11 @@ export function FeedbackDetailClient({
   const [replyText, setReplyText] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [submittingReply, setSubmittingReply] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskTitle, setTaskTitle] = useState(submission.subject);
+  const [taskDescription, setTaskDescription] = useState(submission.description ?? "");
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [linkedTasks, setLinkedTasks] = useState(initialLinkedTasks);
 
   async function patchSubmission(patch: Record<string, unknown>) {
     setSaving(true);
@@ -232,6 +262,53 @@ export function FeedbackDetailClient({
     }
   }
 
+  async function convertToTask() {
+    if (!taskTitle.trim()) return;
+    setCreatingTask(true);
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          title: taskTitle.trim(),
+          description: taskDescription.trim() || null,
+          status: "backlog",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to create task");
+      const task = await res.json();
+
+      // Link the feedback to the task
+      const linkRes = await fetch(`/api/tasks/${task.id}/feedback-links?workspaceId=${workspaceId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedbackSubmissionId: submission.id, relationship: "blocks" }),
+      });
+      if (!linkRes.ok) throw new Error("Failed to link feedback to task");
+      const link = await linkRes.json();
+
+      setLinkedTasks((prev) => [
+        ...prev,
+        {
+          linkId: link.id,
+          relationship: link.relationship,
+          taskId: task.id,
+          taskTitle: task.title,
+          taskStatus: task.status,
+          taskPriority: task.priority,
+          taskAssigneeId: task.assigneeId,
+          taskCreatedAt: task.createdAt,
+        },
+      ]);
+      setShowTaskModal(false);
+    } catch {
+      alert("Failed to create task.");
+    } finally {
+      setCreatingTask(false);
+    }
+  }
+
   async function convertToSignal() {
     if (!confirm("Convert this feedback to a Signal?")) return;
     setSaving(true);
@@ -258,6 +335,7 @@ export function FeedbackDetailClient({
   const geo = geoLabel(submission);
 
   return (
+    <>
     <div className="mx-auto max-w-[1200px] px-6">
       {/* Back link */}
       <div className="mb-4">
@@ -316,6 +394,40 @@ export function FeedbackDetailClient({
                   AI Summary
                 </p>
                 <p className="text-sm text-foreground">{submission.aiSummary}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Linked tasks */}
+          <div className="rounded-lg border border-border bg-panel p-5">
+            <h2 className="mb-4 font-mono text-[11px] uppercase tracking-widest text-muted">
+              Linked Tasks
+            </h2>
+            {linkedTasks.length === 0 ? (
+              <p className="text-sm text-muted/50">No tasks linked to this feedback yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {linkedTasks.map((task) => (
+                  <div
+                    key={task.linkId}
+                    className="flex items-center gap-3 rounded border border-border bg-background px-3 py-2.5"
+                  >
+                    <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted">
+                      {TASK_STATUS_LABELS[task.taskStatus]}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/dashboard/${workspaceId}/tasks/${task.taskId}`}
+                        className="block truncate text-sm text-foreground hover:text-primary transition-colors"
+                      >
+                        {task.taskTitle}
+                      </Link>
+                      <span className="font-mono text-[10px] text-muted/40">
+                        {task.relationship === "blocks" ? "blocks resolution" : "related"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -567,9 +679,17 @@ export function FeedbackDetailClient({
             </p>
             <button
               type="button"
+              disabled={saving}
+              onClick={() => setShowTaskModal(true)}
+              className="w-full rounded border border-primary/30 bg-primary/5 px-3 py-2 font-mono text-xs tracking-wider text-primary hover:bg-primary/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              CREATE TASK
+            </button>
+            <button
+              type="button"
               disabled={saving || submission.status === "converted"}
               onClick={() => void convertToSignal()}
-              className="w-full rounded border border-primary/30 bg-primary/5 px-3 py-2 font-mono text-xs tracking-wider text-primary hover:bg-primary/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full rounded border border-border px-3 py-2 font-mono text-xs tracking-wider text-muted hover:text-foreground hover:border-foreground/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {submission.signalId ? "SIGNAL CREATED" : "CONVERT TO SIGNAL"}
             </button>
@@ -585,5 +705,74 @@ export function FeedbackDetailClient({
         </div>
       </div>
     </div>
+
+    {/* Convert to Task modal */}
+    {showTaskModal && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        onClick={(e) => { if (e.target === e.currentTarget) setShowTaskModal(false); }}
+      >
+        <div className="w-full max-w-md rounded-lg border border-border bg-panel p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-bold tracking-tight text-foreground">
+              Create Task
+            </h2>
+            <button
+              onClick={() => setShowTaskModal(false)}
+              className="font-mono text-xs text-muted hover:text-foreground"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-widest text-muted mb-1">
+                Task Title
+              </label>
+              <input
+                type="text"
+                value={taskTitle}
+                onChange={(e) => setTaskTitle(e.target.value)}
+                autoFocus
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/40 focus:border-primary focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-widest text-muted mb-1">
+                Description
+              </label>
+              <textarea
+                value={taskDescription}
+                onChange={(e) => setTaskDescription(e.target.value)}
+                rows={4}
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/40 focus:border-primary focus:outline-none resize-none"
+              />
+            </div>
+            <p className="font-mono text-[10px] text-muted/60">
+              This feedback will be linked to the new task and marked as a dependency.
+              The task will be created in your backlog.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowTaskModal(false)}
+                className="rounded border border-border px-3 py-1.5 font-mono text-xs text-muted hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void convertToTask()}
+                disabled={!taskTitle.trim() || creatingTask}
+                className="rounded border border-primary/30 bg-primary/10 px-4 py-1.5 font-mono text-xs tracking-wider text-primary hover:bg-primary/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {creatingTask ? "CREATING…" : "CREATE TASK"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

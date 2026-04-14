@@ -64,17 +64,9 @@ export default function SignInPage() {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block font-mono text-sm uppercase tracking-widest text-muted">
-                PASSWORD
-              </label>
-              <Link
-                href="/forgot-password"
-                className="font-mono text-xs text-muted hover:text-primary"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            <label className="mb-2 block font-mono text-sm uppercase tracking-widest text-muted">
+              PASSWORD
+            </label>
             <input
               type="password"
               value={password}
@@ -82,6 +74,14 @@ export default function SignInPage() {
               required
               className="w-full rounded-md border border-border bg-panel px-4 py-3 font-body text-base text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
             />
+            <div className="mt-2 text-right">
+              <Link
+                href="/forgot-password"
+                className="font-mono text-xs text-muted hover:text-primary"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           {error && (

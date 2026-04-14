@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { feedbackSubmissions, memberships, users } from "@/lib/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { FeedbackListClient } from "./feedback-list-client";
 
 export default async function FeedbackPage({
@@ -50,7 +50,7 @@ export default async function FeedbackPage({
     })
     .from(feedbackSubmissions)
     .leftJoin(users, eq(users.id, feedbackSubmissions.assigneeId))
-    .where(eq(feedbackSubmissions.workspaceId, workspaceId))
+    .where(and(eq(feedbackSubmissions.workspaceId, workspaceId), isNull(feedbackSubmissions.archivedAt)))
     .orderBy(desc(feedbackSubmissions.createdAt))
     .catch(() => null);
 

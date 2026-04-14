@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: "CONTEXT", path: "context", absolute: false },
   { label: "SYNTHESIS", path: "synthesis", absolute: false },
   { label: "FEEDBACK", path: "feedback", absolute: false },
+  { label: "TASKS", path: "tasks", absolute: false },
   { label: "INTEGRATIONS", path: "integrations", absolute: false },
   { label: "SETTINGS", path: "settings", absolute: false },
   { label: "DOCS", path: "/docs", absolute: true },

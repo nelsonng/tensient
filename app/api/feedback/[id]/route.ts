@@ -131,7 +131,7 @@ async function patchHandler(request: Request, { params }: Params) {
   }
 
   const body = await request.json();
-  const { status, priority, assigneeId, duplicateOfId, signalId } = body ?? {};
+  const { status, priority, assigneeId, duplicateOfId, signalId, archive, unarchive } = body ?? {};
 
   if (
     status !== undefined &&
@@ -154,6 +154,7 @@ async function patchHandler(request: Request, { params }: Params) {
     assigneeId: string | null;
     duplicateOfId: string | null;
     signalId: string | null;
+    archivedAt: Date | null;
     updatedAt: Date;
   }> = { updatedAt: new Date() };
 
@@ -162,6 +163,8 @@ async function patchHandler(request: Request, { params }: Params) {
   if (assigneeId !== undefined) updateValues.assigneeId = (assigneeId as string) ?? null;
   if (duplicateOfId !== undefined) updateValues.duplicateOfId = (duplicateOfId as string) ?? null;
   if (signalId !== undefined) updateValues.signalId = (signalId as string) ?? null;
+  if (archive === true) updateValues.archivedAt = new Date();
+  if (unarchive === true) updateValues.archivedAt = null;
 
   if (Object.keys(updateValues).length === 1) {
     return NextResponse.json(
@@ -185,8 +188,8 @@ async function patchHandler(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Fire-and-forget: update the Slack message to reflect new status/priority
-  void updateFeedbackMessage(workspaceId, {
+  // Await Slack update so serverless teardown doesn't drop the outbound message.
+  await updateFeedbackMessage(workspaceId, {
     id: row.id,
     workspaceId: row.workspaceId,
     category: row.category,
@@ -210,5 +213,42 @@ async function patchHandler(request: Request, { params }: Params) {
   });
 }
 
+// DELETE /api/feedback/[id]
+async function deleteHandler(request: Request, { params }: Params) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const url = new URL(request.url);
+  const workspaceId = url.searchParams.get("workspaceId");
+  if (!workspaceId) {
+    return NextResponse.json({ error: "workspaceId required" }, { status: 400 });
+  }
+
+  const membership = await getWorkspaceMembership(session.user.id, workspaceId);
+  if (!membership) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const [deleted] = await db
+    .delete(feedbackSubmissions)
+    .where(
+      and(
+        eq(feedbackSubmissions.id, id),
+        eq(feedbackSubmissions.workspaceId, workspaceId)
+      )
+    )
+    .returning({ id: feedbackSubmissions.id });
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ deleted: true });
+}
+
 export const GET = withErrorTracking("Get feedback submission", getHandler);
 export const PATCH = withErrorTracking("Update feedback submission", patchHandler);
+export const DELETE = withErrorTracking("Delete feedback submission", deleteHandler);

@@ -351,8 +351,10 @@ async function postHandler(request: Request) {
     },
   });
 
-  // Fire-and-forget Slack notification — silently no-ops if no Slack connection
-  void notifyNewFeedback(resolved.workspaceId, {
+  // Await Slack notification — notifyNewFeedback catches all errors internally so this
+  // never rejects. Awaiting ensures the call completes before the serverless function
+  // is torn down, which prevents silent drops under Vercel's serverless lifecycle.
+  await notifyNewFeedback(resolved.workspaceId, {
     id: row.id,
     workspaceId: resolved.workspaceId,
     category: category as string,

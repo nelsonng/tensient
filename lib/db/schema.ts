@@ -642,6 +642,9 @@ export const feedbackSubmissions = pgTable(
     // Slack integration — ts of the posted Slack message (for threading + updates)
     slackMessageId: text("slack_message_id"),
 
+    // Soft archive
+    archivedAt: timestamp("archived_at"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -660,6 +663,7 @@ export const feedbackSubmissions = pgTable(
     index("idx_feedback_submissions_ip").on(table.ipAddress),
     index("idx_feedback_submissions_duplicate").on(table.duplicateOfId),
     index("idx_feedback_submissions_rating_type").on(table.ratingType),
+    index("idx_feedback_submissions_archived").on(table.archivedAt),
   ]
 );
 
@@ -714,6 +718,76 @@ export const apiKeys = pgTable(
     index("idx_api_keys_user").on(table.userId),
     index("idx_api_keys_workspace").on(table.workspaceId),
     index("idx_api_keys_active").on(table.revokedAt),
+  ]
+);
+
+// ── Tasks ─────────────────────────────────────────────────────────────
+
+export const taskStatusEnum = pgEnum("task_status", [
+  "backlog",
+  "todo",
+  "in_progress",
+  "in_review",
+  "testing",
+  "done",
+]);
+
+export const taskFeedbackRelationshipEnum = pgEnum("task_feedback_relationship", [
+  "related",
+  "blocks",
+]);
+
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    status: taskStatusEnum("status").notNull().default("backlog"),
+    priority: signalPriorityEnum("priority"),
+    assigneeId: uuid("assignee_id").references(() => users.id),
+    createdById: uuid("created_by_id")
+      .references(() => users.id)
+      .notNull(),
+    position: real("position").notNull().default(0),
+    dueDate: timestamp("due_date"),
+    archivedAt: timestamp("archived_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_tasks_workspace").on(table.workspaceId),
+    index("idx_tasks_status").on(table.status),
+    index("idx_tasks_assignee").on(table.assigneeId),
+    index("idx_tasks_position").on(table.workspaceId, table.status, table.position),
+    index("idx_tasks_archived").on(table.archivedAt),
+  ]
+);
+
+export const taskFeedbackLinks = pgTable(
+  "task_feedback_links",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    taskId: uuid("task_id")
+      .references(() => tasks.id, { onDelete: "cascade" })
+      .notNull(),
+    feedbackSubmissionId: uuid("feedback_submission_id")
+      .references(() => feedbackSubmissions.id, { onDelete: "cascade" })
+      .notNull(),
+    relationship: taskFeedbackRelationshipEnum("relationship").notNull().default("related"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_task_feedback_links_unique").on(table.taskId, table.feedbackSubmissionId),
+    index("idx_task_feedback_links_task").on(table.taskId),
+    index("idx_task_feedback_links_feedback").on(table.feedbackSubmissionId),
   ]
 );
 

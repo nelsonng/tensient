@@ -5,6 +5,8 @@ import {
   feedbackSubmissions,
   feedbackReplies,
   memberships,
+  taskFeedbackLinks,
+  tasks,
   users,
 } from "@/lib/db/schema";
 import { and, asc, eq } from "drizzle-orm";
@@ -98,6 +100,22 @@ export default async function FeedbackDetailPage({
     .where(eq(feedbackReplies.feedbackSubmissionId, feedbackId))
     .orderBy(asc(feedbackReplies.createdAt));
 
+  const linkedTasks = await db
+    .select({
+      linkId: taskFeedbackLinks.id,
+      relationship: taskFeedbackLinks.relationship,
+      taskId: tasks.id,
+      taskTitle: tasks.title,
+      taskStatus: tasks.status,
+      taskPriority: tasks.priority,
+      taskAssigneeId: tasks.assigneeId,
+      taskCreatedAt: tasks.createdAt,
+    })
+    .from(taskFeedbackLinks)
+    .innerJoin(tasks, eq(tasks.id, taskFeedbackLinks.taskId))
+    .where(eq(taskFeedbackLinks.feedbackSubmissionId, feedbackId))
+    .orderBy(asc(tasks.createdAt));
+
   // Fetch workspace members for the assignee selector
   const members = await db
     .select({
@@ -121,6 +139,10 @@ export default async function FeedbackDetailPage({
       initialReplies={replies.map((r) => ({
         ...r,
         createdAt: r.createdAt.toISOString(),
+      }))}
+      initialLinkedTasks={linkedTasks.map((t) => ({
+        ...t,
+        taskCreatedAt: t.taskCreatedAt.toISOString(),
       }))}
       members={members}
     />
