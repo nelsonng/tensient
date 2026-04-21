@@ -3,7 +3,6 @@ import { Space_Grotesk, Space_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import { NoiseBackground } from "@/components/noise-background";
 import { GlobalErrorListener } from "@/components/global-error-listener";
-import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -73,7 +72,6 @@ export default function RootLayout({
         <NoiseBackground />
         <div className="relative z-10">{children}</div>
         <GlobalErrorListener />
-        <Analytics />
       </body>
     </html>
   );
