@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/client";
 import { useAudioCapture, RecordingResult } from "@/hooks/use-audio-capture";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ export function VoiceRecorder({
       return;
     }
 
-    // ── Step 1: Upload directly to Vercel Blob (no size limit) ──────
+    // ── Step 1: Upload directly to object storage (no size limit) ───
 
     setState("uploading");
 
@@ -206,12 +206,11 @@ export function VoiceRecorder({
     try {
       const filename = `audio/${workspaceId}/capture-${new Date().toISOString().replace(/[:.]/g, "-")}.webm`;
 
-      const blobResult = await upload(filename, result.blob, {
-        access: "public",
+      const uploadResult = await uploadFile(filename, result.blob, {
         handleUploadUrl: "/api/transcribe/upload",
       });
 
-      audioUrl = blobResult.url;
+      audioUrl = uploadResult.url;
     } catch (uploadErr) {
       const errMsg = uploadErr instanceof Error ? uploadErr.message : "Upload failed";
       setProcessingError(`Upload failed. ${errMsg}`);

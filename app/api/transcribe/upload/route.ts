@@ -1,8 +1,20 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { withErrorTracking } from "@/lib/api-handler";
+import { handleClientUpload, isStorageConfigured } from "@/lib/storage/server";
+
+const ALLOWED_AUDIO_CONTENT_TYPES = [
+  "audio/webm",
+  "audio/webm;codecs=opus",
+  "video/webm",
+  "video/webm;codecs=opus",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+];
+
+const MAX_AUDIO_SIZE = 100 * 1024 * 1024; // 100 MB (~1.7 hours at 128kbps)
 
 async function postHandler(request: Request) {
   const session = await auth();
@@ -10,8 +22,8 @@ async function postHandler(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    logger.error("BLOB_READ_WRITE_TOKEN is not configured -- audio upload will fail");
+  if (!isStorageConfigured()) {
+    logger.error("Storage provider is not configured -- audio upload will fail");
     return NextResponse.json(
       { error: "Voice recording is temporarily unavailable." },
       { status: 503 }
@@ -19,32 +31,19 @@ async function postHandler(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as HandleUploadBody;
-
-    const jsonResponse = await handleUpload({
-      body,
+    return await handleClientUpload({
       request,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: [
-          "audio/webm",
-          "audio/webm;codecs=opus",
-          "video/webm",
-          "video/webm;codecs=opus",
-          "audio/mp4",
-          "audio/mpeg",
-          "audio/ogg",
-        ],
-        maximumSizeInBytes: 100 * 1024 * 1024, // 100 MB (~1.7 hours at 128kbps)
+      getConstraints: () => ({
+        allowedContentTypes: ALLOWED_AUDIO_CONTENT_TYPES,
+        maxSizeBytes: MAX_AUDIO_SIZE,
       }),
-      onUploadCompleted: async ({ blob }) => {
+      onUploadCompleted: async ({ url }) => {
         logger.info("Audio upload completed", {
-          url: blob.url,
+          url,
           userId: session.user?.id,
         });
       },
     });
-
-    return NextResponse.json(jsonResponse);
   } catch (error) {
     logger.error("Audio upload token handler failed", { error: String(error) });
     return NextResponse.json(

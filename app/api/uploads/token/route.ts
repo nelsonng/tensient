@@ -1,8 +1,8 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { withErrorTracking } from "@/lib/api-handler";
+import { handleClientUpload, isStorageConfigured } from "@/lib/storage/server";
 
 const ALLOWED_CONTENT_TYPES = [
   // Documents
@@ -33,8 +33,8 @@ async function postHandler(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    logger.error("BLOB_READ_WRITE_TOKEN is not configured");
+  if (!isStorageConfigured()) {
+    logger.error("Storage provider is not configured");
     return NextResponse.json(
       { error: "File upload is temporarily unavailable." },
       { status: 503 }
@@ -42,28 +42,23 @@ async function postHandler(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as HandleUploadBody;
-
-    const jsonResponse = await handleUpload({
-      body,
+    return await handleClientUpload({
       request,
-      onBeforeGenerateToken: async (pathname) => {
+      getConstraints: (pathname) => {
         const isAudio = pathname.startsWith("audio/");
         return {
           allowedContentTypes: ALLOWED_CONTENT_TYPES,
-          maximumSizeInBytes: isAudio ? MAX_AUDIO_SIZE : MAX_FILE_SIZE,
+          maxSizeBytes: isAudio ? MAX_AUDIO_SIZE : MAX_FILE_SIZE,
         };
       },
-      onUploadCompleted: async ({ blob }) => {
+      onUploadCompleted: async ({ url, pathname }) => {
         logger.info("File upload completed", {
-          url: blob.url,
-          pathname: blob.pathname,
+          url,
+          pathname,
           userId: session.user?.id,
         });
       },
     });
-
-    return NextResponse.json(jsonResponse);
   } catch (error) {
     logger.error("Upload token handler failed", { error: String(error) });
     return NextResponse.json(

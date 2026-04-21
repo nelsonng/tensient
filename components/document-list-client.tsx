@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/client";
 import { DataTable, type DataTableColumn } from "@/components/data-table";
 import { SlantedButton } from "@/components/slanted-button";
 import { formatAbsoluteDateTime } from "@/lib/utils";
@@ -73,8 +73,7 @@ export function DocumentListClient({
     setUploading(true);
     try {
       const path = `${kind}/${workspaceId}/${Date.now()}-${file.name}`;
-      const result = await upload(path, file, {
-        access: "public",
+      const result = await uploadFile(path, file, {
         handleUploadUrl: "/api/uploads/token",
       });
 

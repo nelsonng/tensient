@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { upload } from "@vercel/blob/client";
+import { uploadFile } from "@/lib/storage/client";
 import { PanelCard } from "@/components/panel-card";
 import { MonoLabel } from "@/components/mono-label";
 import { VoiceRecorder } from "@/components/voice-recorder";
@@ -250,8 +250,7 @@ export function ConversationViewClient({
       const results = await Promise.all(
         filesToUpload.map((file) => {
           const path = `files/${workspaceId}/${conversation.id}/${Date.now()}-${file.name}`;
-          return upload(path, file, {
-            access: "public",
+          return uploadFile(path, file, {
             handleUploadUrl: "/api/uploads/token",
           });
         })
