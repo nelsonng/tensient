@@ -23,6 +23,7 @@
     "@react-email/components": "^1.0.7",
     "@slack/web-api": "^7.15.0",
     "@vercel/blob": "^2.2.0",
+    "aws4fetch": "^1.0.20",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.33.0",

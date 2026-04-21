@@ -1,36 +1,28 @@
 /**
  * Client-side storage abstraction for direct file uploads.
  *
- * Backed by Vercel Blob today; will be swapped for Cloudflare R2 (presigned
- * PUT URLs) without changing the API surface. Keep this module the only
- * client-side code that imports from `@vercel/blob`.
+ * Dispatches to the configured provider (Vercel Blob or Cloudflare R2)
+ * based on `NEXT_PUBLIC_STORAGE_PROVIDER`. Browser components should never
+ * import from `lib/storage/providers/*` directly.
  */
-import { upload } from "@vercel/blob/client";
+import {
+  getStorageProviderName,
+  type UploadFileOptions,
+  type UploadFileResult,
+} from "./types";
+import * as vercelBlob from "./providers/vercel-blob/client";
+import * as r2 from "./providers/r2/client";
 
-export interface UploadFileOptions {
-  /** Server route that issues upload credentials (uses `handleClientUpload`). */
-  handleUploadUrl: string;
-}
+export type { UploadFileOptions, UploadFileResult } from "./types";
 
-export interface UploadFileResult {
-  /** Public URL of the uploaded object. */
-  url: string;
-}
-
-/**
- * Upload a file directly from the browser to object storage. Streams the
- * bytes to the storage provider rather than through the Next.js server, so
- * size is bounded only by the constraints declared in `getConstraints` on
- * the corresponding `handleClientUpload` route.
- */
 export async function uploadFile(
   pathname: string,
   file: File | Blob,
   opts: UploadFileOptions
 ): Promise<UploadFileResult> {
-  const result = await upload(pathname, file, {
-    access: "public",
-    handleUploadUrl: opts.handleUploadUrl,
-  });
-  return { url: result.url };
+  const provider = getStorageProviderName();
+  if (provider === "r2") {
+    return r2.uploadFile(pathname, file, opts);
+  }
+  return vercelBlob.uploadFile(pathname, file, opts);
 }
