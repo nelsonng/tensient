@@ -24,16 +24,24 @@ function trackAuthEvent(type: string, metadata: Record<string, unknown>) {
     });
 }
 
-/** Extract IP/geo from Vercel request headers (same logic as lib/request-geo.ts
- *  but inlined here to avoid importing from lib/ in Edge-compatible auth.ts) */
+/** Extract IP/geo from request headers (same logic as lib/request-geo.ts
+ *  but inlined here to avoid importing from lib/ in Edge-compatible auth.ts).
+ *  Supports both Vercel (`x-vercel-ip-*`) and Cloudflare (`cf-*`) headers. */
 async function getAuthGeo() {
   try {
     const h = await headers();
     return {
-      ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
-      city: h.get("x-vercel-ip-city") || null,
-      region: h.get("x-vercel-ip-country-region") || null,
-      country: h.get("x-vercel-ip-country") || null,
+      ip:
+        h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        h.get("cf-connecting-ip") ||
+        null,
+      city: h.get("x-vercel-ip-city") || h.get("cf-ipcity") || null,
+      region:
+        h.get("x-vercel-ip-country-region") ||
+        h.get("cf-region-code") ||
+        h.get("cf-region") ||
+        null,
+      country: h.get("x-vercel-ip-country") || h.get("cf-ipcountry") || null,
     };
   } catch {
     return { ip: null, city: null, region: null, country: null };
