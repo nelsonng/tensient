@@ -32,6 +32,10 @@ export interface TaskRow {
   status: TaskStatus;
   priority: TaskPriority | null;
   assigneeId: string | null;
+  assigneePersonId: string | null;
+  assigneeDisplayName: string | null;
+  assigneePersonEmail: string | null;
+  assigneeUserId: string | null;
   assigneeFirstName: string | null;
   assigneeLastName: string | null;
   assigneeEmail: string | null;
@@ -43,11 +47,11 @@ export interface TaskRow {
   updatedAt: string;
 }
 
-interface Member {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
+interface AssignablePerson {
+  value: string;
+  label: string;
   email: string | null;
+  isUser: boolean;
 }
 
 const STATUSES: TaskStatus[] = ["backlog", "todo", "in_progress", "in_review", "testing", "done"];
@@ -98,6 +102,8 @@ type ViewMode = "list" | "board";
 // ── Shared helpers ─────────────────────────────────────────────────────
 
 function assigneeName(row: TaskRow): string {
+  if (row.assigneeDisplayName) return row.assigneeDisplayName;
+  if (row.assigneePersonEmail) return row.assigneePersonEmail;
   const name = [row.assigneeFirstName, row.assigneeLastName].filter(Boolean).join(" ");
   return name || row.assigneeEmail || "";
 }
@@ -110,22 +116,29 @@ function compareTasksByBoardOrder(a: TaskRow, b: TaskRow): number {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
 
-function hydrateAssigneeDisplay(task: TaskRow, members: Member[]): TaskRow {
-  if (!task.assigneeId) {
-    return {
-      ...task,
-      assigneeFirstName: task.assigneeFirstName ?? null,
-      assigneeLastName: task.assigneeLastName ?? null,
-      assigneeEmail: task.assigneeEmail ?? null,
-    };
-  }
+function hydrateAssigneeDisplay(task: TaskRow, assignees: AssignablePerson[]): TaskRow {
+  if (assigneeName(task)) return task;
 
-  const member = members.find((m) => m.id === task.assigneeId);
+  const option = assignees.find((person) =>
+    person.value === `person:${task.assigneePersonId}` ||
+    person.value === `user:${task.assigneeId}`
+  );
   return {
     ...task,
-    assigneeFirstName: task.assigneeFirstName ?? member?.firstName ?? null,
-    assigneeLastName: task.assigneeLastName ?? member?.lastName ?? null,
-    assigneeEmail: task.assigneeEmail ?? member?.email ?? null,
+    assigneeDisplayName: task.assigneeDisplayName ?? option?.label ?? null,
+    assigneePersonEmail: task.assigneePersonEmail ?? option?.email ?? null,
+  };
+}
+
+function optionFromTaskAssignee(task: TaskRow): AssignablePerson | null {
+  if (!task.assigneePersonId || task.assigneeUserId) return null;
+  const label = assigneeName(task);
+  if (!label) return null;
+  return {
+    value: `person:${task.assigneePersonId}`,
+    label,
+    email: task.assigneePersonEmail,
+    isUser: false,
   };
 }
 
@@ -149,18 +162,19 @@ function getTargetStatus(overId: string, rows: TaskRow[]): TaskStatus | null {
 
 interface CreateTaskModalProps {
   workspaceId: string;
-  members: Member[];
+  assignees: AssignablePerson[];
   initialStatus?: TaskStatus;
   onCreated: (task: TaskRow) => void;
   onClose: () => void;
 }
 
-function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCreated, onClose }: CreateTaskModalProps) {
+function CreateTaskModal({ workspaceId, assignees, initialStatus = "backlog", onCreated, onClose }: CreateTaskModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<TaskStatus>(initialStatus);
   const [priority, setPriority] = useState<TaskPriority | "">("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeRef, setAssigneeRef] = useState("");
+  const [newAssigneeName, setNewAssigneeName] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -177,7 +191,8 @@ function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCr
           description: description.trim() || null,
           status,
           priority: priority || null,
-          assigneeId: assigneeId || null,
+          assigneeRef: assigneeRef || null,
+          assigneeName: newAssigneeName.trim() || null,
         }),
       });
       if (!res.ok) throw new Error("Failed to create task");
@@ -196,7 +211,7 @@ function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCr
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-md rounded-lg border border-border bg-panel p-6 shadow-xl">
+      <div className="w-full max-w-lg rounded-lg border border-border bg-panel p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-lg font-bold tracking-tight text-foreground">New Task</h2>
           <button onClick={onClose} className="font-mono text-xs text-muted hover:text-foreground">✕</button>
@@ -252,17 +267,34 @@ function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCr
             <div>
               <label className="block font-mono text-[10px] uppercase tracking-widest text-muted mb-1">Assignee</label>
               <select
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
+                value={assigneeRef}
+                onChange={(e) => {
+                  setAssigneeRef(e.target.value);
+                  if (e.target.value) setNewAssigneeName("");
+                }}
                 className="w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
               >
                 <option value="">Unassigned</option>
-                {members.map((m) => {
-                  const name = [m.firstName, m.lastName].filter(Boolean).join(" ") || m.email || m.id;
-                  return <option key={m.id} value={m.id}>{name}</option>;
-                })}
+                {assignees.map((person) => (
+                  <option key={person.value} value={person.value}>
+                    {person.label}{person.isUser ? "" : " (not a user)"}
+                  </option>
+                ))}
               </select>
             </div>
+          </div>
+          <div>
+            <label className="block font-mono text-[10px] uppercase tracking-widest text-muted mb-1">New Assignee</label>
+            <input
+              type="text"
+              value={newAssigneeName}
+              onChange={(e) => {
+                setNewAssigneeName(e.target.value);
+                if (e.target.value) setAssigneeRef("");
+              }}
+              placeholder="Name or email for someone not in Tensient yet…"
+              className="w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/40 focus:border-primary focus:outline-none"
+            />
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
@@ -399,14 +431,15 @@ function BoardColumn({
 export function TasksClient({
   workspaceId,
   initialRows,
-  members,
+  assignees,
 }: {
   workspaceId: string;
   initialRows: TaskRow[];
-  members: Member[];
+  assignees: AssignablePerson[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
+  const [assignablePeople, setAssignablePeople] = useState(assignees);
   const [viewMode, setViewMode] = useState<ViewMode>("board");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createModalStatus, setCreateModalStatus] = useState<TaskStatus>("backlog");
@@ -446,7 +479,14 @@ export function TasksClient({
   }
 
   function handleCreated(task: TaskRow) {
-    setRows((prev) => [...prev, hydrateAssigneeDisplay(task, members)]);
+    const nextTask = hydrateAssigneeDisplay(task, assignablePeople);
+    const newAssignee = optionFromTaskAssignee(nextTask);
+    if (newAssignee) {
+      setAssignablePeople((prev) =>
+        prev.some((person) => person.value === newAssignee.value) ? prev : [...prev, newAssignee]
+      );
+    }
+    setRows((prev) => [...prev, nextTask]);
   }
 
   async function patchTask(id: string, patch: Record<string, unknown>) {
@@ -683,7 +723,7 @@ export function TasksClient({
       {showCreateModal && (
         <CreateTaskModal
           workspaceId={workspaceId}
-          members={members}
+          assignees={assignablePeople}
           initialStatus={createModalStatus}
           onCreated={handleCreated}
           onClose={() => setShowCreateModal(false)}

@@ -737,6 +737,28 @@ export const taskFeedbackRelationshipEnum = pgEnum("task_feedback_relationship",
   "blocks",
 ]);
 
+export const workspacePeople = pgTable(
+  "workspace_people",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: uuid("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id").references(() => users.id),
+    displayName: text("display_name").notNull(),
+    email: text("email"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_workspace_people_workspace").on(table.workspaceId),
+    index("idx_workspace_people_user").on(table.userId),
+    uniqueIndex("idx_workspace_people_workspace_email").on(table.workspaceId, table.email),
+  ]
+);
+
 export const tasks = pgTable(
   "tasks",
   {
@@ -751,6 +773,7 @@ export const tasks = pgTable(
     status: taskStatusEnum("status").notNull().default("backlog"),
     priority: signalPriorityEnum("priority"),
     assigneeId: uuid("assignee_id").references(() => users.id),
+    assigneePersonId: uuid("assignee_person_id").references(() => workspacePeople.id),
     createdById: uuid("created_by_id")
       .references(() => users.id)
       .notNull(),
@@ -764,6 +787,7 @@ export const tasks = pgTable(
     index("idx_tasks_workspace").on(table.workspaceId),
     index("idx_tasks_status").on(table.status),
     index("idx_tasks_assignee").on(table.assigneeId),
+    index("idx_tasks_assignee_person").on(table.assigneePersonId),
     index("idx_tasks_position").on(table.workspaceId, table.status, table.position),
     index("idx_tasks_archived").on(table.archivedAt),
   ]

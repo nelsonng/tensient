@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { tasks, users } from "@/lib/db/schema";
+import { tasks, users, workspacePeople } from "@/lib/db/schema";
 import { and, asc, desc, eq, isNull, SQL } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { withErrorTracking } from "@/lib/api-handler";
+import { resolveTaskAssignee } from "@/lib/tasks/assignees";
 
 // GET /api/tasks?workspaceId=...&status=...&archived=true
 async function getHandler(request: Request) {
@@ -48,6 +49,10 @@ async function getHandler(request: Request) {
       status: tasks.status,
       priority: tasks.priority,
       assigneeId: tasks.assigneeId,
+      assigneePersonId: tasks.assigneePersonId,
+      assigneeDisplayName: workspacePeople.displayName,
+      assigneePersonEmail: workspacePeople.email,
+      assigneeUserId: workspacePeople.userId,
       assigneeFirstName: assigneeUser.firstName,
       assigneeLastName: assigneeUser.lastName,
       assigneeEmail: assigneeUser.email,
@@ -59,6 +64,7 @@ async function getHandler(request: Request) {
       updatedAt: tasks.updatedAt,
     })
     .from(tasks)
+    .leftJoin(workspacePeople, eq(workspacePeople.id, tasks.assigneePersonId))
     .leftJoin(assigneeUser, eq(assigneeUser.id, tasks.assigneeId))
     .where(and(...where))
     .orderBy(asc(tasks.position), desc(tasks.createdAt));
@@ -87,7 +93,18 @@ async function postHandler(request: Request) {
   }
 
   const body = await request.json();
-  const { workspaceId, title, description, status, priority, assigneeId, dueDate } = body ?? {};
+  const {
+    workspaceId,
+    title,
+    description,
+    status,
+    priority,
+    assigneeId,
+    assigneeRef,
+    assigneeName,
+    assigneePersonId,
+    dueDate,
+  } = body ?? {};
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId required" }, { status: 400 });
@@ -103,6 +120,12 @@ async function postHandler(request: Request) {
 
   const taskStatus: TaskStatus =
     status && VALID_STATUSES.includes(status) ? status : "backlog";
+  const assignee = await resolveTaskAssignee(workspaceId, {
+    assigneeId,
+    assigneeRef,
+    assigneeName,
+    assigneePersonId,
+  });
 
   // Position at end of column: find max position for this status
   const existing = await db
@@ -122,7 +145,8 @@ async function postHandler(request: Request) {
       description: description?.trim() ?? null,
       status: taskStatus,
       priority: priority && VALID_PRIORITIES.includes(priority) ? (priority as TaskPriority) : null,
-      assigneeId: assigneeId ?? null,
+      assigneeId: assignee.assigneeId,
+      assigneePersonId: assignee.assigneePersonId,
       createdById: session.user.id,
       position: maxPosition + 1000,
       dueDate: dueDate ? new Date(dueDate) : null,
@@ -131,6 +155,12 @@ async function postHandler(request: Request) {
 
   return NextResponse.json({
     ...row,
+    assigneeDisplayName: assignee.assigneeDisplayName,
+    assigneePersonEmail: assignee.assigneeEmail,
+    assigneeUserId: assignee.assigneeUserId,
+    assigneeFirstName: null,
+    assigneeLastName: null,
+    assigneeEmail: assignee.assigneeEmail,
     dueDate: row.dueDate?.toISOString() ?? null,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

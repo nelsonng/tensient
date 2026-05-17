@@ -16,6 +16,10 @@ interface TaskDetail {
   status: TaskStatus;
   priority: TaskPriority | null;
   assigneeId: string | null;
+  assigneePersonId: string | null;
+  assigneeDisplayName: string | null;
+  assigneePersonEmail: string | null;
+  assigneeUserId: string | null;
   assigneeFirstName: string | null;
   assigneeLastName: string | null;
   assigneeEmail: string | null;
@@ -47,11 +51,11 @@ interface FeedbackSearchResult {
   createdAt: string;
 }
 
-interface Member {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
+interface AssignablePerson {
+  value: string;
+  label: string;
   email: string | null;
+  isUser: boolean;
 }
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -116,16 +120,17 @@ export function TaskDetailClient({
   workspaceId,
   task: initialTask,
   initialLinkedFeedback,
-  members,
+  assignees,
 }: {
   workspaceId: string;
   task: TaskDetail;
   initialLinkedFeedback: LinkedFeedback[];
-  members: Member[];
+  assignees: AssignablePerson[];
 }) {
   const router = useRouter();
   const [task, setTask] = useState(initialTask);
   const [linkedFeedback, setLinkedFeedback] = useState(initialLinkedFeedback);
+  const [assignablePeople, setAssignablePeople] = useState(assignees);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -135,8 +140,9 @@ export function TaskDetailClient({
   const [linkSearchResults, setLinkSearchResults] = useState<FeedbackSearchResult[]>([]);
   const [isSearchingFeedback, setIsSearchingFeedback] = useState(false);
   const [linkingFeedbackId, setLinkingFeedbackId] = useState<string | null>(null);
+  const [newAssigneeName, setNewAssigneeName] = useState("");
 
-  async function patchTask(patch: Record<string, unknown>) {
+  async function patchTask(patch: Record<string, unknown>): Promise<Partial<TaskDetail> | null> {
     setSaving(true);
     try {
       const res = await fetch(`/api/tasks/${task.id}?workspaceId=${workspaceId}`, {
@@ -152,8 +158,10 @@ export function TaskDetailClient({
         createdAt: prev.createdAt,
         updatedAt: updated.updatedAt ?? prev.updatedAt,
       }));
+      return updated;
     } catch {
       alert("Failed to save changes.");
+      return null;
     } finally {
       setSaving(false);
     }
@@ -260,9 +268,38 @@ export function TaskDetailClient({
     }
   }
 
-  const assigneeName = [task.assigneeFirstName, task.assigneeLastName].filter(Boolean).join(" ")
+  async function assignNewPerson() {
+    const name = newAssigneeName.trim();
+    if (!name) return;
+    const updated = await patchTask({ assigneeName: name });
+    if (updated?.assigneePersonId && !updated.assigneeUserId) {
+      setAssignablePeople((prev) => {
+        const value = `person:${updated.assigneePersonId}`;
+        if (prev.some((person) => person.value === value)) return prev;
+        return [
+          ...prev,
+          {
+            value,
+            label: updated.assigneeDisplayName || updated.assigneePersonEmail || name,
+            email: updated.assigneePersonEmail ?? null,
+            isUser: false,
+          },
+        ];
+      });
+    }
+    setNewAssigneeName("");
+  }
+
+  const assigneeName = task.assigneeDisplayName
+    || task.assigneePersonEmail
+    || [task.assigneeFirstName, task.assigneeLastName].filter(Boolean).join(" ")
     || task.assigneeEmail
     || "";
+  const selectedAssigneeRef = task.assigneeId
+    ? `user:${task.assigneeId}`
+    : task.assigneePersonId
+      ? `person:${task.assigneePersonId}`
+      : "";
 
   return (
     <div className="mx-auto max-w-[1200px] px-6">
@@ -490,17 +527,50 @@ export function TaskDetailClient({
           <div className="rounded-lg border border-border bg-panel p-4">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">Assigned</p>
             <select
-              value={task.assigneeId ?? ""}
+              value={selectedAssigneeRef}
               disabled={saving}
-              onChange={(e) => void patchTask({ assigneeId: e.target.value || null })}
+              onChange={(e) => void patchTask({ assigneeRef: e.target.value || null })}
               className="w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
             >
               <option value="">-- Unassigned</option>
-              {members.map((m) => {
-                const name = [m.firstName, m.lastName].filter(Boolean).join(" ") || m.email || m.id;
-                return <option key={m.id} value={m.id}>{name}</option>;
-              })}
+              {assignablePeople.map((person) => (
+                <option key={person.value} value={person.value}>
+                  {person.label}{person.isUser ? "" : " (not a user)"}
+                </option>
+              ))}
             </select>
+            <div className="mt-3 space-y-2 border-t border-border pt-3">
+              <label className="block font-mono text-[10px] uppercase tracking-widest text-muted/70">
+                Assign New Person
+              </label>
+              <input
+                type="text"
+                value={newAssigneeName}
+                disabled={saving}
+                onChange={(e) => setNewAssigneeName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void assignNewPerson();
+                  }
+                }}
+                placeholder="Name or email…"
+                className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs text-foreground placeholder:text-muted/40 focus:border-primary focus:outline-none"
+              />
+              <button
+                type="button"
+                disabled={saving || !newAssigneeName.trim()}
+                onClick={() => void assignNewPerson()}
+                className="w-full rounded border border-border px-2 py-1.5 font-mono text-[10px] tracking-wider text-muted hover:text-foreground disabled:opacity-40 transition-colors"
+              >
+                ASSIGN NEW PERSON
+              </button>
+            </div>
+            {assigneeName && (
+              <p className="mt-2 truncate font-mono text-[10px] text-muted/60">
+                Current: {assigneeName}
+              </p>
+            )}
           </div>
 
           {/* Due Date */}

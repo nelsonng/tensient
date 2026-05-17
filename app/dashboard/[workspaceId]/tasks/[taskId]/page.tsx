@@ -1,9 +1,10 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { memberships, tasks, taskFeedbackLinks, feedbackSubmissions, users } from "@/lib/db/schema";
+import { memberships, tasks, taskFeedbackLinks, feedbackSubmissions, users, workspacePeople } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { TaskDetailClient } from "./task-detail-client";
+import { listAssignablePeople } from "@/lib/tasks/assignees";
 
 export default async function TaskDetailPage({
   params,
@@ -37,6 +38,10 @@ export default async function TaskDetailPage({
       status: tasks.status,
       priority: tasks.priority,
       assigneeId: tasks.assigneeId,
+      assigneePersonId: tasks.assigneePersonId,
+      assigneeDisplayName: workspacePeople.displayName,
+      assigneePersonEmail: workspacePeople.email,
+      assigneeUserId: workspacePeople.userId,
       assigneeFirstName: users.firstName,
       assigneeLastName: users.lastName,
       assigneeEmail: users.email,
@@ -48,6 +53,7 @@ export default async function TaskDetailPage({
       updatedAt: tasks.updatedAt,
     })
     .from(tasks)
+    .leftJoin(workspacePeople, eq(workspacePeople.id, tasks.assigneePersonId))
     .leftJoin(users, eq(users.id, tasks.assigneeId))
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)))
     .limit(1);
@@ -69,16 +75,7 @@ export default async function TaskDetailPage({
     .innerJoin(feedbackSubmissions, eq(feedbackSubmissions.id, taskFeedbackLinks.feedbackSubmissionId))
     .where(eq(taskFeedbackLinks.taskId, taskId));
 
-  const members = await db
-    .select({
-      id: users.id,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      email: users.email,
-    })
-    .from(memberships)
-    .innerJoin(users, eq(users.id, memberships.userId))
-    .where(eq(memberships.workspaceId, workspaceId));
+  const assignees = await listAssignablePeople(workspaceId);
 
   return (
     <TaskDetailClient
@@ -94,7 +91,7 @@ export default async function TaskDetailPage({
         ...f,
         feedbackCreatedAt: f.feedbackCreatedAt.toISOString(),
       }))}
-      members={members}
+      assignees={assignees}
     />
   );
 }

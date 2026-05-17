@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { tasks, taskFeedbackLinks, feedbackSubmissions, users } from "@/lib/db/schema";
+import { tasks, taskFeedbackLinks, feedbackSubmissions, users, workspacePeople } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getWorkspaceMembership } from "@/lib/auth/workspace-access";
 import { withErrorTracking } from "@/lib/api-handler";
+import { ResolvedTaskAssignee, resolveTaskAssignee } from "@/lib/tasks/assignees";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,6 +42,10 @@ async function getHandler(request: Request, { params }: Params) {
       status: tasks.status,
       priority: tasks.priority,
       assigneeId: tasks.assigneeId,
+      assigneePersonId: tasks.assigneePersonId,
+      assigneeDisplayName: workspacePeople.displayName,
+      assigneePersonEmail: workspacePeople.email,
+      assigneeUserId: workspacePeople.userId,
       assigneeFirstName: users.firstName,
       assigneeLastName: users.lastName,
       assigneeEmail: users.email,
@@ -52,6 +57,7 @@ async function getHandler(request: Request, { params }: Params) {
       updatedAt: tasks.updatedAt,
     })
     .from(tasks)
+    .leftJoin(workspacePeople, eq(workspacePeople.id, tasks.assigneePersonId))
     .leftJoin(users, eq(users.id, tasks.assigneeId))
     .where(and(eq(tasks.id, id), eq(tasks.workspaceId, workspaceId)))
     .limit(1);
@@ -109,7 +115,20 @@ async function patchHandler(request: Request, { params }: Params) {
   }
 
   const body = await request.json();
-  const { title, description, status, priority, assigneeId, position, dueDate, archive, unarchive } = body ?? {};
+  const {
+    title,
+    description,
+    status,
+    priority,
+    assigneeId,
+    assigneeRef,
+    assigneeName,
+    assigneePersonId,
+    position,
+    dueDate,
+    archive,
+    unarchive,
+  } = body ?? {};
 
   if (status !== undefined && !VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
@@ -119,11 +138,28 @@ async function patchHandler(request: Request, { params }: Params) {
   }
 
   const updateValues: Record<string, unknown> = { updatedAt: new Date() };
+  let resolvedAssignee: ResolvedTaskAssignee | null = null;
+  const shouldUpdateAssignee =
+    assigneeId !== undefined ||
+    assigneeRef !== undefined ||
+    assigneeName !== undefined ||
+    assigneePersonId !== undefined;
+
+  if (shouldUpdateAssignee) {
+    resolvedAssignee = await resolveTaskAssignee(workspaceId, {
+      assigneeId,
+      assigneeRef,
+      assigneeName,
+      assigneePersonId,
+    });
+    updateValues.assigneeId = resolvedAssignee.assigneeId;
+    updateValues.assigneePersonId = resolvedAssignee.assigneePersonId;
+  }
+
   if (title !== undefined) updateValues.title = title.trim();
   if (description !== undefined) updateValues.description = description?.trim() ?? null;
   if (status !== undefined) updateValues.status = status as TaskStatus;
   if (priority !== undefined) updateValues.priority = (priority as TaskPriority) ?? null;
-  if (assigneeId !== undefined) updateValues.assigneeId = assigneeId ?? null;
   if (position !== undefined) updateValues.position = position;
   if (dueDate !== undefined) updateValues.dueDate = dueDate ? new Date(dueDate) : null;
   if (archive === true) updateValues.archivedAt = new Date();
@@ -145,6 +181,16 @@ async function patchHandler(request: Request, { params }: Params) {
 
   return NextResponse.json({
     ...row,
+    ...(resolvedAssignee
+      ? {
+          assigneeDisplayName: resolvedAssignee.assigneeDisplayName,
+          assigneePersonEmail: resolvedAssignee.assigneeEmail,
+          assigneeUserId: resolvedAssignee.assigneeUserId,
+          assigneeFirstName: null,
+          assigneeLastName: null,
+          assigneeEmail: resolvedAssignee.assigneeEmail,
+        }
+      : {}),
     dueDate: row.dueDate?.toISOString() ?? null,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
