@@ -1,17 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { users, platformEvents } from "@/lib/db/schema";
+import { db } from "@/lib/db";
 
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
-
-// Lightweight event tracker for auth context (can't import lib/platform-events
-// because auth.ts uses its own db instance for Edge compatibility)
+// Lightweight event tracker for auth context.
 function trackAuthEvent(type: string, metadata: Record<string, unknown>) {
   db.insert(platformEvents)
     .values({
