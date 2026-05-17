@@ -1,23 +1,22 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
-  DragOverEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
   closestCorners,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { formatAbsoluteDateTime } from "@/lib/utils";
@@ -103,6 +102,49 @@ function assigneeName(row: TaskRow): string {
   return name || row.assigneeEmail || "";
 }
 
+function compareTasksByBoardOrder(a: TaskRow, b: TaskRow): number {
+  const statusDiff = STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status);
+  if (statusDiff !== 0) return statusDiff;
+  const positionDiff = a.position - b.position;
+  if (positionDiff !== 0) return positionDiff;
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+}
+
+function hydrateAssigneeDisplay(task: TaskRow, members: Member[]): TaskRow {
+  if (!task.assigneeId) {
+    return {
+      ...task,
+      assigneeFirstName: task.assigneeFirstName ?? null,
+      assigneeLastName: task.assigneeLastName ?? null,
+      assigneeEmail: task.assigneeEmail ?? null,
+    };
+  }
+
+  const member = members.find((m) => m.id === task.assigneeId);
+  return {
+    ...task,
+    assigneeFirstName: task.assigneeFirstName ?? member?.firstName ?? null,
+    assigneeLastName: task.assigneeLastName ?? member?.lastName ?? null,
+    assigneeEmail: task.assigneeEmail ?? member?.email ?? null,
+  };
+}
+
+function positionForIndex(rows: TaskRow[], index: number): number {
+  const previous = rows[index - 1]?.position;
+  const next = rows[index + 1]?.position;
+
+  if (previous !== undefined && next !== undefined) return (previous + next) / 2;
+  if (previous !== undefined) return previous + 1000;
+  if (next !== undefined) return next - 1000;
+  return 1000;
+}
+
+function getTargetStatus(overId: string, rows: TaskRow[]): TaskStatus | null {
+  const overTask = rows.find((row) => row.id === overId);
+  if (overTask) return overTask.status;
+  return STATUSES.includes(overId as TaskStatus) ? (overId as TaskStatus) : null;
+}
+
 // ── Create Task Modal ──────────────────────────────────────────────────
 
 interface CreateTaskModalProps {
@@ -117,6 +159,7 @@ function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCr
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<TaskStatus>(initialStatus);
+  const [priority, setPriority] = useState<TaskPriority | "">("");
   const [assigneeId, setAssigneeId] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -133,6 +176,7 @@ function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCr
           title: title.trim(),
           description: description.trim() || null,
           status,
+          priority: priority || null,
           assigneeId: assigneeId || null,
         }),
       });
@@ -179,7 +223,7 @@ function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCr
               className="w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/40 focus:border-primary focus:outline-none resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block font-mono text-[10px] uppercase tracking-widest text-muted mb-1">Status</label>
               <select
@@ -189,6 +233,19 @@ function CreateTaskModal({ workspaceId, members, initialStatus = "backlog", onCr
               >
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-widest text-muted mb-1">Priority</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TaskPriority | "")}
+                className="w-full rounded border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
+              >
+                <option value="">None</option>
+                {(["critical", "high", "medium", "low"] as TaskPriority[]).map((p) => (
+                  <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
                 ))}
               </select>
             </div>
@@ -272,16 +329,12 @@ function TaskCard({
     >
       <p className="text-sm text-foreground font-medium leading-snug">{task.title}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {task.priority && (
-          <span className={`font-mono text-[10px] ${PRIORITY_STYLES[task.priority]}`}>
-            {PRIORITY_LABELS[task.priority]}
-          </span>
-        )}
-        {assigneeName(task) && (
-          <span className="font-mono text-[10px] text-muted truncate max-w-[100px]">
-            {assigneeName(task)}
-          </span>
-        )}
+        <span className={`font-mono text-[10px] ${task.priority ? PRIORITY_STYLES[task.priority] : "text-muted/30"}`}>
+          {task.priority ? PRIORITY_LABELS[task.priority] : "NO PRI"}
+        </span>
+        <span className={`font-mono text-[10px] truncate max-w-[100px] ${assigneeName(task) ? "text-muted" : "text-muted/40"}`}>
+          {assigneeName(task) || "Unassigned"}
+        </span>
         {task.dueDate && (
           <span className="font-mono text-[10px] text-muted/60 ml-auto">
             {new Date(task.dueDate).toLocaleDateString()}
@@ -305,6 +358,11 @@ function BoardColumn({
   workspaceId: string;
   onAddTask: (status: TaskStatus) => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+    data: { type: "column", status },
+  });
+
   return (
     <div className="flex flex-col min-w-[220px] max-w-[260px] shrink-0">
       <div className={`flex items-center justify-between mb-2 pb-2 border-b ${STATUS_HEADER_COLORS[status]}`}>
@@ -314,7 +372,12 @@ function BoardColumn({
         <span className="font-mono text-[10px] opacity-60">{tasks.length}</span>
       </div>
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2 flex-1 min-h-[80px]">
+        <div
+          ref={setNodeRef}
+          className={`flex flex-col gap-2 flex-1 min-h-[140px] rounded-lg border border-dashed p-1 transition-colors ${
+            isOver ? "border-primary/40 bg-primary/5" : "border-transparent"
+          }`}
+        >
           {tasks.map((task) => (
             <TaskCard key={task.id} task={task} workspaceId={workspaceId} />
           ))}
@@ -355,8 +418,10 @@ export function TasksClient({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  const orderedRows = useMemo(() => [...rows].sort(compareTasksByBoardOrder), [rows]);
+
   const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
+    return orderedRows.filter((row) => {
       if (statusFilter !== "all" && row.status !== statusFilter) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -364,16 +429,16 @@ export function TasksClient({
       }
       return true;
     });
-  }, [rows, statusFilter, search]);
+  }, [orderedRows, statusFilter, search]);
 
   const rowsByStatus = useMemo(() => {
     const map = {} as Record<TaskStatus, TaskRow[]>;
     for (const s of STATUSES) map[s] = [];
-    for (const row of rows) {
+    for (const row of orderedRows) {
       if (row.status in map) map[row.status].push(row);
     }
     return map;
-  }, [rows]);
+  }, [orderedRows]);
 
   function openCreateModal(status: TaskStatus = "backlog") {
     setCreateModalStatus(status);
@@ -381,7 +446,7 @@ export function TasksClient({
   }
 
   function handleCreated(task: TaskRow) {
-    setRows((prev) => [...prev, task]);
+    setRows((prev) => [...prev, hydrateAssigneeDisplay(task, members)]);
   }
 
   async function patchTask(id: string, patch: Record<string, unknown>) {
@@ -401,32 +466,6 @@ export function TasksClient({
     if (task) setActiveTask(task);
   }
 
-  function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-
-    const activeTask = rows.find((r) => r.id === activeId);
-    if (!activeTask) return;
-
-    // Determine target status: either the column status (over is a column droppable)
-    // or the status of the card being hovered over
-    const overTask = rows.find((r) => r.id === overId);
-    const targetStatus = (overTask?.status ?? overId) as TaskStatus;
-
-    if (!STATUSES.includes(targetStatus)) return;
-    if (activeTask.status === targetStatus) return;
-
-    // Optimistically update status for responsive feel
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === activeId ? { ...r, status: targetStatus } : r
-      )
-    );
-  }
-
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveTask(null);
@@ -435,44 +474,37 @@ export function TasksClient({
 
     const activeId = active.id as string;
     const overId = over.id as string;
+    if (activeId === overId) return;
 
+    const activeTop = active.rect.current.translated?.top;
+    const overMidpoint = over.rect.top + over.rect.height / 2;
     const activeRow = rows.find((r) => r.id === activeId);
-    if (!activeRow) return;
+    const targetStatus = getTargetStatus(overId, rows);
+    if (!activeRow || !targetStatus) return;
 
-    const overRow = rows.find((r) => r.id === overId);
-    const targetStatus = (overRow?.status ?? overId) as TaskStatus;
+    const rowsWithoutActive = rows.filter((row) => row.id !== activeId);
+    const targetRows = rowsWithoutActive
+      .filter((row) => row.status === targetStatus)
+      .sort(compareTasksByBoardOrder);
+    const overIndex = targetRows.findIndex((row) => row.id === overId);
+    const insertIndex =
+      overIndex >= 0
+        ? overIndex + (activeTop !== undefined && activeTop > overMidpoint ? 1 : 0)
+        : targetRows.length;
 
-    if (!STATUSES.includes(targetStatus as TaskStatus)) return;
+    const nextTargetRows = [...targetRows];
+    nextTargetRows.splice(insertIndex, 0, { ...activeRow, status: targetStatus });
+    const boundedIndex = nextTargetRows.findIndex((row) => row.id === activeId);
+    const position = positionForIndex(nextTargetRows, boundedIndex);
+    const patch = { status: targetStatus, position };
 
-    // Compute new position based on surrounding cards in target column
-    const columnRows = rows
-      .filter((r) => r.status === targetStatus && r.id !== activeId)
-      .sort((a, b) => a.position - b.position);
-
-    let newPosition: number;
-    if (overRow && overRow.id !== activeId) {
-      const overIndex = columnRows.findIndex((r) => r.id === overId);
-      const prev = columnRows[overIndex - 1]?.position ?? 0;
-      const next = columnRows[overIndex + 1]?.position ?? overRow.position + 2000;
-      newPosition = (prev + (overRow.position ?? next)) / 2;
-    } else {
-      // Dropped on column or no card to reference — go to end
-      const last = columnRows[columnRows.length - 1];
-      newPosition = last ? last.position + 1000 : 1000;
-    }
-
-    // Optimistic update
     setRows((prev) =>
-      prev.map((r) =>
-        r.id === activeId
-          ? { ...r, status: targetStatus as TaskStatus, position: newPosition }
-          : r
+      prev.map((row) =>
+        row.id === activeId ? { ...row, status: targetStatus, position } : row
       )
     );
 
-    // Persist
-    void patchTask(activeId, { status: targetStatus, position: newPosition }).catch(() => {
-      // Revert on error
+    void patchTask(activeId, patch).catch(() => {
       setRows(initialRows);
     });
   }
@@ -626,8 +658,8 @@ export function TasksClient({
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveTask(null)}
         >
           <div className="flex gap-4 overflow-x-auto pb-4">
             {STATUSES.map((status) => (
